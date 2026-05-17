@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Viagem.Data;
 using Viagem.Data.Models;
+using Viagem.Services.Interfaces;
 
 namespace Viagem.Services;
 
@@ -35,8 +36,7 @@ public class ActivityService(ApplicationDbContext db) : IActivityService
         activity.UpdatedAt = DateTime.UtcNow;
         var tracked = db.ChangeTracker.Entries<Activity>()
             .FirstOrDefault(e => e.Entity.Id == activity.Id);
-        if (tracked != null)
-            tracked.State = EntityState.Detached;
+        tracked?.State = EntityState.Detached;
         db.Activities.Update(activity);
         await db.SaveChangesAsync();
         return activity;

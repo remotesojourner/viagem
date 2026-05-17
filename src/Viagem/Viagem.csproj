@@ -8,7 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AllSpice.Flowbite.Blazor" Version="0.2.1-beta" />
     <PackageReference Include="Flowbite" Version="0.2.6-beta" />
     <PackageReference Include="GeoTimeZone" Version="6.1.0" />
     <PackageReference Include="QRCoder" Version="1.8.0" />

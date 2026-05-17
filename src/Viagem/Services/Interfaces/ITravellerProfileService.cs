@@ -1,6 +1,6 @@
 using Viagem.Data.Models;
 
-namespace Viagem.Services;
+namespace Viagem.Services.Interfaces;
 
 public interface ITravellerProfileService
 {
@@ -11,6 +11,5 @@ public interface ITravellerProfileService
     Task DeleteAsync(int id, string userId);
     Task AddAliasAsync(int profileId, string alias);
     Task RemoveAliasAsync(int aliasId);
-    /// <summary>Finds an unlinked profile with the given email, links it to the user, or creates a new profile.</summary>
     Task EnsureProfileExistsForUserAsync(string userId, string email, string? name);
 }

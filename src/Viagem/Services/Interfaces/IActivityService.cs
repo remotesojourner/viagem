@@ -1,6 +1,6 @@
 using Viagem.Data.Models;
 
-namespace Viagem.Services;
+namespace Viagem.Services.Interfaces;
 
 public interface IActivityService
 {

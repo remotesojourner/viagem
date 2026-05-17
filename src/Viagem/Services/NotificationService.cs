@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Viagem.Data;
 using Viagem.Data.Models;
+using Viagem.Services.Interfaces;
 
 namespace Viagem.Services;
 

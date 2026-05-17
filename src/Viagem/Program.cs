@@ -6,6 +6,7 @@ using Viagem.Components;
 using Viagem.Components.Account;
 using Viagem.Data;
 using Viagem.Services;
+using Viagem.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,7 +53,6 @@ builder.Services.AddScoped<ILodgingService, LodgingService>();
 builder.Services.AddScoped<IActivityService, ActivityService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<ITravellerProfileService, TravellerProfileService>();
-builder.Services.AddScoped<IInvitationService, InvitationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<DataSeedService>();

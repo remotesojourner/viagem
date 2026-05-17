@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+    <defs>
+        <linearGradient id="gradLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#FF007A" />
+            <stop offset="100%" stop-color="#FF7A00" />
+        </linearGradient>
+        <linearGradient id="gradRight" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#00DFD8" />
+            <stop offset="100%" stop-color="#7928CA" />
+        </linearGradient>
+        
+        <linearGradient id="gradPath" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#FF007A" />
+            <stop offset="50%" stop-color="#7928CA" />
+            <stop offset="100%" stop-color="#00DFD8" />
+        </linearGradient>
+
+        <linearGradient id="planeLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00DFD8" />
+            <stop offset="100%" stop-color="#0070F3" />
+        </linearGradient>
+        <linearGradient id="planeRight" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0070F3" />
+            <stop offset="100%" stop-color="#4A00E0" />
+        </linearGradient>
+        
+        <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.2" />
+        </filter>
+    </defs>
+
+    <path d="M 100 280 C 100 440, 250 480, 420 180" 
+          fill="none" 
+          stroke="url(#gradPath)" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-dasharray="16, 20" 
+          opacity="0.9" />
+
+    <circle cx="100" cy="280" r="12" fill="#FF007A" opacity="0.9" filter="url(#shadow)" />
+
+    <rect x="140" y="100" width="80" height="260" rx="40" 
+          transform="rotate(-35, 180, 230)" 
+          fill="url(#gradLeft)" 
+          opacity="0.85" />
+
+    <rect x="280" y="100" width="80" height="260" rx="40" 
+          transform="rotate(35, 320, 230)" 
+          fill="url(#gradRight)" 
+          opacity="0.85" />
+
+    <g transform="translate(425, 170) scale(1.8) rotate(35)" filter="url(#shadow)">
+        <polygon points="0,-30 -20,15 0,5" fill="url(#planeLeft)" />
+        <polygon points="0,-30 20,15 0,5" fill="url(#planeRight)" />
+    </g>
+</svg>
