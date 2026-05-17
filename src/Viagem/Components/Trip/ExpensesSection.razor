@@ -1,0 +1,315 @@
+@inject IExpenseService ExpenseService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<!-- Add / Edit Modal -->
+@if (showModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    @(editItem != null ? "Edit Expense" : "Add Expense")
+                </h3>
+                <button @onclick="CloseModal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+                    <input @bind="form.Name" type="text" class="@InputClass" placeholder="Dinner, museum ticket..." />
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount</label>
+                        <input @bind="form.Amount" type="number" step="0.01" class="@InputClass" placeholder="0.00" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Currency</label>
+                        <Combobox @bind-Value="form.Currency" Placeholder="Select currency..." SearchPlaceholder="Search currencies...">
+                            @foreach (var c in Currencies)
+                            {
+                                <ComboboxItem Value="@c" Label="@c" />
+                            }
+                        </Combobox>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                    <Combobox Value="@(form.Category?.ToString() ?? "")"
+                              ValueChanged="@(v => form.Category = string.IsNullOrEmpty(v) ? null : Enum.Parse<ExpenseCategory>(v))"
+                              Placeholder="— None —">
+                        <ComboboxItem Value="" Label="— None —" />
+                        @foreach (var cat in Enum.GetValues<ExpenseCategory>())
+                        {
+                            <ComboboxItem Value="@cat.ToString()" Label="@GetCategoryLabel(cat)" />
+                        }
+                    </Combobox>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                    <input @bind="form.OccurredOn" type="date" class="@InputClass" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                    <textarea @bind="form.Notes" rows="2" class="@InputClass"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+                <button @onclick="CloseModal" class="@SecondaryBtnClass">Cancel</button>
+                <button @onclick="SaveItem" disabled="@saving" class="@PrimaryBtnClass">
+                    @(saving ? "Saving..." : (editItem != null ? "Save Changes" : "Add Expense"))
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (loading)
+{
+    <div class="text-center py-6"><div class="animate-spin inline-block rounded-full h-6 w-6 border-b-2 border-blue-700"></div></div>
+}
+else
+{
+    <!-- Stats cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+            <p class="text-xs text-blue-600 dark:text-blue-400 font-medium uppercase tracking-wide">Total Spent</p>
+            <p class="text-xl font-bold text-gray-900 dark:text-white mt-1">@totalSpent.ToString("N2") <span class="text-sm font-normal text-gray-500">@defaultCurrency</span></p>
+        </div>
+        @if (TripBudgetAmount.HasValue && TripBudgetAmount.Value > 0)
+        {
+            var remaining = TripBudgetAmount.Value - totalSpent;
+            var pct = Math.Min((double)(totalSpent / TripBudgetAmount.Value) * 100, 100);
+            <div class="bg-@(remaining < 0 ? "red" : "green")-50 dark:bg-@(remaining < 0 ? "red" : "green")-900/20 rounded-xl p-4">
+                <p class="text-xs text-@(remaining < 0 ? "red" : "green")-600 dark:text-@(remaining < 0 ? "red" : "green")-400 font-medium uppercase tracking-wide">Remaining</p>
+                <p class="text-xl font-bold text-gray-900 dark:text-white mt-1">@remaining.ToString("N2") <span class="text-sm font-normal text-gray-500">@(TripBudgetCurrency ?? defaultCurrency)</span></p>
+            </div>
+        }
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+            <p class="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Transactions</p>
+            <p class="text-xl font-bold text-gray-900 dark:text-white mt-1">@items.Count</p>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+            <p class="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Avg/Item</p>
+            <p class="text-xl font-bold text-gray-900 dark:text-white mt-1">@(items.Count > 0 ? (totalSpent / items.Count).ToString("N2") : "0.00") <span class="text-sm font-normal text-gray-500">@defaultCurrency</span></p>
+        </div>
+    </div>
+
+    <!-- Category breakdown -->
+    @if (byCategory.Count > 0)
+    {
+        <div class="mb-6">
+            <h5 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">By Category</h5>
+            <div class="flex flex-wrap gap-2">
+                @foreach (var (cat, amount) in byCategory.OrderByDescending(x => x.Value))
+                {
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                        @GetCategoryIcon(cat) @GetCategoryLabel(cat): <strong>@amount.ToString("N2")</strong>
+                    </span>
+                }
+            </div>
+        </div>
+    }
+
+    @if (CanEdit)
+    {
+        <div class="flex justify-end mb-4">
+            <button @onclick="OpenAddModal"
+                    class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add Expense
+            </button>
+        </div>
+    }
+
+    @if (items.Count == 0)
+    {
+        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+            <span class="text-4xl block mb-3">💰</span>
+            <p class="text-sm text-gray-400 dark:text-gray-500">No expenses recorded yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th class="px-3 py-2">Name</th>
+                        <th class="px-3 py-2">Category</th>
+                        <th class="px-3 py-2">Date</th>
+                        <th class="px-3 py-2 text-right">Amount</th>
+                        @if (CanEdit) { <th class="px-3 py-2"></th> }
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    @foreach (var item in items.OrderByDescending(i => i.OccurredOn))
+                    {
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td class="px-3 py-2.5 font-medium text-gray-900 dark:text-white">@item.Name</td>
+                            <td class="px-3 py-2.5 text-gray-500 dark:text-gray-400">
+                                @if (item.Category.HasValue)
+                                {
+                                    <span>@GetCategoryIcon(item.Category.Value) @GetCategoryLabel(item.Category.Value)</span>
+                                }
+                            </td>
+                            <td class="px-3 py-2.5 text-gray-500 dark:text-gray-400">
+                                @(item.OccurredOn?.ToString("MMM d") ?? "—")
+                            </td>
+                            <td class="px-3 py-2.5 text-right font-medium text-gray-900 dark:text-white">
+                                @(item.Amount?.ToString("N2") ?? "—") @item.Currency
+                            </td>
+                            @if (CanEdit)
+                            {
+                                <td class="px-3 py-2.5">
+                                    <div class="relative flex justify-end">
+                                        <button @onclick="() => menuOpenId = (menuOpenId == item.Id ? null : item.Id)"
+                                                class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+                                            </svg>
+                                        </button>
+                                        @if (menuOpenId == item.Id)
+                                        {
+                                            <div class="fixed inset-0 z-10" @onclick="() => menuOpenId = null"></div>
+                                            <div class="absolute right-0 top-8 z-20 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-1 min-w-[120px]">
+                                                <button @onclick="() => { OpenEditModal(item); menuOpenId = null; }" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Edit</button>
+                                                <button @onclick="async () => { await DeleteItem(item.Id); menuOpenId = null; }" class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">Remove</button>
+                                            </div>
+                                        }
+                                    </div>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="border-t-2 border-gray-200 dark:border-gray-600">
+                        <td colspan="@(CanEdit ? 3 : 3)" class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300">Total</td>
+                        <td class="px-3 py-2 text-right font-bold text-gray-900 dark:text-white">@totalSpent.ToString("N2") @defaultCurrency</td>
+                        @if (CanEdit) { <td></td> }
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int TripId { get; set; }
+    [Parameter] public bool CanEdit { get; set; }
+    [Parameter] public decimal? TripBudgetAmount { get; set; }
+    [Parameter] public string? TripBudgetCurrency { get; set; }
+
+    private List<Expense> items = [];
+    private bool loading = true;
+    private int? menuOpenId;
+    private bool saving = false;
+    private bool showModal = false;
+    private Expense? editItem;
+    private Expense form = new() { Name = "" };
+
+    private decimal totalSpent => items.Sum(i => i.Amount ?? 0);
+    private string defaultCurrency => items.FirstOrDefault(i => !string.IsNullOrEmpty(i.Currency))?.Currency ?? TripBudgetCurrency ?? "USD";
+    private Dictionary<ExpenseCategory, decimal> byCategory => items
+        .Where(i => i.Category.HasValue && i.Amount.HasValue)
+        .GroupBy(i => i.Category!.Value)
+        .ToDictionary(g => g.Key, g => g.Sum(i => i.Amount!.Value));
+
+    private string InputClass => "bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
+    private string PrimaryBtnClass => "px-5 py-2.5 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg dark:bg-blue-600 dark:hover:bg-blue-700";
+    private string SecondaryBtnClass => "px-5 py-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600";
+
+    private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
+
+    protected override async Task OnInitializedAsync() => await LoadItems();
+
+    private async Task LoadItems()
+    {
+        loading = true;
+        items = await ExpenseService.GetTripExpensesAsync(TripId);
+        loading = false;
+    }
+
+    private async Task<string> GetUserCurrencyAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+        {
+            var user = await UserManager.FindByIdAsync(userId);
+            if (!string.IsNullOrEmpty(user?.CurrencyCode)) return user.CurrencyCode;
+        }
+        return defaultCurrency;
+    }
+
+    private async Task OpenAddModal()
+    {
+        editItem = null;
+        var currency = await GetUserCurrencyAsync();
+        form = new Expense { Name = "", TripId = TripId, OccurredOn = DateTime.Today, Currency = currency };
+        showModal = true;
+    }
+
+    private void OpenEditModal(Expense item)
+    {
+        editItem = item;
+        form = new Expense
+        {
+            Id = item.Id, TripId = item.TripId, Name = item.Name,
+            Amount = item.Amount, Currency = item.Currency,
+            Category = item.Category, OccurredOn = item.OccurredOn, Notes = item.Notes
+        };
+        showModal = true;
+    }
+
+    private void CloseModal() => showModal = false;
+
+    private async Task SaveItem()
+    {
+        if (string.IsNullOrWhiteSpace(form.Name)) return;
+        saving = true;
+        form.TripId = TripId;
+        if (editItem != null) await ExpenseService.UpdateAsync(form);
+        else await ExpenseService.CreateAsync(form);
+        saving = false;
+        showModal = false;
+        await LoadItems();
+    }
+
+    private async Task DeleteItem(int id)
+    {
+        await ExpenseService.DeleteAsync(id);
+        await LoadItems();
+    }
+
+    private static string GetCategoryLabel(ExpenseCategory cat) => cat switch
+    {
+        ExpenseCategory.Transport => "Transport",
+        ExpenseCategory.Accommodation => "Accommodation",
+        ExpenseCategory.Food => "Food & Drink",
+        ExpenseCategory.Activities => "Activities",
+        ExpenseCategory.Shopping => "Shopping",
+        ExpenseCategory.Health => "Health",
+        ExpenseCategory.Communication => "Communication",
+        _ => "Other"
+    };
+
+    private static string GetCategoryIcon(ExpenseCategory cat) => cat switch
+    {
+        ExpenseCategory.Transport => "🚌",
+        ExpenseCategory.Accommodation => "🏨",
+        ExpenseCategory.Food => "🍽️",
+        ExpenseCategory.Activities => "🎭",
+        ExpenseCategory.Shopping => "🛍️",
+        ExpenseCategory.Health => "💊",
+        ExpenseCategory.Communication => "📱",
+        _ => "💰"
+    };
+}

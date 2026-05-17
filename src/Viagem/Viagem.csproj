@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>aspnet-Viagem-b853e399-9822-43c0-9cdf-aebc3ffa7f37</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AllSpice.Flowbite.Blazor" Version="0.2.1-beta" />
+    <PackageReference Include="Flowbite" Version="0.2.6-beta" />
+    <PackageReference Include="GeoTimeZone" Version="6.1.0" />
+    <PackageReference Include="QRCoder" Version="1.8.0" />
+    <PackageReference Include="TimeZoneConverter" Version="7.2.0" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\Viagem.Data\Viagem.Data.csproj" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <Folder Include="Data\" />
+  </ItemGroup>
+
+</Project>

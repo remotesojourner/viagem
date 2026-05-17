@@ -1,0 +1,18 @@
+@inherits LayoutComponentBase
+
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <NavMenu />
+
+    <div class="p-4 sm:ml-64">
+        <div class="mt-14">
+            @Body
+        </div>
+    </div>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet
+     class="fixed bottom-0 left-0 right-0 bg-red-100 border border-red-400 text-red-700 px-4 py-3 hidden z-50">
+    An unhandled error has occurred.
+    <a href="." class="font-bold underline ml-2">Reload</a>
+    <span class="dismiss float-right cursor-pointer">✕</span>
+</div>

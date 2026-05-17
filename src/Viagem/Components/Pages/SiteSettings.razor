@@ -1,0 +1,690 @@
+@page "/site-settings"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject SiteSettingsService SettingsSvc
+@inject DataSeedService SeedService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Site Settings - Viagem</PageTitle>
+
+@if (!isAdmin)
+{
+    <div class="max-w-2xl mx-auto mt-10">
+        <div class="p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400">
+            Access denied. This page requires admin privileges.
+        </div>
+    </div>
+    return;
+}
+
+<div class="max-w-5xl mx-auto">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Site Settings</h1>
+
+    @* Tab bar *@
+    <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+        <ul class="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
+            <li class="me-2">
+                <button @onclick='() => SetTab("users")' class="@TabClass("users") inline-flex items-center p-4 border-b-2 rounded-t-lg">
+                    <svg class="w-4 h-4 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    General
+                </button>
+            </li>
+            <li class="me-2">
+                <button @onclick='() => SetTab("config")' class="@TabClass("config") inline-flex items-center p-4 border-b-2 rounded-t-lg">
+                    <svg class="w-4 h-4 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    Configuration
+                </button>
+            </li>
+            <li class="me-2">
+                <button @onclick='() => SetTab("datasets")' class="@TabClass("datasets") inline-flex items-center p-4 border-b-2 rounded-t-lg">
+                    <svg class="w-4 h-4 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+                    Datasets
+                </button>
+            </li>
+            <li class="me-2">
+                <button @onclick='() => SetTab("integrations")' class="@TabClass("integrations") inline-flex items-center p-4 border-b-2 rounded-t-lg">
+                    <svg class="w-4 h-4 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                    Integrations
+                </button>
+            </li>
+            <li class="me-2">
+                <button @onclick='() => SetTab("assistant")' class="@TabClass("assistant") inline-flex items-center p-4 border-b-2 rounded-t-lg">
+                    <svg class="w-4 h-4 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    Assistant
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    @if (!string.IsNullOrEmpty(pageMsg))
+    {
+        <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-green-900 dark:text-green-400">@pageMsg</div>
+    }
+    @if (!string.IsNullOrEmpty(pageErr))
+    {
+        <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400">@pageErr</div>
+    }
+
+    @* ────────────────── USERS TAB ────────────────── *@
+    @if (activeTab == "users")
+    {
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">General</h2>
+            @if (allUsers == null)
+            {
+                <p class="text-sm text-gray-500">Loading...</p>
+            }
+            else
+            {
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr>
+                                <th class="px-4 py-3">Name</th>
+                                <th class="px-4 py-3">Email</th>
+                                <th class="px-4 py-3">Admin</th>
+                                <th class="px-4 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in allUsers)
+                            {
+                                <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                    <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">@(u.FullName ?? "—")</td>
+                                    <td class="px-4 py-3">@u.Email</td>
+                                    <td class="px-4 py-3">
+                                        <input type="checkbox" checked="@u.IsAdmin" @onchange="e => ToggleAdmin(u, (bool)e.Value!)"
+                                               class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                               disabled="@(u.Id == currentUserId)" />
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        @if (u.Id != currentUserId)
+                                        {
+                                            <button @onclick="() => DeleteUser(u)"
+                                                    class="font-medium text-red-600 dark:text-red-500 hover:underline text-xs">
+                                                Delete
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-xs text-gray-400">(you)</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+
+    @* ────────────────── CONFIGURATION TAB ────────────────── *@
+    @if (activeTab == "config")
+    {
+        @* User Settings *@
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Users</h2>
+            <div class="space-y-4">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <span class="text-sm font-medium text-gray-900 dark:text-white">User Registration</span>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Allow new users to self-register an account.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                        <input type="checkbox" @bind="registrationEnabled" class="sr-only peer" />
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <span class="text-sm font-medium text-gray-900 dark:text-white">Gravatar avatars</span>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Use Gravatar images (based on email) instead of initial letter avatars.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                        <input type="checkbox" @bind="gravatarEnabled" class="sr-only peer" />
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            </div>
+            <button @onclick="SaveUsersConfig" class="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">Save</button>
+        </div>
+
+        @* SMTP Settings *@
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">SMTP Settings</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Configure outgoing email for notifications and invitations.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">SMTP Host</label>
+                    <input type="text" @bind="smtpHost" placeholder="smtp.example.com"
+                           class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                </div>
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Port</label>
+                    <input type="number" @bind="smtpPort" placeholder="587"
+                           class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                </div>
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Username</label>
+                    <input type="text" @bind="smtpUsername" placeholder="user@example.com"
+                           class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                </div>
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Password</label>
+                    <input type="password" @bind="smtpPassword"
+                           class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                </div>
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">From Address</label>
+                    <input type="email" @bind="smtpFromAddress" placeholder="Viagem@example.com"
+                           class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                </div>
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">From Name</label>
+                    <input type="text" @bind="smtpFromName" placeholder="Viagem"
+                           class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <input type="checkbox" @bind="smtpUseSsl" id="smtpSsl" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded" />
+                    <label for="smtpSsl" class="text-sm font-medium text-gray-900 dark:text-white">Use SSL/TLS</label>
+                </div>
+            </div>
+            <button @onclick="SaveSmtpConfig" class="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">Save SMTP</button>
+        </div>
+
+        @* OAuth2 / OIDC Settings *@
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">OIDC Login</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Allow users to sign in via an external identity provider.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" @bind="oauthEnabled" class="sr-only peer" />
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+            @if (oauthEnabled)
+            {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Provider Name</label>
+                        <input type="text" @bind="oauthProviderName" placeholder="e.g. Keycloak"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Client ID</label>
+                        <input type="text" @bind="oauthClientId"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Client Secret</label>
+                        <input type="password" @bind="oauthClientSecret"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Authority / Issuer URL</label>
+                        <input type="url" @bind="oauthAuthority" placeholder="https://idp.example.com/realms/myrealm"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">.NET uses OIDC discovery — only the authority is needed.</p>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Login Behavior</h3>
+                <div class="space-y-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">Disable password login</span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Hides the email/password form on the login page. Users must sign in via SSO.</p>
+                            <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-0.5">Can be overridden with environment variable <code class="font-mono">Viagem_ALLOW_PASSWORD_LOGIN=true</code>.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" @bind="oidcDisablePasswordLogin" class="sr-only peer" />
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">Auto-redirect to OIDC</span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">When enabled, visiting the login page automatically redirects to the configured OIDC provider.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" @bind="oidcAutoRedirect" class="sr-only peer" />
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            }
+            <button @onclick="SaveOAuthConfig" class="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">Save OIDC Settings</button>
+        </div>
+    }
+
+    @* ────────────────── DATASETS TAB ────────────────── *@
+    @if (activeTab == "datasets")
+    {
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Datasets</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Load reference data used for autocomplete. Downloads from public sources.</p>
+
+            @if (!string.IsNullOrEmpty(datasetMsg))
+            {
+                <div class="p-3 mb-4 text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-blue-900 dark:text-blue-300">@datasetMsg</div>
+            }
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-medium text-gray-900 dark:text-white">Airports</span>
+                        <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">@airportCount records</span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">IATA airport data from OurAirports</p>
+                    <button @onclick="LoadAirports" disabled="@datasetLoading"
+                            class="w-full px-3 py-2 text-xs font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg disabled:opacity-50">
+                        @(airportCount > 0 ? "Reload" : "Load") Airports
+                    </button>
+                </div>
+                <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-medium text-gray-900 dark:text-white">Airlines</span>
+                        <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">@airlineCount records</span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Airline data from dotmarn/Airlines</p>
+                    <button @onclick="LoadAirlines" disabled="@datasetLoading"
+                            class="w-full px-3 py-2 text-xs font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg disabled:opacity-50">
+                        @(airlineCount > 0 ? "Reload" : "Load") Airlines
+                    </button>
+                </div>
+                <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-medium text-gray-900 dark:text-white">Places</span>
+                        <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">@placeCount records</span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">World cities / municipalities</p>
+                    <button @onclick="LoadPlaces" disabled="@datasetLoading"
+                            class="w-full px-3 py-2 text-xs font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg disabled:opacity-50">
+                        @(placeCount > 0 ? "Reload" : "Load") Places
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ────────────────── INTEGRATIONS TAB ────────────────── *@
+    @if (activeTab == "integrations")
+    {
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Flight Information Integration</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Automatically fetch live flight details when adding transportation.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" @bind="flightEnabled" class="sr-only peer" />
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div class="p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-yellow-900 dark:text-yellow-300">
+                <strong>Data Privacy:</strong> These integrations connect to third-party services that have not been vetted for their data privacy practices.
+            </div>
+
+            @if (flightEnabled)
+            {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Provider</label>
+                        <Combobox @bind-Value="flightProvider" Placeholder="Select provider...">
+                            <ComboboxItem Value="" Label="Select provider..." />
+                            <ComboboxItem Value="adsbdb" Label="adsbdb.com (free, no key required)" />
+                            <ComboboxItem Value="flightaware" Label="FlightAware.com (API key required)" />
+                        </Combobox>
+                    </div>
+                    @if (flightProvider == "flightaware")
+                    {
+                        <div>
+                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">FlightAware API Key</label>
+                            <input type="password" @bind="flightApiKey" placeholder="Your FlightAware API key"
+                                   class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                        </div>
+                    }
+                </div>
+            }
+            <button @onclick="SaveFlightConfig" class="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">Save Integration</button>
+        </div>
+    }
+
+    @* ────────────────── ASSISTANT TAB ────────────────── *@
+    @if (activeTab == "assistant")
+    {
+        @* OpenAI Endpoint *@
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">OpenAI Compatible Endpoint</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Configure an LLM to extract booking information from email content.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" @bind="aiEnabled" class="sr-only peer" />
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div class="p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-yellow-900 dark:text-yellow-300">
+                <strong>AI Usage &amp; Data Privacy:</strong> All email content submitted for analysis is sent to the LLM configured here.
+            </div>
+
+            @if (aiEnabled)
+            {
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Endpoint URL</label>
+                        <input type="url" @bind="aiEndpoint" placeholder="http://ollama:11434/v1"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">API Key</label>
+                        <input type="password" @bind="aiApiKey" placeholder="sk_..."
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Model</label>
+                        <input type="text" @bind="aiModel" placeholder="gpt-4o"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                </div>
+            }
+            <button @onclick="SaveAiConfig" class="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">Save AI Config</button>
+        </div>
+
+        @* IMAP Email Sync *@
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Email Import (IMAP)</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Periodically check an email inbox and import booking emails automatically.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" @bind="imapEnabled" class="sr-only peer" />
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            @if (imapEnabled)
+            {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">IMAP Host</label>
+                        <input type="text" @bind="imapHost" placeholder="imap.gmail.com"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Port</label>
+                        <input type="number" @bind="imapPort" placeholder="993"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Username / Email</label>
+                        <input type="text" @bind="imapUser" placeholder="user@gmail.com"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Password</label>
+                        <input type="password" @bind="imapPassword"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Filter - Only Import Emails From</label>
+                        <input type="email" @bind="imapFilterAddress" placeholder="bookings@airline.com (leave blank for all)"
+                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                </div>
+            }
+            <button @onclick="SaveImapConfig" class="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">Save IMAP Config</button>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isAdmin;
+    private string? currentUserId;
+    private string activeTab = "users";
+    private string? pageMsg;
+    private string? pageErr;
+
+    // Users
+    private List<ApplicationUser>? allUsers;
+
+    // Configuration
+    private bool registrationEnabled = true;
+    private string smtpHost = "";
+    private int smtpPort = 587;
+    private string? smtpUsername;
+    private string? smtpPassword;
+    private string? smtpFromAddress;
+    private string? smtpFromName;
+    private bool smtpUseSsl = true;
+    private bool oauthEnabled;
+    private string? oauthProviderName;
+    private string? oauthClientId;
+    private string? oauthClientSecret;
+    private string? oauthAuthority;
+
+    // OIDC Behavior
+    private bool oidcDisablePasswordLogin;
+    private bool oidcAutoRedirect;
+
+    // Users
+    private bool gravatarEnabled;
+
+    // Datasets
+    private int airportCount;
+    private int airlineCount;
+    private int placeCount;
+    private bool datasetLoading;
+    private string? datasetMsg;
+
+    // Integrations
+    private bool flightEnabled;
+    private string flightProvider = "";
+    private string? flightApiKey;
+
+    // Assistant - AI
+    private bool aiEnabled;
+    private string? aiEndpoint;
+    private string? aiApiKey;
+    private string? aiModel;
+
+    // Assistant - IMAP
+    private bool imapEnabled;
+    private string? imapHost;
+    private int imapPort = 993;
+    private string? imapUser;
+    private string? imapPassword;
+    private string? imapFilterAddress;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (currentUserId != null)
+        {
+            var user = await UserManager.FindByIdAsync(currentUserId);
+            isAdmin = user?.IsAdmin ?? false;
+        }
+
+        if (!isAdmin) return;
+
+        await LoadAllSettingsAsync();
+    }
+
+    private async Task LoadAllSettingsAsync()
+    {
+        allUsers = UserManager.Users.OrderBy(u => u.Email).ToList();
+        await LoadDatasetCountsAsync();
+
+        registrationEnabled = await SettingsSvc.IsRegistrationEnabledAsync();
+
+        var smtp = await SettingsSvc.GetAsync<SiteSettingsService.SmtpConfig>(SiteSettingsService.Keys.SmtpConfig);
+        if (smtp != null)
+        {
+            smtpHost = smtp.Host; smtpPort = smtp.Port; smtpUsername = smtp.Username;
+            smtpPassword = smtp.Password; smtpFromAddress = smtp.FromAddress;
+            smtpFromName = smtp.FromName; smtpUseSsl = smtp.UseSsl;
+        }
+
+        var oauth = await SettingsSvc.GetAsync<SiteSettingsService.OAuth2Config>(SiteSettingsService.Keys.OAuth2Config);
+        if (oauth != null)
+        {
+            oauthEnabled = oauth.Enabled; oauthProviderName = oauth.ProviderName;
+            oauthClientId = oauth.ClientId; oauthClientSecret = oauth.ClientSecret;
+            oauthAuthority = oauth.Authority;
+        }
+
+        var oidcExtra = await SettingsSvc.GetOidcExtraConfigAsync();
+        oidcDisablePasswordLogin = oidcExtra.DisablePasswordLogin;
+        oidcAutoRedirect = oidcExtra.AutoRedirect;
+
+        var usersConfig = await SettingsSvc.GetUsersConfigAsync();
+        gravatarEnabled = usersConfig.GravatarEnabled;
+
+        var flight = await SettingsSvc.GetAsync<SiteSettingsService.FlightInfoProviderConfig>(SiteSettingsService.Keys.FlightInfoProvider);
+        if (flight != null)
+        {
+            flightEnabled = flight.Enabled; flightProvider = flight.Provider ?? "";
+            flightApiKey = flight.ApiKey;
+        }
+
+        var ai = await SettingsSvc.GetAsync<SiteSettingsService.OpenAiEndpointConfig>(SiteSettingsService.Keys.OpenAiEndpointConfig);
+        if (ai != null)
+        {
+            aiEnabled = ai.Enabled; aiEndpoint = ai.Endpoint;
+            aiApiKey = ai.ApiKey; aiModel = ai.Model;
+        }
+
+        var imap = await SettingsSvc.GetAsync<SiteSettingsService.EmailSyncConfig>(SiteSettingsService.Keys.EmailSyncConfig);
+        if (imap != null)
+        {
+            imapEnabled = imap.Enabled; imapHost = imap.ImapHost;
+            imapPort = imap.ImapPort > 0 ? imap.ImapPort : 993;
+            imapUser = imap.ImapUser; imapPassword = imap.ImapPassword;
+            imapFilterAddress = imap.FilterEmailAddress;
+        }
+    }
+
+    private async Task LoadDatasetCountsAsync()
+    {
+        airportCount = await SeedService.CountAirportsAsync();
+        airlineCount = await SeedService.CountAirlinesAsync();
+        placeCount = await SeedService.CountPlacesAsync();
+    }
+
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+        pageMsg = null; pageErr = null;
+    }
+
+    // ── Users ──
+    private async Task ToggleAdmin(ApplicationUser u, bool value)
+    {
+        u.IsAdmin = value;
+        await UserManager.UpdateAsync(u);
+        pageMsg = $"Updated admin status for {u.Email}.";
+    }
+
+    private async Task DeleteUser(ApplicationUser u)
+    {
+        await UserManager.DeleteAsync(u);
+        allUsers = UserManager.Users.OrderBy(x => x.Email).ToList();
+        pageMsg = $"Deleted user {u.Email}.";
+    }
+
+    // ── Configuration ──
+    private async Task SaveUsersConfig()
+    {
+        await SettingsSvc.SetAsync(SiteSettingsService.Keys.RegistrationConfig,
+            new SiteSettingsService.RegistrationConfig(registrationEnabled));
+        await SettingsSvc.SetAsync(SiteSettingsService.Keys.UsersConfig,
+            new SiteSettingsService.UsersConfig(gravatarEnabled));
+        pageMsg = "User settings saved.";
+    }
+
+    private async Task SaveSmtpConfig()
+    {
+        await SettingsSvc.SetAsync(SiteSettingsService.Keys.SmtpConfig,
+            new SiteSettingsService.SmtpConfig(smtpHost, smtpPort, smtpUsername, smtpPassword, smtpFromAddress, smtpFromName, smtpUseSsl));
+        pageMsg = "SMTP settings saved.";
+    }
+
+    private async Task SaveOAuthConfig()
+    {
+        await SettingsSvc.SetAsync(SiteSettingsService.Keys.OAuth2Config,
+            new SiteSettingsService.OAuth2Config(oauthEnabled, oauthProviderName, oauthClientId, oauthClientSecret, oauthAuthority));
+        await SettingsSvc.SetAsync(SiteSettingsService.Keys.OidcExtraConfig,
+            new SiteSettingsService.OidcExtraConfig(oidcDisablePasswordLogin, oidcAutoRedirect));
+        pageMsg = "OAuth2 & OIDC settings saved.";
+    }
+
+    // ── Datasets ──
+    private async Task LoadAirports()
+    {
+        datasetLoading = true; datasetMsg = "Loading airports...";
+        StateHasChanged();
+        var count = await SeedService.LoadAirportsAsync();
+        airportCount = count;
+        datasetMsg = $"Airports loaded: {count} records.";
+        datasetLoading = false;
+    }
+
+    private async Task LoadAirlines()
+    {
+        datasetLoading = true; datasetMsg = "Loading airlines...";
+        StateHasChanged();
+        var count = await SeedService.LoadAirlinesAsync();
+        airlineCount = count;
+        datasetMsg = $"Airlines loaded: {count} records.";
+        datasetLoading = false;
+    }
+
+    private async Task LoadPlaces()
+    {
+        datasetLoading = true; datasetMsg = "Loading places...";
+        StateHasChanged();
+        var count = await SeedService.LoadPlacesAsync();
+        placeCount = count;
+        datasetMsg = $"Places loaded: {count} records.";
+        datasetLoading = false;
+    }
+
+    // ── Integrations ──
+    private async Task SaveFlightConfig()
+    {
+        await SettingsSvc.SetAsync(SiteSettingsService.Keys.FlightInfoProvider,
+            new SiteSettingsService.FlightInfoProviderConfig(flightEnabled, flightProvider, flightApiKey));
+        pageMsg = "Flight integration settings saved.";
+    }
+
+    // ── Assistant ──
+    private async Task SaveAiConfig()
+    {
+        await SettingsSvc.SetAsync(SiteSettingsService.Keys.OpenAiEndpointConfig,
+            new SiteSettingsService.OpenAiEndpointConfig(aiEnabled, aiEndpoint, aiApiKey, aiModel));
+        pageMsg = "AI endpoint settings saved.";
+    }
+
+    private async Task SaveImapConfig()
+    {
+        await SettingsSvc.SetAsync(SiteSettingsService.Keys.EmailSyncConfig,
+            new SiteSettingsService.EmailSyncConfig(imapEnabled, imapHost, imapPort, imapUser, imapPassword, imapFilterAddress));
+        pageMsg = "IMAP settings saved.";
+    }
+
+    private string TabClass(string tab) => activeTab == tab
+        ? "border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500"
+        : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300";
+}
+

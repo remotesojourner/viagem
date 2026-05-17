@@ -1,0 +1,260 @@
+@page "/trips/{Id:int}"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ITripService TripService
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+@using GeoTimeZone
+
+<PageTitle>@(trip?.Name ?? "Trip") - Viagem</PageTitle>
+
+@if (loading)
+{
+    <div class="flex justify-center items-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+    </div>
+}
+else if (trip == null)
+{
+    <div class="text-center py-20">
+        <p class="text-gray-500 dark:text-gray-400">Trip not found or you don't have access.</p>
+        <a href="/" class="text-blue-600 hover:underline mt-2 inline-block">← Back to My Trips</a>
+    </div>
+}
+else
+{
+    <div class="max-w-7xl mx-auto">
+        <!-- Trip Hero Section -->
+        <TripHeroSection Trip="trip" CanEdit="canEdit" OnTripUpdated="ReloadTrip" />
+
+        <!-- Tabs -->
+        <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+            <nav class="-mb-px flex space-x-1 overflow-x-auto">
+                @foreach (var tab in tabs)
+                {
+                    <button @onclick="() => activeTab = tab.Key"
+                            class="@(activeTab == tab.Key
+                                ? "border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500 bg-blue-50 dark:bg-gray-700"
+                                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300")
+                                   whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors rounded-t-lg">
+                        @tab.Label
+                    </button>
+                }
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        @if (activeTab == "organization")
+        {
+            <!-- Accordion sections -->
+            <div class="space-y-3">
+                <!-- Budget -->
+                @if (trip.BudgetAmount.HasValue && trip.BudgetAmount > 0)
+                {
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <button @onclick='() => ToggleSection("budget")'
+                            class="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900 dark:text-white">Budget</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Trip budget and spending overview</p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 transition-transform @(openSections.Contains("budget") ? "rotate-180" : "")"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    @if (openSections.Contains("budget"))
+                    {
+                        <div class="border-t border-gray-100 dark:border-gray-700 p-4">
+                            @{
+                                var totalExpenses = trip.Expenses?.Sum(e => e.Amount ?? 0) ?? 0;
+                                var pct = totalExpenses > 0 ? Math.Min((double)(totalExpenses / trip.BudgetAmount.Value) * 100, 100) : 0;
+                                var pctStr = pct.ToString("F0");
+                            }
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-600 dark:text-gray-300">Spent: <strong>@totalExpenses.ToString("N2") @trip.BudgetCurrency</strong></span>
+                                    <span class="text-gray-600 dark:text-gray-300">Budget: <strong>@trip.BudgetAmount?.ToString("N2") @trip.BudgetCurrency</strong></span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-4 overflow-hidden">
+                                    <div class="h-4 rounded-full transition-all duration-500 @(pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-blue-600")"
+                                         style="width: @pctStr%"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">@pctStr% of budget used</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+                }
+
+                <!-- Transportation -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <button @onclick='() => ToggleSection("transport")'
+                            class="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900 dark:text-white">Transportation</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Flights, trains, car rentals, parking &amp; more</p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 transition-transform @(openSections.Contains("transport") ? "rotate-180" : "")"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    @if (openSections.Contains("transport"))
+                    {
+                        <div class="border-t border-gray-100 dark:border-gray-700 p-4">
+                            <TransportationSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" />
+                        </div>
+                    }
+                </div>
+
+                <!-- Lodging -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <button @onclick='() => ToggleSection("lodging")'
+                            class="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900 dark:text-white">Lodging</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Hotels, rentals, hostels &amp; accommodation</p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 transition-transform @(openSections.Contains("lodging") ? "rotate-180" : "")"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    @if (openSections.Contains("lodging"))
+                    {
+                        <div class="border-t border-gray-100 dark:border-gray-700 p-4">
+                            <LodgingSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" />
+                        </div>
+                    }
+                </div>
+
+                <!-- Activities -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <button @onclick='() => ToggleSection("activities")'
+                            class="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900 dark:text-white">Activities</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Tours, sights, restaurants &amp; experiences</p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 transition-transform @(openSections.Contains("activities") ? "rotate-180" : "")"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    @if (openSections.Contains("activities"))
+                    {
+                        <div class="border-t border-gray-100 dark:border-gray-700 p-4">
+                            <ActivitiesSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" />
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else if (activeTab == "itinerary")
+        {
+            <ItinerarySection TripId="Id" />
+        }
+        else if (activeTab == "expenses")
+        {
+            <ExpensesSection TripId="Id" CanEdit="canEdit" TripBudgetAmount="trip.BudgetAmount" TripBudgetCurrency="@trip.BudgetCurrency" />
+        }
+        else if (activeTab == "attachments")
+        {
+            <AttachmentsSection TripId="Id" CanEdit="canEdit" />
+        }
+        else if (activeTab == "notes")
+        {
+            <NotesSection TripId="Id" Notes="@trip.Notes" CanEdit="canEdit" OnSaved="ReloadTrip" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Trip? trip;
+    private bool loading = true;
+    private bool canEdit = false;
+    private string? userId;
+    private string activeTab = "organization";
+    private string? defaultTimezone;
+    private HashSet<string> openSections = ["budget", "transport", "lodging", "activities"];
+
+    private record TabDef(string Key, string Label);
+    private readonly TabDef[] tabs =
+    [
+        new("organization", "Organization"),
+        new("itinerary",    "Itinerary"),
+        new("expenses",     "Expenses"),
+        new("attachments",  "Attachments"),
+        new("notes",        "Notes"),
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        await ReloadTrip();
+    }
+
+    private async Task ReloadTrip()
+    {
+        loading = true;
+        if (Id > 0 && userId != null)
+        {
+            trip = await TripService.GetTripAsync(Id, userId);
+            canEdit = trip != null && await TripService.CanUserEditTripAsync(Id, userId);
+            // Compute most common timezone among trip destinations (with GeoTimeZone fallback via place coordinates)
+            defaultTimezone = trip?.Destinations
+                .Select(d =>
+                {
+                    if (!string.IsNullOrEmpty(d.Place?.Timezone)) return d.Place.Timezone;
+                    if (double.TryParse(d.Place?.Latitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat) &&
+                        double.TryParse(d.Place?.Longitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng))
+                        return TimeZoneLookup.GetTimeZone(lat, lng).Result;
+                    return null;
+                })
+                .Where(tz => !string.IsNullOrEmpty(tz))
+                .GroupBy(tz => tz)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .FirstOrDefault();
+        }
+        loading = false;
+    }
+
+    private void ToggleSection(string key)
+    {
+        if (!openSections.Remove(key))
+            openSections.Add(key);
+    }
+}

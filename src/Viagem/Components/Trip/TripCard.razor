@@ -1,0 +1,64 @@
+@inject ITripService TripService
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col">
+    <!-- Cover image area -->
+    <div class="h-36 bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center relative">
+        @if (!string.IsNullOrEmpty(Trip.CoverImagePath))
+        {
+            <img src="@Trip.CoverImagePath" alt="@Trip.Name" class="w-full h-full object-cover" />
+        }
+        else
+        {
+            <svg class="w-16 h-16 text-white opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+        }
+        <div class="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+            @Trip.StartDate.ToString("MMM d") - @Trip.EndDate.ToString("MMM d, yyyy")
+        </div>
+    </div>
+
+    <div class="p-4 flex flex-col flex-1">
+        <a href="/trips/@Trip.Id" class="text-base font-semibold text-gray-900 dark:text-white hover:text-blue-700 dark:hover:text-blue-400 line-clamp-2 mb-1">
+            @Trip.Name
+        </a>
+
+        @if (Trip.Destinations?.Count > 0)
+        {
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                @string.Join(", ", Trip.Destinations.Select(d => d.Place?.Name ?? "?"))
+            </p>
+        }
+
+        <div class="mt-auto flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
+            <a href="/trips/@Trip.Id"
+               class="text-xs text-blue-600 hover:underline dark:text-blue-400 font-medium">
+                View details →
+            </a>
+            <button @onclick="DeleteTrip"
+                    class="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">
+                Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public required Trip Trip { get; set; }
+    [Parameter] public EventCallback OnDeleted { get; set; }
+
+    private async Task DeleteTrip()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null) return;
+        await TripService.DeleteTripAsync(Trip.Id, userId);
+        await OnDeleted.InvokeAsync();
+    }
+}

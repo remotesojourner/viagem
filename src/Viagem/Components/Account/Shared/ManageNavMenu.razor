@@ -1,0 +1,49 @@
+@using Microsoft.AspNetCore.Identity
+@using Viagem.Data
+
+@inject SignInManager<ApplicationUser> SignInManager
+
+<nav class="flex flex-wrap gap-1 mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
+    <NavLink href="Account/Manage" Match="NavLinkMatch.All"
+             class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+             ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
+        Profile
+    </NavLink>
+    <NavLink href="Account/Manage/Email"
+             class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+             ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
+        Email
+    </NavLink>
+    <NavLink href="Account/Manage/ChangePassword"
+             class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+             ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
+        Password
+    </NavLink>
+    @if (hasExternalLogins)
+    {
+        <NavLink href="Account/Manage/ExternalLogins"
+                 class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                 ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
+            External logins
+        </NavLink>
+    }
+    <NavLink href="Account/Manage/TwoFactorAuthentication"
+             class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+             ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
+        Two-factor authentication
+    </NavLink>
+    <NavLink href="Account/Manage/PersonalData"
+             class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+             ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
+        Personal data
+    </NavLink>
+</nav>
+
+@code {
+    private bool hasExternalLogins;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hasExternalLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync()).Any();
+    }
+}

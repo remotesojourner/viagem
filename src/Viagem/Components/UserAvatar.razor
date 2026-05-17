@@ -1,0 +1,39 @@
+@inject SiteSettingsService SettingsSvc
+
+@if (useGravatar && !string.IsNullOrWhiteSpace(Email))
+{
+    <img src="@GravatarUrl(Email, 80)"
+         alt="@(Name ?? Email)"
+         class="@SizeClass @ExtraClass rounded-full object-cover" />
+}
+else
+{
+    <div class="@SizeClass @ExtraClass rounded-full @BgClass flex items-center justify-center text-white @TextClass font-semibold">
+        @((Name?.Length > 0 ? Name.Substring(0, 1) : "?").ToUpper())
+    </div>
+}
+
+@code {
+    [Parameter] public string? Email { get; set; }
+    [Parameter] public string? Name { get; set; }
+    [Parameter] public string SizeClass { get; set; } = "w-8 h-8";
+    [Parameter] public string ExtraClass { get; set; } = "";
+    [Parameter] public string TextClass { get; set; } = "text-sm";
+    [Parameter] public string BgClass { get; set; } = "bg-blue-500";
+
+    private bool useGravatar;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var config = await SettingsSvc.GetUsersConfigAsync();
+        useGravatar = config.GravatarEnabled;
+    }
+
+    private static string GravatarUrl(string email, int size)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(normalized);
+        var hash = System.Security.Cryptography.MD5.HashData(bytes);
+        return $"https://www.gravatar.com/avatar/{Convert.ToHexString(hash).ToLowerInvariant()}?s={size}&d=identicon";
+    }
+}

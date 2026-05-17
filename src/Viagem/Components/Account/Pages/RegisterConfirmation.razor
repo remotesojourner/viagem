@@ -1,0 +1,76 @@
+@page "/Account/RegisterConfirmation"
+
+@using System.Text
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using Viagem.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject IEmailSender<ApplicationUser> EmailSender
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Register confirmation - Viagem</PageTitle>
+
+<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+    <div class="w-full max-w-md text-center">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+            <StatusMessage Message="@statusMessage" />
+            <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mx-auto mb-4">
+                <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Check your email</h1>
+            @if (emailConfirmationLink is not null)
+            {
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    No email sender is configured.
+                    <a href="@emailConfirmationLink" class="font-medium text-blue-600 hover:underline dark:text-blue-400">Click here to confirm your account</a>.
+                </p>
+            }
+            else
+            {
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" role="alert">Please check your email to confirm your account.</p>
+            }
+            <a href="Account/Login" class="font-medium text-blue-600 hover:underline dark:text-blue-400 text-sm">Back to sign in</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? emailConfirmationLink;
+    private string? statusMessage;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? Email { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Email is null)
+        {
+            RedirectManager.RedirectTo("");
+        }
+
+        var user = await UserManager.FindByEmailAsync(Email);
+        if (user is null)
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            statusMessage = "Error finding user for unspecified email";
+        }
+        else if (EmailSender is IdentityNoOpEmailSender)
+        {
+            // Once you add a real email sender, you should remove this code that lets you confirm the account
+            var userId = await UserManager.GetUserIdAsync(user);
+            var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+            code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+            emailConfirmationLink = NavigationManager.GetUriWithQueryParameters(
+                NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
+                new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
+        }
+    }
+}

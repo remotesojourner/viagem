@@ -1,0 +1,143 @@
+@page "/Account/Manage"
+
+@using Microsoft.AspNetCore.Identity
+@using Viagem.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IdentityUserAccessor UserAccessor
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Profile</PageTitle>
+
+<StatusMessage />
+
+<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+    <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400" role="alert" />
+
+        <div class="mb-4">
+            <label for="Input.FullName" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Full Name</label>
+            <InputText @bind-Value="Input.FullName" id="Input.FullName"
+                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                       placeholder="Your full name" />
+            <ValidationMessage For="() => Input.FullName" class="mt-1 text-sm text-red-600 dark:text-red-400" />
+        </div>
+
+        <div class="mb-4">
+            <label for="Input.CurrencyCode" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Default Currency</label>
+            <InputSelect @bind-Value="Input.CurrencyCode" id="Input.CurrencyCode"
+                         class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                @foreach (var c in Currencies)
+                {
+                    <option value="@c.Code">@c.Code - @c.Name</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-4">
+            <label for="Input.Timezone" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Timezone</label>
+            <InputSelect @bind-Value="Input.Timezone" id="Input.Timezone"
+                         class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
+                {
+                    <option value="@tz">@tz</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-4">
+            <label for="Input.Appearance" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Theme</label>
+            <InputSelect @bind-Value="Input.Appearance" id="Input.Appearance"
+                         class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="system">System</option>
+            </InputSelect>
+        </div>
+
+        <div class="mb-6">
+            <label for="Input.MapsProvider" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Open maps links with</label>
+            <InputSelect @bind-Value="Input.MapsProvider" id="Input.MapsProvider"
+                         class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="google">Google Maps</option>
+                <option value="apple">Apple Maps</option>
+                <option value="osm">OpenStreetMap</option>
+            </InputSelect>
+        </div>
+
+        <button type="submit" class="px-5 py-2.5 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300">
+            Save Profile
+        </button>
+    </EditForm>
+</div>
+
+@code {
+    private ApplicationUser user = default!;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    private record CurrencyItem(string Code, string Name);
+
+    private static readonly IReadOnlyList<CurrencyItem> Currencies =
+    [
+        new("AED","UAE Dirham"), new("AUD","Australian Dollar"), new("BRL","Brazilian Real"),
+        new("CAD","Canadian Dollar"), new("CHF","Swiss Franc"), new("CNY","Chinese Yuan"),
+        new("CZK","Czech Koruna"), new("DKK","Danish Krone"), new("EUR","Euro"),
+        new("GBP","British Pound"), new("HKD","Hong Kong Dollar"), new("HUF","Hungarian Forint"),
+        new("IDR","Indonesian Rupiah"), new("ILS","Israeli Shekel"), new("INR","Indian Rupee"),
+        new("JPY","Japanese Yen"), new("KRW","South Korean Won"), new("MXN","Mexican Peso"),
+        new("MYR","Malaysian Ringgit"), new("NOK","Norwegian Krone"), new("NZD","New Zealand Dollar"),
+        new("PHP","Philippine Peso"), new("PLN","Polish Zloty"), new("RON","Romanian Leu"),
+        new("SAR","Saudi Riyal"), new("SEK","Swedish Krona"), new("SGD","Singapore Dollar"),
+        new("THB","Thai Baht"), new("TRY","Turkish Lira"), new("TWD","New Taiwan Dollar"),
+        new("UAH","Ukrainian Hryvnia"), new("USD","US Dollar"), new("VND","Vietnamese Dong"),
+        new("ZAR","South African Rand")
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+
+        Input.FullName ??= user.FullName;
+        Input.CurrencyCode ??= user.CurrencyCode ?? "USD";
+        Input.Timezone ??= user.Timezone ?? "UTC";
+        Input.Appearance ??= user.WebsiteAppearance ?? "light";
+        Input.MapsProvider ??= user.MapsProvider ?? "google";
+    }
+
+    private async Task OnValidSubmitAsync()
+    {
+        user.FullName = Input.FullName;
+        user.CurrencyCode = Input.CurrencyCode;
+        user.Timezone = Input.Timezone;
+        user.WebsiteAppearance = Input.Appearance;
+        user.MapsProvider = Input.MapsProvider;
+
+        var updateResult = await UserManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            RedirectManager.RedirectToCurrentPageWithStatus(
+                $"Error: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}", HttpContext);
+            return;
+        }
+
+        await SignInManager.RefreshSignInAsync(user);
+        RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated", HttpContext);
+    }
+
+    private sealed class InputModel
+    {
+        public string? FullName { get; set; }
+
+        public string? CurrencyCode { get; set; }
+        public string? Timezone { get; set; }
+        public string? Appearance { get; set; }
+        public string? MapsProvider { get; set; }
+    }
+}

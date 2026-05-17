@@ -1,0 +1,136 @@
+@inject IAttachmentService AttachmentService
+@inject AuthenticationStateProvider AuthStateProvider
+
+@if (loading)
+{
+    <div class="text-center py-6"><div class="animate-spin inline-block rounded-full h-6 w-6 border-b-2 border-blue-700"></div></div>
+}
+else
+{
+    @if (CanEdit)
+    {
+        <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload file</label>
+            <InputFile OnChange="HandleFileChange" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-400" />
+            @if (selectedFile != null)
+            {
+                <div class="flex items-center gap-3 mt-3">
+                    <span class="text-sm text-gray-600 dark:text-gray-300 truncate">@selectedFile.Name <span class="text-gray-400">(@FormatSize(selectedFile.Size))</span></span>
+                    <button @onclick="UploadFile" disabled="@uploading"
+                            class="px-3 py-1.5 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:opacity-60">
+                        @(uploading ? "Uploading..." : "Upload")
+                    </button>
+                    <button @onclick="() => selectedFile = null" class="text-xs text-gray-400 hover:text-gray-600">Clear</button>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(uploadError))
+            {
+                <p class="text-sm text-red-600 dark:text-red-400 mt-2">@uploadError</p>
+            }
+        </div>
+    }
+
+    @if (items.Count == 0)
+    {
+        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+            <span class="text-4xl block mb-3">📎</span>
+            <p class="text-sm text-gray-400 dark:text-gray-500">No attachments yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="space-y-2">
+            @foreach (var item in items.OrderByDescending(i => i.UploadedAt))
+            {
+                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="text-2xl flex-shrink-0">@GetFileIcon(item.ContentType)</span>
+                        <div class="min-w-0">
+                            <a href="@item.FilePath" target="_blank" rel="noopener"
+                               class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400 truncate block">@item.FileName</a>
+                            <p class="text-xs text-gray-400 dark:text-gray-500">@FormatSize(item.FileSize) · @item.UploadedAt.ToString("MMM d, yyyy")</p>
+                        </div>
+                    </div>
+                    @if (CanEdit)
+                    {
+                        <button @onclick="() => DeleteItem(item.Id)"
+                                class="text-xs text-red-500 hover:text-red-700 ml-2 shrink-0">Remove</button>
+                    }
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int TripId { get; set; }
+    [Parameter] public bool CanEdit { get; set; }
+
+    private List<TripAttachment> items = [];
+    private bool loading = true;
+    private bool uploading = false;
+    private IBrowserFile? selectedFile;
+    private string? uploadError;
+    private string? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        await LoadItems();
+    }
+
+    private async Task LoadItems()
+    {
+        loading = true;
+        items = await AttachmentService.GetTripAttachmentsAsync(TripId);
+        loading = false;
+    }
+
+    private void HandleFileChange(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        uploadError = null;
+    }
+
+    private async Task UploadFile()
+    {
+        if (selectedFile == null || userId == null) return;
+        uploading = true;
+        uploadError = null;
+        try
+        {
+            await AttachmentService.UploadAsync(TripId, userId, selectedFile);
+            selectedFile = null;
+            await LoadItems();
+        }
+        catch (Exception ex)
+        {
+            uploadError = ex.Message;
+        }
+        finally { uploading = false; }
+    }
+
+    private async Task DeleteItem(int id)
+    {
+        await AttachmentService.DeleteAsync(id);
+        await LoadItems();
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:N1} MB";
+        if (bytes >= 1024) return $"{bytes / 1024.0:N1} KB";
+        return $"{bytes} B";
+    }
+
+    private static string GetFileIcon(string? contentType) => contentType switch
+    {
+        var t when t?.StartsWith("image/") == true => "🖼️",
+        var t when t?.Contains("pdf") == true => "📄",
+        var t when t?.Contains("word") == true || t?.Contains("document") == true => "📝",
+        var t when t?.Contains("sheet") == true || t?.Contains("excel") == true => "📊",
+        var t when t?.Contains("zip") == true || t?.Contains("compressed") == true => "🗜️",
+        _ => "📎"
+    };
+}

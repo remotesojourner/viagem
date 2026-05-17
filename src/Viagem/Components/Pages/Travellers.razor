@@ -1,0 +1,468 @@
+@page "/travellers"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using System.Security.Cryptography
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject ITravellerProfileService ProfileService
+@inject SiteSettingsService SiteSettingsService
+
+<PageTitle>Travellers - Viagem</PageTitle>
+
+<div class="max-w-4xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Traveller Profiles</h1>
+        <button @onclick="OpenAddModal"
+                class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300">
+            + Add Profile
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(successMsg))
+    {
+        <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-green-900 dark:text-green-400">
+            @successMsg
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(errorMsg))
+    {
+        <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400">
+            @errorMsg
+        </div>
+    }
+
+    @foreach (var profile in profiles)
+    {
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+            <div class="flex items-start justify-between">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-lg font-semibold text-gray-900 dark:text-white">@profile.LegalName</span>
+                        @if (profile.LinkedUserId == currentUserId)
+                        {
+                            <span class="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full dark:bg-blue-900 dark:text-blue-300">You</span>
+                        }
+                        else if (!string.IsNullOrEmpty(profile.LinkedUserId))
+                        {
+                            <span class="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full dark:bg-green-900 dark:text-green-300">Linked</span>
+                        }
+                        else
+                        {
+                            <span class="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full dark:bg-gray-700 dark:text-gray-400">Not linked</span>
+                        }
+                    </div>
+                    @if (!string.IsNullOrEmpty(profile.Email))
+                    {
+                        <p class="text-sm text-gray-500 dark:text-gray-400">@profile.Email</p>
+                    }
+                </div>
+                <div class="flex items-center gap-2">
+                    @if (isAdmin && string.IsNullOrEmpty(profile.LinkedUserId) && !string.IsNullOrEmpty(profile.Email))
+                    {
+                        <button @onclick="() => OpenAddUserModal(profile)"
+                                class="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
+                            Add User
+                        </button>
+                    }
+                    <button @onclick="() => OpenEditModal(profile)"
+                            class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                        Edit
+                    </button>
+                    @if (profile.LinkedUserId != currentUserId)
+                    {
+                        <button @onclick="() => DeleteProfile(profile.Id)"
+                                class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
+                            Delete
+                        </button>
+                    }
+                </div>
+            </div>
+
+            @* Aliases *@
+            <div class="mt-4">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Name Aliases</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    @foreach (var alias in profile.Aliases)
+                    {
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 text-sm bg-gray-100 text-gray-700 rounded-full dark:bg-gray-700 dark:text-gray-300">
+                            @alias.Alias
+                            <button @onclick="() => RemoveAlias(alias.Id, profile.Id)"
+                                    class="text-gray-400 hover:text-red-500 ml-1 leading-none"
+                                    title="Remove alias">&#x2715;</button>
+                        </span>
+                    }
+                    @* Inline add alias *@
+                    <div class="flex items-center gap-1">
+                        <input type="text"
+                               value="@GetAliasInput(profile.Id)"
+                               @oninput="e => SetAliasInput(profile.Id, e.Value?.ToString() ?? string.Empty)"
+                               @onkeydown="e => OnAliasKeyDown(e, profile.Id)"
+                               placeholder="Add alias…"
+                               class="px-2.5 py-1 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-1 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white w-32" />
+                        <button @onclick="() => AddAlias(profile.Id)"
+                                class="px-2.5 py-1 text-sm text-white bg-blue-600 rounded-full hover:bg-blue-700">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (profiles.Count == 0)
+    {
+        <div class="text-center py-12 text-gray-500 dark:text-gray-400">
+            <p class="text-lg mb-2">No traveller profiles yet.</p>
+            <p class="text-sm">Profiles are created automatically when you register. You can also add profiles for family members or travel companions.</p>
+        </div>
+    }
+</div>
+
+@* Add User modal *@
+@if (showAddUserModal && addUserProfile != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Create User Account</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">A login account will be created for <strong>@addUserProfile.LegalName</strong>.</p>
+            @if (!string.IsNullOrEmpty(addUserCreatedPassword))
+            {
+                <div class="p-4 mb-4 bg-green-50 dark:bg-green-900 rounded-lg">
+                    <p class="text-sm font-medium text-green-800 dark:text-green-300 mb-1">Account created! Share this password with the user:</p>
+                    <code class="block text-base font-mono font-bold text-green-900 dark:text-green-200 bg-green-100 dark:bg-green-800 px-3 py-2 rounded select-all">@addUserCreatedPassword</code>
+                    <p class="text-xs text-green-700 dark:text-green-400 mt-1">The user will be required to change their password on first login.</p>
+                    @if (!string.IsNullOrEmpty(addUserEmailSent))
+                    {
+                        <p class="text-xs text-green-700 dark:text-green-400 mt-1">&#x2713; @addUserEmailSent</p>
+                    }
+                </div>
+                <div class="flex justify-end">
+                    <button @onclick="CloseAddUserModal" class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">Done</button>
+                </div>
+            }
+            else
+            {
+                <div class="mb-4">
+                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Email (login username)</label>
+                    <input type="email" @bind="addUserEmail" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                </div>
+                @if (!string.IsNullOrEmpty(addUserError))
+                {
+                    <div class="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400">@addUserError</div>
+                }
+                <div class="flex justify-end gap-3">
+                    <button @onclick="CloseAddUserModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">Cancel</button>
+                    <button @onclick="PerformAddUser" disabled="@addUserSaving"
+                            class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50">
+                        @(addUserSaving ? "Creating..." : "Create Account")
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@* Add / Edit modal *@
+@if (showModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                @(editingProfile == null ? "Add Traveller Profile" : "Edit Traveller Profile")
+            </h2>
+            <div class="mb-4">
+                <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Name <span class="text-red-500">*</span></label>
+                <input type="text" @bind="modalName"
+                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                       placeholder="Full name" />
+            </div>
+            <div class="mb-6">
+                <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Email</label>
+                <input type="email" @bind="modalEmail"
+                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                       placeholder="email@example.com" />
+            </div>
+            @if (!string.IsNullOrEmpty(modalError))
+            {
+                <div class="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400">@modalError</div>
+            }
+            <div class="flex justify-end gap-3">
+                <button @onclick="CloseModal"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">
+                    Cancel
+                </button>
+                <button @onclick="SaveModal"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">
+                    @(editingProfile == null ? "Add" : "Save")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string? currentUserId;
+    private bool isAdmin;
+    private List<TravellerProfile> profiles = [];
+    private string? successMsg;
+    private string? errorMsg;
+
+    // Add User modal state
+    private bool showAddUserModal;
+    private TravellerProfile? addUserProfile;
+    private string addUserEmail = "";
+    private string? addUserError;
+    private string? addUserCreatedPassword;
+    private string? addUserEmailSent;
+    private bool addUserSaving;
+
+    // Modal state
+    private bool showModal;
+    private TravellerProfile? editingProfile;
+    private string modalName = "";
+    private string? modalEmail;
+    private string? modalError;
+
+    // Alias input per-profile
+    private readonly Dictionary<int, string> aliasInputs = [];
+
+    private string GetAliasInput(int profileId) =>
+        aliasInputs.TryGetValue(profileId, out var v) ? v : "";
+
+    private void SetAliasInput(int profileId, string value) =>
+        aliasInputs[profileId] = value;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (currentUserId != null)
+        {
+            var currentUser = await UserManager.FindByIdAsync(currentUserId);
+            isAdmin = currentUser?.IsAdmin ?? false;
+            await LoadProfiles();
+        }
+    }
+
+    private async Task LoadProfiles()
+    {
+        if (currentUserId == null) return;
+        profiles = await ProfileService.GetMyProfilesAsync(currentUserId);
+    }
+
+    private void OpenAddModal()
+    {
+        editingProfile = null;
+        modalName = "";
+        modalEmail = null;
+        modalError = null;
+        showModal = true;
+    }
+
+    private void OpenEditModal(TravellerProfile profile)
+    {
+        editingProfile = profile;
+        modalName = profile.LegalName;
+        modalEmail = profile.Email;
+        modalError = null;
+        showModal = true;
+    }
+
+    private void CloseModal() => showModal = false;
+
+    private async Task SaveModal()
+    {
+        if (string.IsNullOrWhiteSpace(modalName))
+        {
+            modalError = "Name is required.";
+            return;
+        }
+
+        successMsg = null; errorMsg = null;
+        try
+        {
+            if (editingProfile == null)
+            {
+                var newProfile = new TravellerProfile
+                {
+                    LegalName = modalName.Trim(),
+                    Email = string.IsNullOrWhiteSpace(modalEmail) ? null : modalEmail.Trim(),
+                    OwnerId = currentUserId!
+                };
+                await ProfileService.CreateAsync(newProfile);
+                successMsg = "Profile added.";
+            }
+            else
+            {
+                editingProfile.LegalName = modalName.Trim();
+                editingProfile.Email = string.IsNullOrWhiteSpace(modalEmail) ? null : modalEmail.Trim();
+                await ProfileService.UpdateAsync(editingProfile);
+                successMsg = "Profile updated.";
+            }
+            showModal = false;
+            await LoadProfiles();
+        }
+        catch (Exception ex)
+        {
+            modalError = ex.Message;
+        }
+    }
+
+    private async Task DeleteProfile(int id)
+    {
+        if (currentUserId == null) return;
+        successMsg = null; errorMsg = null;
+        try
+        {
+            await ProfileService.DeleteAsync(id, currentUserId);
+            successMsg = "Profile deleted.";
+            await LoadProfiles();
+        }
+        catch (Exception ex)
+        {
+            errorMsg = ex.Message;
+        }
+    }
+
+    private async Task AddAlias(int profileId)
+    {
+        var alias = GetAliasInput(profileId);
+        if (string.IsNullOrWhiteSpace(alias)) return;
+        successMsg = null; errorMsg = null;
+        try
+        {
+            await ProfileService.AddAliasAsync(profileId, alias);
+            aliasInputs[profileId] = "";
+            await LoadProfiles();
+        }
+        catch (Exception ex)
+        {
+            errorMsg = ex.Message;
+        }
+    }
+
+    private async Task RemoveAlias(int aliasId, int profileId)
+    {
+        successMsg = null; errorMsg = null;
+        try
+        {
+            await ProfileService.RemoveAliasAsync(aliasId);
+            await LoadProfiles();
+        }
+        catch (Exception ex)
+        {
+            errorMsg = ex.Message;
+        }
+    }
+
+    private async Task OnAliasKeyDown(KeyboardEventArgs e, int profileId)
+    {
+        if (e.Key == "Enter")
+            await AddAlias(profileId);
+    }
+
+    private void OpenAddUserModal(TravellerProfile profile)
+    {
+        addUserProfile = profile;
+        addUserEmail = profile.Email ?? "";
+        addUserError = null;
+        addUserCreatedPassword = null;
+        addUserEmailSent = null;
+        addUserSaving = false;
+        showAddUserModal = true;
+    }
+
+    private void CloseAddUserModal()
+    {
+        showAddUserModal = false;
+        addUserProfile = null;
+    }
+
+    private async Task PerformAddUser()
+    {
+        if (addUserProfile == null) return;
+        if (string.IsNullOrWhiteSpace(addUserEmail)) { addUserError = "Email is required."; return; }
+
+        addUserSaving = true;
+        addUserError = null;
+        try
+        {
+            var existing = await UserManager.FindByEmailAsync(addUserEmail.Trim());
+            if (existing != null) { addUserError = "A user with that email already exists."; addUserSaving = false; return; }
+
+            var password = GenerateRandomPassword(16);
+            var newUser = new ApplicationUser
+            {
+                UserName = addUserEmail.Trim(),
+                Email = addUserEmail.Trim(),
+                EmailConfirmed = true,
+                FullName = addUserProfile.LegalName,
+                RequirePasswordChange = true
+            };
+            var result = await UserManager.CreateAsync(newUser, password);
+            if (!result.Succeeded)
+            {
+                addUserError = string.Join(" ", result.Errors.Select(e => e.Description));
+                addUserSaving = false;
+                return;
+            }
+
+            // Link the traveller profile
+            addUserProfile.LinkedUserId = newUser.Id;
+            await ProfileService.UpdateAsync(addUserProfile);
+            addUserCreatedPassword = password;
+            await LoadProfiles();
+
+            // Try sending welcome email if SMTP configured
+            try
+            {
+                var smtp = await SiteSettingsService.GetAsync<SiteSettingsService.SmtpConfig>(SiteSettingsService.Keys.SmtpConfig);
+                if (smtp != null && !string.IsNullOrEmpty(smtp.Host) && !string.IsNullOrEmpty(smtp.FromAddress))
+                {
+                    using var msg = new System.Net.Mail.MailMessage(
+                        new System.Net.Mail.MailAddress(smtp.FromAddress, smtp.FromName ?? "Viagem"),
+                        new System.Net.Mail.MailAddress(addUserEmail.Trim()));
+                    msg.Subject = "Your Viagem account has been created";
+                    msg.Body = $"Hello {addUserProfile.LegalName},\n\nAn account has been created for you on Viagem.\n\nEmail: {addUserEmail.Trim()}\nTemporary password: {password}\n\nYou will be asked to change your password when you first log in.\n\nRegards,\nViagem";
+                    using var client = new System.Net.Mail.SmtpClient(smtp.Host, smtp.Port)
+                    {
+                        EnableSsl = smtp.UseSsl,
+                        Credentials = (!string.IsNullOrEmpty(smtp.Username) && !string.IsNullOrEmpty(smtp.Password))
+                            ? new System.Net.NetworkCredential(smtp.Username, smtp.Password) : null
+                    };
+                    await client.SendMailAsync(msg);
+                    addUserEmailSent = $"Welcome email sent to {addUserEmail.Trim()}";
+                }
+            }
+            catch { /* SMTP errors should not block the flow */ }
+        }
+        catch (Exception ex)
+        {
+            addUserError = ex.Message;
+        }
+        addUserSaving = false;
+    }
+
+    private static string GenerateRandomPassword(int length)
+    {
+        const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const string lower = "abcdefghijkmnpqrstuvwxyz";
+        const string digits = "23456789";
+        const string special = "!@#$%^&*";
+        const string all = upper + lower + digits + special;
+
+        var buf = new char[length];
+        // Guarantee at least one of each category
+        buf[0] = upper[RandomNumberGenerator.GetInt32(upper.Length)];
+        buf[1] = lower[RandomNumberGenerator.GetInt32(lower.Length)];
+        buf[2] = digits[RandomNumberGenerator.GetInt32(digits.Length)];
+        buf[3] = special[RandomNumberGenerator.GetInt32(special.Length)];
+        for (int i = 4; i < length; i++)
+            buf[i] = all[RandomNumberGenerator.GetInt32(all.Length)];
+        // Shuffle
+        for (int i = length - 1; i > 0; i--)
+        {
+            int j = RandomNumberGenerator.GetInt32(i + 1);
+            (buf[i], buf[j]) = (buf[j], buf[i]);
+        }
+        return new string(buf);
+    }
+}
