@@ -1,0 +1,11 @@
+﻿namespace Viagem.UnitTests
+{
+    public class UnitTest1
+    {
+        [Fact]
+        public void Test1()
+        {
+
+        }
+    }
+}

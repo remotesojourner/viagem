@@ -1,0 +1,11 @@
+services:
+  viagem:
+    image: ${DOCKER_REGISTRY-}viagem
+    build:
+      context: ..
+      dockerfile: src/Viagem/Dockerfile
+    volumes:
+      - viagem-data:/app/data
+
+volumes:
+  viagem-data:
