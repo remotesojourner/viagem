@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -10,9 +10,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Flowbite" Version="0.2.6-beta" />
     <PackageReference Include="GeoTimeZone" Version="6.1.0" />
+    <PackageReference Include="LumexUI" Version="2.3.6" />
+    <PackageReference Include="Markdig" Version="1.2.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
+    <PackageReference Include="PSC.Blazor.Components.MarkdownEditor" Version="10.0.9" />
     <PackageReference Include="QRCoder" Version="1.8.0" />
     <PackageReference Include="TimeZoneConverter" Version="7.2.0" />
   </ItemGroup>
@@ -25,6 +27,12 @@
 
   <ItemGroup>
     <Folder Include="Data\" />
+    <Folder Include="wwwroot\js\" />
   </ItemGroup>
+
+  <Target Name="BuildTailwindCSS" BeforeTargets="Build;Publish">
+    <Exec Command="$(MSBuildThisFileDirectory)tools\tailwindcss.exe -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css --minify" Condition="'$(Configuration)' == 'Release'" />
+    <Exec Command="$(MSBuildThisFileDirectory)tools\tailwindcss.exe -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css" Condition="'$(Configuration)' != 'Release'" />
+  </Target>
 
 </Project>

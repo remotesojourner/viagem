@@ -1,102 +1,79 @@
-@inject IAirportService AirportService
-@inject IJSRuntime JS
+﻿@inject IAirportService AirportService
 @using Viagem.Data.Models
 @using GeoTimeZone
 @using Viagem.Services.Interfaces
-<div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-colors">
+<div class="flex items-start justify-between p-3 bg-default-50 rounded-xl border border-divider hover:border-foreground-300 transition-colors">
     <div class="flex items-start gap-3">
         <span class="text-2xl mt-0.5">@GetIcon(Item.Type)</span>
         <div class="min-w-0">
             <div class="flex flex-wrap items-baseline gap-2">
-                <span class="font-semibold text-gray-900 dark:text-white text-sm">
+                <span class="font-semibold text-foreground text-sm">
                     @GetTitle()
                 </span>
                 @if (!string.IsNullOrEmpty(Item.ConfirmationCode))
                 {
-                    <span class="text-xs font-mono bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">
+                    <span class="text-xs font-mono bg-default-200 text-foreground-500 px-1.5 py-0.5 rounded">
                         @Item.ConfirmationCode
                     </span>
                 }
             </div>
-            <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <div class="text-xs text-foreground-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 @if (Item.Type == TransportationType.Flight)
                 {
                     @* Origin airport code badge with airport name + timezone tooltip *@
                     @if (!string.IsNullOrEmpty(Item.Origin))
                     {
-                        var originTipId = $"apt-o-{Item.Id}";
                         var originTip = AirportBadgeTooltip(Item.Origin, GetAirportTimezone(Item.Origin));
-                        <span class="relative inline-block">
-                            <span data-tooltip-target="@(string.IsNullOrEmpty(originTip) ? null : originTipId)"
-                                  data-tooltip-placement="top"
-                                  class="font-mono font-semibold text-gray-700 dark:text-gray-200 @(string.IsNullOrEmpty(originTip) ? "" : "cursor-default underline decoration-dotted decoration-gray-400")">@Item.Origin</span>
-                            @if (!string.IsNullOrEmpty(originTip))
-                            {
-                                <div id="@originTipId" role="tooltip"
-                                     class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                    @originTip
-                                    <div class="tooltip-arrow" data-popper-arrow></div>
-                                </div>
-                            }
-                        </span>
+                        @if (!string.IsNullOrEmpty(originTip))
+                        {
+                            <LumexTooltip Content="@originTip" Placement="TooltipPlacement.Top">
+                                    <span class="font-mono font-semibold text-foreground-500 cursor-default underline decoration-dotted decoration-foreground-300">@Item.Origin</span>
+                                </LumexTooltip>
+                        }
+                        else
+                        {
+                            <span class="font-mono font-semibold text-foreground-500">@Item.Origin</span>
+                        }
                         <span>→</span>
                     }
                     @* Destination airport code badge with airport name + timezone tooltip *@
                     @if (!string.IsNullOrEmpty(Item.Destination))
                     {
-                        var destTipId = $"apt-d-{Item.Id}";
                         var destTip = AirportBadgeTooltip(Item.Destination, GetAirportTimezone(Item.Destination));
-                        <span class="relative inline-block">
-                            <span data-tooltip-target="@(string.IsNullOrEmpty(destTip) ? null : destTipId)"
-                                  data-tooltip-placement="top"
-                                  class="font-mono font-semibold text-gray-700 dark:text-gray-200 @(string.IsNullOrEmpty(destTip) ? "" : "cursor-default underline decoration-dotted decoration-gray-400")">@Item.Destination</span>
-                            @if (!string.IsNullOrEmpty(destTip))
-                            {
-                                <div id="@destTipId" role="tooltip"
-                                     class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                    @destTip
-                                    <div class="tooltip-arrow" data-popper-arrow></div>
-                                </div>
-                            }
-                        </span>
+                        @if (!string.IsNullOrEmpty(destTip))
+                        {
+                            <LumexTooltip Content="@destTip" Placement="TooltipPlacement.Top">
+                                    <span class="font-mono font-semibold text-foreground-500 cursor-default underline decoration-dotted decoration-foreground-300">@Item.Destination</span>
+                                </LumexTooltip>
+                        }
+                        else
+                        {
+                            <span class="font-mono font-semibold text-foreground-500">@Item.Destination</span>
+                        }
                     }
                     @* Departure time with origin timezone tooltip *@
-                    var depTipId = $"dep-{Item.Id}";
                     var depTz = GetAirportTimezone(Item.Origin);
                     var depTip = TimezoneTooltip(depTz);
                     <span>—</span>
                     @if (!string.IsNullOrEmpty(depTip))
                     {
-                        <span class="relative inline-block">
-                            <span data-tooltip-target="@depTipId" data-tooltip-placement="top"
-                                  class="cursor-default underline decoration-dotted decoration-gray-400">@Item.DepartureTime.ToString("MMM d, HH:mm")</span>
-                            <div id="@depTipId" role="tooltip"
-                                 class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                @depTip
-                                <div class="tooltip-arrow" data-popper-arrow></div>
-                            </div>
-                        </span>
+                        <LumexTooltip Content="@depTip" Placement="TooltipPlacement.Top">
+                            <span class="cursor-default underline decoration-dotted decoration-foreground-300">@Item.DepartureTime.ToString("MMM d, HH:mm")</span>
+                        </LumexTooltip>
                     }
                     else
                     {
                         <span>@Item.DepartureTime.ToString("MMM d, HH:mm")</span>
                     }
                     @* Arrival time with destination timezone tooltip *@
-                    var arrTipId = $"arr-{Item.Id}";
                     var arrTz = GetAirportTimezone(Item.Destination);
                     var arrTip = TimezoneTooltip(arrTz);
                     <span>→</span>
                     @if (!string.IsNullOrEmpty(arrTip))
                     {
-                        <span class="relative inline-block">
-                            <span data-tooltip-target="@arrTipId" data-tooltip-placement="top"
-                                  class="cursor-default underline decoration-dotted decoration-gray-400">@Item.ArrivalTime.ToString("MMM d, HH:mm")</span>
-                            <div id="@arrTipId" role="tooltip"
-                                 class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                @arrTip
-                                <div class="tooltip-arrow" data-popper-arrow></div>
-                            </div>
-                        </span>
+                        <LumexTooltip Content="@arrTip" Placement="TooltipPlacement.Top">
+                            <span class="cursor-default underline decoration-dotted decoration-foreground-300">@Item.ArrivalTime.ToString("MMM d, HH:mm")</span>
+                        </LumexTooltip>
                     }
                     else
                     {
@@ -110,35 +87,21 @@
                     @if (!string.IsNullOrEmpty(Item.PickupLocation))
                     { <span>📍 @Item.PickupLocation → @Item.DropOffLocation</span><span>·</span> }
                     @* Departure time with stored timezone tooltip *@
-                    var depTipId2 = $"dep-{Item.Id}";
                     var depTip2 = TimezoneTooltip(Item.DepartureTimezone);
-                    var arrTipId2 = $"arr-{Item.Id}";
                     var arrTip2 = TimezoneTooltip(Item.ArrivalTimezone);
                     @if (!string.IsNullOrEmpty(depTip2))
                     {
-                        <span class="relative inline-block">
-                            <span data-tooltip-target="@depTipId2" data-tooltip-placement="top"
-                                  class="cursor-default underline decoration-dotted decoration-gray-400">@Item.DepartureTime.ToString("MMM d, HH:mm")</span>
-                            <div id="@depTipId2" role="tooltip"
-                                 class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                @depTip2
-                                <div class="tooltip-arrow" data-popper-arrow></div>
-                            </div>
-                        </span>
+                        <LumexTooltip Content="@depTip2" Placement="TooltipPlacement.Top">
+                            <span class="cursor-default underline decoration-dotted decoration-foreground-300">@Item.DepartureTime.ToString("MMM d, HH:mm")</span>
+                        </LumexTooltip>
                     }
                     else { <span>@Item.DepartureTime.ToString("MMM d, HH:mm")</span> }
                     <span>–</span>
                     @if (!string.IsNullOrEmpty(arrTip2))
                     {
-                        <span class="relative inline-block">
-                            <span data-tooltip-target="@arrTipId2" data-tooltip-placement="top"
-                                  class="cursor-default underline decoration-dotted decoration-gray-400">@Item.ArrivalTime.ToString("MMM d, HH:mm")</span>
-                            <div id="@arrTipId2" role="tooltip"
-                                 class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                @arrTip2
-                                <div class="tooltip-arrow" data-popper-arrow></div>
-                            </div>
-                        </span>
+                        <LumexTooltip Content="@arrTip2" Placement="TooltipPlacement.Top">
+                            <span class="cursor-default underline decoration-dotted decoration-foreground-300">@Item.ArrivalTime.ToString("MMM d, HH:mm")</span>
+                        </LumexTooltip>
                     }
                     else { <span>@Item.ArrivalTime.ToString("MMM d, HH:mm")</span> }
                 }
@@ -148,35 +111,21 @@
                     { <span>📍 @Item.ParkingAddress</span><span>·</span> }
                     @if (!string.IsNullOrEmpty(Item.SpotNumber))
                     { <span>Spot: @Item.SpotNumber</span><span>·</span> }
-                    var depTipId3 = $"dep-{Item.Id}";
                     var depTip3 = TimezoneTooltip(Item.DepartureTimezone);
-                    var arrTipId3 = $"arr-{Item.Id}";
                     var arrTip3 = TimezoneTooltip(Item.ArrivalTimezone);
                     @if (!string.IsNullOrEmpty(depTip3))
                     {
-                        <span class="relative inline-block">
-                            <span data-tooltip-target="@depTipId3" data-tooltip-placement="top"
-                                  class="cursor-default underline decoration-dotted decoration-gray-400">@Item.DepartureTime.ToString("MMM d, HH:mm")</span>
-                            <div id="@depTipId3" role="tooltip"
-                                 class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                @depTip3
-                                <div class="tooltip-arrow" data-popper-arrow></div>
-                            </div>
-                        </span>
+                        <LumexTooltip Content="@depTip3" Placement="TooltipPlacement.Top">
+                            <span class="cursor-default underline decoration-dotted decoration-foreground-300">@Item.DepartureTime.ToString("MMM d, HH:mm")</span>
+                        </LumexTooltip>
                     }
                     else { <span>@Item.DepartureTime.ToString("MMM d, HH:mm")</span> }
                     <span>–</span>
                     @if (!string.IsNullOrEmpty(arrTip3))
                     {
-                        <span class="relative inline-block">
-                            <span data-tooltip-target="@arrTipId3" data-tooltip-placement="top"
-                                  class="cursor-default underline decoration-dotted decoration-gray-400">@Item.ArrivalTime.ToString("MMM d, HH:mm")</span>
-                            <div id="@arrTipId3" role="tooltip"
-                                 class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                @arrTip3
-                                <div class="tooltip-arrow" data-popper-arrow></div>
-                            </div>
-                        </span>
+                        <LumexTooltip Content="@arrTip3" Placement="TooltipPlacement.Top">
+                            <span class="cursor-default underline decoration-dotted decoration-foreground-300">@Item.ArrivalTime.ToString("MMM d, HH:mm")</span>
+                        </LumexTooltip>
                     }
                     else { <span>@Item.ArrivalTime.ToString("MMM d, HH:mm")</span> }
                 }
@@ -184,35 +133,21 @@
                 {
                     @if (!string.IsNullOrEmpty(Item.Origin) || !string.IsNullOrEmpty(Item.Destination))
                     { <span>@Item.Origin → @Item.Destination</span><span>·</span> }
-                    var depTipId4 = $"dep-{Item.Id}";
                     var depTip4 = TimezoneTooltip(Item.DepartureTimezone);
-                    var arrTipId4 = $"arr-{Item.Id}";
                     var arrTip4 = TimezoneTooltip(Item.ArrivalTimezone);
                     @if (!string.IsNullOrEmpty(depTip4))
                     {
-                        <span class="relative inline-block">
-                            <span data-tooltip-target="@depTipId4" data-tooltip-placement="top"
-                                  class="cursor-default underline decoration-dotted decoration-gray-400">@Item.DepartureTime.ToString("MMM d, HH:mm")</span>
-                            <div id="@depTipId4" role="tooltip"
-                                 class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                @depTip4
-                                <div class="tooltip-arrow" data-popper-arrow></div>
-                            </div>
-                        </span>
+                        <LumexTooltip Content="@depTip4" Placement="TooltipPlacement.Top">
+                            <span class="cursor-default underline decoration-dotted decoration-foreground-300">@Item.DepartureTime.ToString("MMM d, HH:mm")</span>
+                        </LumexTooltip>
                     }
                     else { <span>@Item.DepartureTime.ToString("MMM d, HH:mm")</span> }
                     <span>→</span>
                     @if (!string.IsNullOrEmpty(arrTip4))
                     {
-                        <span class="relative inline-block">
-                            <span data-tooltip-target="@arrTipId4" data-tooltip-placement="top"
-                                  class="cursor-default underline decoration-dotted decoration-gray-400">@Item.ArrivalTime.ToString("MMM d, HH:mm")</span>
-                            <div id="@arrTipId4" role="tooltip"
-                                 class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                @arrTip4
-                                <div class="tooltip-arrow" data-popper-arrow></div>
-                            </div>
-                        </span>
+                        <LumexTooltip Content="@arrTip4" Placement="TooltipPlacement.Top">
+                            <span class="cursor-default underline decoration-dotted decoration-foreground-300">@Item.ArrivalTime.ToString("MMM d, HH:mm")</span>
+                        </LumexTooltip>
                     }
                     else { <span>@Item.ArrivalTime.ToString("MMM d, HH:mm")</span> }
                     @if (!string.IsNullOrEmpty(Item.AssignedSeats))
@@ -221,12 +156,12 @@
                 @if (Item.CostAmount.HasValue)
                 {
                     <span>·</span>
-                    <span class="font-medium text-gray-700 dark:text-gray-300">@Item.CostAmount.Value.ToString("N2") @Item.CostCurrency</span>
+                    <span class="font-medium text-foreground-500">@Item.CostAmount.Value.ToString("N2") @Item.CostCurrency</span>
                 }
             </div>
             @if (!string.IsNullOrEmpty(Item.Notes))
             {
-                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 italic">@Item.Notes</p>
+                <p class="text-xs text-foreground-400 mt-1 italic">@Item.Notes</p>
             }
         </div>
     </div>
@@ -234,7 +169,7 @@
     {
         <div class="relative ml-2 shrink-0">
             <button @onclick="ToggleMenu"
-                    class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600">
+                    class="p-1.5 text-foreground-400 hover:text-foreground-500 rounded-lg hover:bg-default-100">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
                 </svg>
@@ -242,14 +177,14 @@
             @if (menuOpen)
             {
                 <div class="fixed inset-0 z-10" @onclick="CloseMenu"></div>
-                <div class="absolute right-0 top-8 z-20 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-1 min-w-[140px]">
+                <div class="absolute right-0 top-8 z-20 bg-surface1 rounded-lg shadow-lg border border-divider py-1 min-w-[140px]">
                     @if (!string.IsNullOrEmpty(Item.Link))
                     {
                         <a href="@Item.Link" target="_blank" rel="noopener"
-                           class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Open link ↗</a>
+                           class="flex items-center px-4 py-2 text-sm text-foreground-500 hover:bg-default-100">Open link ↗</a>
                     }
-                    <button @onclick="HandleEdit" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Edit</button>
-                    <button @onclick="HandleDelete" class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">Remove</button>
+                    <button @onclick="HandleEdit" class="w-full text-left px-4 py-2 text-sm text-foreground-500 hover:bg-default-100">Edit</button>
+                    <button @onclick="HandleDelete" class="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger-100">Remove</button>
                 </div>
             }
         </div>
@@ -257,7 +192,7 @@
     else if (!string.IsNullOrEmpty(Item.Link))
     {
         <a href="@Item.Link" target="_blank" rel="noopener"
-           class="text-xs text-blue-600 hover:underline dark:text-blue-400 ml-2 shrink-0">Link</a>
+           class="text-xs text-primary hover:underline ml-2 shrink-0">Link</a>
     }
 </div>
 
@@ -298,12 +233,7 @@
         }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        await JS.InvokeVoidAsync("initFlowbite");
-    }
-
-    // For flights: derive timezone purely from airport lat/lng via GeoTimeZone
+    // For flights:
     private string? GetAirportTimezone(string? code)
     {
         if (code != null && airportData.TryGetValue(code, out var a) && a.Latitude.HasValue && a.Longitude.HasValue)

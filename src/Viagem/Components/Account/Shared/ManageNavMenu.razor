@@ -1,43 +1,30 @@
-@using Microsoft.AspNetCore.Identity
+﻿@using Microsoft.AspNetCore.Identity
 @using Viagem.Data
 
 @inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager Nav
 
-<nav class="flex flex-wrap gap-1 mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
-    <NavLink href="Account/Manage" Match="NavLinkMatch.All"
-             class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-             ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
-        Profile
-    </NavLink>
-    <NavLink href="Account/Manage/Email"
-             class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-             ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
-        Email
-    </NavLink>
-    <NavLink href="Account/Manage/ChangePassword"
-             class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-             ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
-        Password
-    </NavLink>
+@{
+    var path = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant();
+}
+
+<div class="inline-flex p-1 gap-2 bg-default-100 rounded-medium items-center overflow-x-auto mb-4">
+    <a href="/Account/Manage"
+       class="@Tab(path == "/account/manage")">Profile</a>
+    <a href="/Account/Manage/Email"
+       class="@Tab(path.StartsWith("/account/manage/email"))">Email</a>
+    <a href="/Account/Manage/ChangePassword"
+       class="@Tab(path.StartsWith("/account/manage/changepassword"))">Password</a>
     @if (hasExternalLogins)
     {
-        <NavLink href="Account/Manage/ExternalLogins"
-                 class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                 ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
-            External logins
-        </NavLink>
+        <a href="/Account/Manage/ExternalLogins"
+           class="@Tab(path.StartsWith("/account/manage/externallogins"))">External logins</a>
     }
-    <NavLink href="Account/Manage/TwoFactorAuthentication"
-             class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-             ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
-        Two-factor authentication
-    </NavLink>
-    <NavLink href="Account/Manage/PersonalData"
-             class="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-             ActiveClass="bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400 font-medium">
-        Personal data
-    </NavLink>
-</nav>
+    <a href="/Account/Manage/TwoFactorAuthentication"
+       class="@Tab(path.StartsWith("/account/manage/twofactorauthentication") || path.StartsWith("/account/manage/enableauthenticator") || path.StartsWith("/account/manage/disable2fa") || path.StartsWith("/account/manage/generaterecoverycodes") || path.StartsWith("/account/manage/resetauthenticator"))">Two-factor authentication</a>
+    <a href="/Account/Manage/PersonalData"
+       class="@Tab(path.StartsWith("/account/manage/personaldata") || path.StartsWith("/account/manage/deletepersonaldata"))">Personal data</a>
+</div>
 
 @code {
     private bool hasExternalLogins;
@@ -46,4 +33,8 @@
     {
         hasExternalLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync()).Any();
     }
+
+    private static string Tab(bool active) => active
+        ? "relative flex items-center px-3 h-8 text-sm rounded-small whitespace-nowrap bg-primary text-white shadow-sm cursor-pointer transition-opacity"
+        : "relative flex items-center px-3 h-8 text-sm rounded-small whitespace-nowrap text-foreground-500 hover:opacity-70 cursor-pointer transition-opacity";
 }

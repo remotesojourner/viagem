@@ -1,0 +1,38 @@
+@import "tailwindcss";
+@import "../bin/lumexui/theme.css";
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* Scan all Razor and C# files for Tailwind classes */
+@source "../Components/**/*.razor";
+@source "../Components/**/*.cs";
+@source "../bin/lumexui/**/*.cs";
+
+/* Use .dark class for dark mode (set on <html> element) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer utilities {
+    .valid.modified:not([type=checkbox]) {
+        outline: 1px solid var(--color-success);
+    }
+
+    .invalid {
+        outline: 1px solid var(--color-danger);
+    }
+
+    .validation-message {
+        color: var(--color-danger);
+    }
+
+    .blazor-error-boundary {
+        background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbmsiPjwvc3ZnPg==) no-repeat 1rem/1.8rem, var(--color-danger);
+        padding: 1rem 1rem 1rem 3.7rem;
+        color: var(--color-white);
+    }
+
+    .blazor-error-boundary::after {
+        content: "An error has occurred.";
+    }
+}

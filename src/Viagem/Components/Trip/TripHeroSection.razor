@@ -1,4 +1,4 @@
-@using Viagem.Services.Interfaces
+﻿@using Viagem.Services.Interfaces
 @inject ITripService TripService
 @inject IPlaceService PlaceService
 @inject ITravellerProfileService TravellerService
@@ -8,97 +8,84 @@
 @inject IJSRuntime JS
 
 <!-- Edit Trip Modal -->
-@if (showEditModal)
-{
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Edit Trip</h3>
-                <button @onclick="CloseEditModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="p-6 space-y-5">
-                @if (!string.IsNullOrEmpty(editError))
-                {
-                    <div class="p-3 text-sm text-red-800 bg-red-50 rounded-lg dark:bg-red-900/30 dark:text-red-400">@editError</div>
-                }
+<LumexModal @bind-Open="showEditModal" OnClose="CloseEditModal">
+    <LumexModalContent Context="modal">
+        <LumexModalHeader>
+            <h3 class="text-lg font-semibold text-foreground">Edit Trip</h3>
+        </LumexModalHeader>
+        <LumexModalBody>
+        <div class="space-y-5">
+            @if (!string.IsNullOrEmpty(editError))
+            {
+                <div class="p-3 text-sm text-danger bg-danger-100 rounded-lg">@editError</div>
+            }
 
                 <!-- Trip Name -->
                 <div>
-                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Trip Name *</label>
-                    <input @bind="editName" type="text" class="@InputClass" placeholder="My Amazing Trip" />
+                    <LumexTextbox @bind-Value="editName" Label="Trip Name *" Placeholder="My Amazing Trip" />
                 </div>
 
                 <!-- Dates -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Start Date *</label>
-                        <input @bind="editStart" type="date" class="@InputClass" />
+                        <LumexDatebox TValue="DateTime" @bind-Value="editStart" Label="Start Date *" />
                     </div>
                     <div>
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">End Date *</label>
-                        <input @bind="editEnd" type="date" class="@InputClass" />
+                        <LumexDatebox TValue="DateTime" @bind-Value="editEnd" Label="End Date *" />
                     </div>
                 </div>
 
                 <!-- Description -->
                 <div>
-                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Description</label>
-                    <textarea @bind="editDescription" rows="2" class="@InputClass" placeholder="What is this trip about?"></textarea>
+                    <LumexTextbox @bind-Value="editDescription" Label="Description" Placeholder="What is this trip about?" Multiline="@true" Rows="2" />
                 </div>
 
                 <!-- Budget -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Budget Amount</label>
-                        <input @bind="editBudget" type="number" step="0.01" min="0" class="@InputClass" placeholder="0.00" />
+                        <LumexNumbox TValue="decimal?" @bind-Value="editBudget" Label="Budget Amount" Placeholder="0.00" />
                     </div>
                     <div>
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Currency</label>
-                        <Combobox @bind-Value="editCurrency" Placeholder="Select currency..." SearchPlaceholder="Search currencies...">
+                        <LumexSelect TValue="string" @bind-Value="editCurrency" Label="Currency">
                             @foreach (var c in Currencies)
                             {
-                                <ComboboxItem Value="@c.Code" Label="@(c.Code + " - " + c.Name)" />
+                                <LumexSelectItem Value="@c.Code">@(c.Code + " - " + c.Name)</LumexSelectItem>
                             }
-                        </Combobox>
+                        </LumexSelect>
                     </div>
                 </div>
 
                 <!-- Destinations -->
                 <div>
-                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Destinations</label>
+                    <label class="block mb-1.5 text-sm font-medium text-foreground">Destinations</label>
                     @if (editDestinations.Any(d => !d.MarkedForRemoval))
                     {
                         <div class="flex flex-wrap gap-2 mb-3">
                             @foreach (var d in editDestinations.Where(d => !d.MarkedForRemoval))
                             {
-                                <span class="inline-flex items-center gap-1 px-2.5 py-1 text-sm bg-blue-100 text-blue-800 rounded-full dark:bg-blue-900/40 dark:text-blue-300">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 text-sm bg-primary-100 text-primary-700 rounded-full">
                                     📍 @d.DisplayName
                                     <button type="button" @onclick="() => RemoveEditDest(d)"
-                                            class="ml-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200">&#x2715;</button>
+                                            class="ml-1 text-primary hover:text-primary-600">&#x2715;</button>
                                 </span>
                             }
                         </div>
                     }
                     <div class="flex gap-2">
                         <div class="flex-1 relative">
-                            <input value="@destSearch" @oninput="HandleDestInput" type="text" class="@InputClass"
-                                   placeholder="Search city..." autocomplete="off" />
+                            <LumexTextbox Value="@destSearch" ValueChanged="HandleDestInput" Placeholder="Search city..." />
                             @if (destResults.Count > 0)
                             {
-                                <ul class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+                                <ul class="absolute z-10 mt-1 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-44 overflow-y-auto">
                                     @foreach (var place in destResults)
                                     {
                                         <li>
                                             <button type="button" @onclick="() => AddDestFromPlace(place)"
-                                                    class="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                                <span class="font-semibold text-sm text-gray-800 dark:text-gray-200">@place.Name</span>
+                                                    class="w-full text-left px-3 py-2 hover:bg-default-100">
+                                                <span class="font-semibold text-sm text-foreground">@place.Name</span>
                                                 @if (!string.IsNullOrEmpty(place.StateName) || !string.IsNullOrEmpty(place.CountryName))
                                                 {
-                                                    <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                                                    <span class="text-xs text-foreground-400 ml-1">
                                                         @(!string.IsNullOrEmpty(place.StateName) ? place.StateName + (!string.IsNullOrEmpty(place.CountryName) ? ", " : "") : "")@(place.CountryName ?? "")
                                                     </span>
                                                 }
@@ -108,16 +95,13 @@
                                 </ul>
                             }
                         </div>
-                        <button type="button" @onclick="AddDestCustom"
-                                class="px-3 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 whitespace-nowrap">
-                            Add custom
-                        </button>
+                        <LumexButton OnClick="AddDestCustom">Add custom</LumexButton>
                     </div>
                 </div>
 
                 <!-- Travellers & Organisers -->
                 <div>
-                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Travellers &amp; Organisers</label>
+                    <label class="block mb-1.5 text-sm font-medium text-foreground">Travellers &amp; Organisers</label>
 
                     <!-- Added travellers list -->
                     @if (editTravellers.Count > 0)
@@ -130,17 +114,17 @@
                                 var tIsLinked = !string.IsNullOrEmpty(tProfile?.LinkedUserId);
                                 var tIsCurrentUser = kv.Key == currentUserProfileId;
                                 var tState = kv.Value;
-                                <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <div class="flex items-center justify-between p-2 bg-default-50 rounded-lg">
                                     <div class="flex items-center gap-2 min-w-0">
                                         <UserAvatar Email="@tProfile?.Email" Name="@tName" SizeClass="w-7 h-7" ExtraClass="flex-shrink-0" TextClass="text-xs" />
-                                        <span class="text-sm text-gray-900 dark:text-white truncate">@tName</span>
+                                        <span class="text-sm text-foreground truncate">@tName</span>
                                         @if (tIsLinked)
                                         {
-                                            <span class="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded dark:bg-green-900/40 dark:text-green-400 flex-shrink-0">User</span>
+                                            <span class="text-xs px-1.5 py-0.5 bg-success-100 text-success-600 rounded flex-shrink-0">User</span>
                                         }
                                         @if (tIsCurrentUser)
                                         {
-                                            <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded dark:bg-blue-900/40 dark:text-blue-400 flex-shrink-0">You</span>
+                                            <span class="text-xs px-1.5 py-0.5 bg-primary-100 text-primary-600 rounded flex-shrink-0">You</span>
                                         }
                                     </div>
                                     @if (tIsLinked || !tIsCurrentUser)
@@ -148,16 +132,16 @@
                                         <div class="flex items-center gap-3 flex-shrink-0 ml-2">
                                             @if (tIsLinked)
                                             {
-                                                <label class="flex items-center gap-1 cursor-pointer text-xs text-gray-600 dark:text-gray-400 select-none">
-                                                    <input type="checkbox" class="w-3.5 h-3.5 text-purple-600 rounded"
+                                                <label class="flex items-center gap-1 cursor-pointer text-xs text-foreground-500 select-none">
+                                                    <input type="checkbox" class="w-3.5 h-3.5 text-secondary rounded"
                                                            checked="@tState.IsOrganiser"
                                                            @onchange="e => SetOrganiserFlag(kv.Key, (bool)(e.Value ?? false))" />
                                                     Organiser
                                                 </label>
                                                 @if (!tIsCurrentUser)
                                                 {
-                                                    <label class="flex items-center gap-1 text-xs select-none @(tState.IsOrganiser ? "cursor-not-allowed opacity-50 text-gray-400 dark:text-gray-500" : "cursor-pointer text-gray-600 dark:text-gray-400")">
-                                                        <input type="checkbox" class="w-3.5 h-3.5 text-blue-600 rounded"
+                                                    <label class="flex items-center gap-1 text-xs select-none @(tState.IsOrganiser ? "cursor-not-allowed opacity-50 text-foreground-400" : "cursor-pointer text-foreground-500")">
+                                                        <input type="checkbox" class="w-3.5 h-3.5 text-primary rounded"
                                                                disabled="@tState.IsOrganiser"
                                                                checked="@tState.EffectiveCanEdit"
                                                                @onchange="e => SetCanEditFlag(kv.Key, (bool)(e.Value ?? false))" />
@@ -168,7 +152,7 @@
                                             @if (!tIsCurrentUser)
                                             {
                                                 <button type="button" @onclick="() => RemoveTravellerFromEdit(kv.Key)"
-                                                        class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                                                        class="text-foreground-400 hover:text-danger transition-colors">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                                     </svg>
@@ -183,20 +167,19 @@
 
                     <!-- Search box to add travellers -->
                     <div class="relative">
-                        <input value="@travellerSearch" @oninput="HandleTravellerSearch" type="text" class="@InputClass"
-                               placeholder="Search to add traveller..." autocomplete="off" />
+                        <LumexTextbox Value="@travellerSearch" ValueChanged="HandleTravellerSearch" Placeholder="Search to add traveller..." />
                         @if (travellerSearchResults.Count > 0)
                         {
-                            <ul class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+                            <ul class="absolute z-10 mt-1 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-44 overflow-y-auto">
                                 @foreach (var tp in travellerSearchResults)
                                 {
                                     <li>
                                         <button type="button" @onclick="() => AddTravellerToEdit(tp)"
-                                                class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                                                class="w-full text-left px-3 py-2 text-sm hover:bg-default-100 text-foreground flex items-center gap-2">
                                             <span>@tp.LegalName</span>
                                             @if (!string.IsNullOrEmpty(tp.LinkedUserId))
                                             {
-                                                <span class="text-xs px-1 py-0.5 bg-green-100 text-green-700 rounded dark:bg-green-900/40 dark:text-green-400">User</span>
+                                                <span class="text-xs px-1 py-0.5 bg-success-100 text-success-600 rounded">User</span>
                                             }
                                         </button>
                                     </li>
@@ -205,14 +188,16 @@
                         }
                     </div>
                 </div>
-            </div>
-            <div class="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
-                <button @onclick="CloseEditModal" class="@SecondaryBtnClass">Cancel</button>
-                <button @onclick="SaveAll" disabled="@saving" class="@PrimaryBtnClass">@(saving ? "Saving..." : "Save Changes")</button>
-            </div>
-        </div>
-    </div>
-}
+                    </div>
+                    </LumexModalBody>
+                    <LumexModalFooter>
+                        <div class="flex justify-end gap-3 w-full">
+                            <LumexButton OnClick="CloseEditModal">Cancel</LumexButton>
+                            <LumexButton OnClick="SaveAll" Disabled="@saving" Color="ThemeColor.Primary">@(saving ? "Saving..." : "Save Changes")</LumexButton>
+                        </div>
+                    </LumexModalFooter>
+                </LumexModalContent>
+            </LumexModal>
 
 <!-- Hidden cover image file input -->
 @if (CanEdit)
@@ -222,7 +207,7 @@
 
 @if (!string.IsNullOrEmpty(coverError))
 {
-    <div class="mb-3 p-3 text-sm text-red-800 bg-red-50 rounded-lg dark:bg-red-900/30 dark:text-red-400">@coverError</div>
+    <div class="mb-3 p-3 text-sm text-danger bg-danger-100 rounded-lg">@coverError</div>
 }
 
 <!-- Hero Section -->
@@ -238,7 +223,7 @@
             <div class="absolute inset-0 flex items-center justify-center opacity-20">
                 <svg class="w-32 h-32 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                          d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                 </svg>
             </div>
         }
@@ -261,9 +246,9 @@
                 @if (menuOpen)
                 {
                     <div class="fixed inset-0 z-10" @onclick="() => menuOpen = false"></div>
-                    <div class="absolute right-0 top-10 z-20 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-1 min-w-[180px]">
+                    <div class="absolute right-0 top-10 z-20 bg-surface1 rounded-lg shadow-lg border border-divider py-1 min-w-[180px]">
                         <button @onclick="OpenEditModal"
-                                class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+                                class="w-full text-left px-4 py-2 text-sm text-foreground-500 hover:bg-default-100 flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                       d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -271,7 +256,7 @@
                             Edit Trip
                         </button>
                         <label for="coverFileInput"
-                               class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer"
+                               class="w-full text-left px-4 py-2 text-sm text-foreground-500 hover:bg-default-100 flex items-center gap-2 cursor-pointer"
                                @onclick="() => menuOpen = false">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -303,7 +288,7 @@
     <!-- Destinations + Travellers strip below image -->
     @if ((Trip.Destinations?.Count > 0) || (Trip.Travellers?.Count > 0))
     {
-        <div class="bg-white dark:bg-gray-800 px-5 py-3 border-t border-gray-100 dark:border-gray-700">
+        <div class="bg-surface1 px-5 py-3 border-t border-divider">
             @if (Trip.Destinations?.Count > 0)
             {
                 <div class="flex flex-wrap gap-2 @(Trip.Travellers?.Count > 0 ? "mb-2" : "")">
@@ -311,28 +296,19 @@
                     {
                         var mapUrl = GetMapUrl(dest);
                         var tzTooltip = GetTimezoneTooltip(dest);
-                        var tooltipId = $"tz-tooltip-{dest.Id}";
-                        <a href="@mapUrl" target="_blank" rel="noopener noreferrer"
-                           data-tooltip-target="@(string.IsNullOrEmpty(tzTooltip) ? null : tooltipId)"
-                           data-tooltip-placement="bottom"
-                           class="inline-flex items-center gap-1 px-2.5 py-1 text-sm bg-gray-100 dark:bg-gray-700 rounded-full text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                            📍
-                            <span class="font-medium">@dest.DisplayName</span>
-                            @if (!string.IsNullOrEmpty(dest.Place?.StateName) || !string.IsNullOrEmpty(dest.Place?.CountryName))
-                            {
-                                <span class="text-xs text-gray-500 dark:text-gray-400">
-                                    @(!string.IsNullOrEmpty(dest.Place?.StateName) ? dest.Place!.StateName + (!string.IsNullOrEmpty(dest.Place?.CountryName) ? ", " : "") : "")@(dest.Place?.CountryName ?? "")
-                                </span>
-                            }
-                        </a>
-                        @if (!string.IsNullOrEmpty(tzTooltip))
-                        {
-                            <div id="@tooltipId" role="tooltip"
-                                 class="absolute z-10 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                @tzTooltip
-                                <div class="tooltip-arrow" data-popper-arrow></div>
-                            </div>
-                        }
+                        <LumexTooltip Content="@tzTooltip" Placement="TooltipPlacement.Bottom">
+                            <a href="@mapUrl" target="_blank" rel="noopener noreferrer"
+                               class="inline-flex items-center gap-1 px-2.5 py-1 text-sm bg-default-100 rounded-full text-foreground-500 hover:bg-default-200 transition-colors">
+                                📍
+                                <span class="font-medium">@dest.DisplayName</span>
+                                @if (!string.IsNullOrEmpty(dest.Place?.StateName) || !string.IsNullOrEmpty(dest.Place?.CountryName))
+                                {
+                                    <span class="text-xs text-foreground-400">
+                                        @(!string.IsNullOrEmpty(dest.Place?.StateName) ? dest.Place!.StateName + (!string.IsNullOrEmpty(dest.Place?.CountryName) ? ", " : "") : "")@(dest.Place?.CountryName ?? "")
+                                    </span>
+                                }
+                            </a>
+                        </LumexTooltip>
                     }
                 </div>
             }
@@ -341,12 +317,12 @@
                 <div class="flex flex-wrap gap-2">
                     @foreach (var t in Trip.Travellers.Where(t => !t.IsOrganiser))
                     {
-                        <div class="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-full pl-1 pr-3 py-1">
+                        <div class="flex items-center gap-1.5 bg-default-100 rounded-full pl-1 pr-3 py-1">
                             <UserAvatar Email="@t.TravellerProfile?.Email" Name="@t.TravellerProfile?.LegalName" SizeClass="w-6 h-6" TextClass="text-xs" />
-                            <span class="text-sm text-gray-700 dark:text-gray-300">@(t.TravellerProfile?.LegalName ?? "Unknown")</span>
+                            <span class="text-sm text-foreground-500">@(t.TravellerProfile?.LegalName ?? "Unknown")</span>
                             @if (t.CanEdit)
                             {
-                                <span class="text-xs text-green-600 dark:text-green-400" title="Can edit trip">&#10003;</span>
+                                <span class="text-xs text-success-600" title="Can edit trip">&#10003;</span>
                             }
                         </div>
                     }
@@ -392,14 +368,6 @@
     // Cover image
     private string? coverError;
 
-    private string InputClass => "bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
-    private string PrimaryBtnClass => "px-5 py-2.5 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg";
-    private string SecondaryBtnClass => "px-5 py-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700";
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        await JS.InvokeVoidAsync("initFlowbite");
-    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -457,9 +425,9 @@
         travellerSearchResults = [];
     }
 
-    private async Task HandleDestInput(ChangeEventArgs e)
+    private async Task HandleDestInput(string? value)
     {
-        destSearch = e.Value?.ToString() ?? "";
+        destSearch = value ?? "";
         if (destSearch.Length < 2) { destResults = []; return; }
         destResults = await PlaceService.SearchAsync(destSearch);
     }
@@ -494,9 +462,9 @@
             editDestinations.Remove(dest);
     }
 
-    private void HandleTravellerSearch(ChangeEventArgs e)
+    private void HandleTravellerSearch(string? value)
     {
-        travellerSearch = e.Value?.ToString() ?? "";
+        travellerSearch = value ?? "";
         if (travellerSearch.Length < 1) { travellerSearchResults = []; return; }
         var lower = travellerSearch.ToLowerInvariant();
         travellerSearchResults = availableTravellers

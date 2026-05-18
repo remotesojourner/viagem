@@ -1,4 +1,4 @@
-@using Viagem.Services.Interfaces
+﻿@using Viagem.Services.Interfaces
 @using ViagemActivity = Viagem.Data.Models.Activity
 @inject ITransportationService TransportationService
 @inject ILodgingService LodgingService
@@ -6,13 +6,13 @@
 
 @if (loading)
 {
-    <div class="text-center py-6"><div class="animate-spin inline-block rounded-full h-6 w-6 border-b-2 border-blue-700"></div></div>
+    <div class="text-center py-6"><Spinner Size="SpinnerSize.Md" Color="SpinnerColor.Info" /></div>
 }
 else if (days.Count == 0)
 {
-    <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+    <div class="border-2 border-dashed border-divider rounded-lg p-8 text-center">
         <span class="text-4xl block mb-3">📅</span>
-        <p class="text-sm text-gray-400 dark:text-gray-500">Add transportation, lodging or activities to see your itinerary here.</p>
+        <p class="text-sm text-foreground-400">Add transportation, lodging or activities to see your itinerary here.</p>
     </div>
 }
 else
@@ -23,33 +23,33 @@ else
             var events = days[day];
             <div>
                 <div class="flex items-center gap-3 mb-3">
-                    <div class="flex-shrink-0 w-12 h-12 bg-blue-600 text-white rounded-xl flex flex-col items-center justify-center">
+                    <div class="flex-shrink-0 w-12 h-12 bg-primary text-white rounded-xl flex flex-col items-center justify-center">
                         <span class="text-xs font-medium">@day.ToString("MMM")</span>
                         <span class="text-lg font-bold leading-none">@day.Day</span>
                     </div>
                     <div>
-                        <h5 class="font-semibold text-gray-900 dark:text-white">@day.ToString("dddd")</h5>
-                        <p class="text-xs text-gray-400 dark:text-gray-500">@events.Count event(s)</p>
+                        <h5 class="font-semibold text-foreground">@day.ToString("dddd")</h5>
+                        <p class="text-xs text-foreground-400">@events.Count event(s)</p>
                     </div>
                 </div>
-                <div class="ml-6 pl-6 border-l-2 border-blue-100 dark:border-blue-900 space-y-2">
+                <div class="ml-6 pl-6 border-l-2 border-primary-100 space-y-2">
                     @foreach (var ev in events.OrderBy(e => e.Time))
                     {
                         <div class="relative flex gap-3">
-                            <div class="absolute -left-[1.65rem] top-2 w-3 h-3 rounded-full border-2 border-blue-400 bg-white dark:bg-gray-800"></div>
-                            <div class="flex-1 bg-gray-50 dark:bg-gray-700 rounded-xl p-3 border border-gray-100 dark:border-gray-600">
+                            <div class="absolute -left-[1.65rem] top-2 w-3 h-3 rounded-full border-2 border-primary bg-surface1"></div>
+                            <div class="flex-1 bg-default-50 rounded-xl p-3 border border-divider">
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="flex items-start gap-2">
                                         <span class="text-lg">@ev.Icon</span>
                                         <div>
-                                            <p class="font-medium text-gray-900 dark:text-white text-sm">@ev.Title</p>
+                                            <p class="font-medium text-foreground text-sm">@ev.Title</p>
                                             @if (!string.IsNullOrEmpty(ev.Subtitle))
                                             {
-                                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">@ev.Subtitle</p>
+                                                <p class="text-xs text-foreground-400 mt-0.5">@ev.Subtitle</p>
                                             }
                                         </div>
                                     </div>
-                                    <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0">@ev.Time.ToString("HH:mm")</span>
+                                    <span class="text-xs text-foreground-400 shrink-0">@ev.Time.ToString("HH:mm")</span>
                                 </div>
                             </div>
                         </div>

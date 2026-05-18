@@ -5,6 +5,7 @@
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.EntityFrameworkCore
 @using Viagem.Data
 @using Viagem.Services.Interfaces
 @using Viagem.Services
@@ -21,53 +22,50 @@
 
 <PageTitle>Register - Viagem</PageTitle>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-8">
+<div class="min-h-screen flex items-center justify-center bg-default-50 px-4 py-8">
     <div class="w-full max-w-md">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Create an account</h1>
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Start planning your trips today</p>
+            <h1 class="text-3xl font-bold text-foreground">Create an account</h1>
+            <p class="mt-2 text-sm text-foreground-400">Start planning your trips today</p>
         </div>
 
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+        <div class="bg-surface1 rounded-2xl shadow-sm border border-divider p-8">
             <StatusMessage Message="@Message" />
 
             <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
                 <DataAnnotationsValidator />
-                <ValidationSummary class="p-3 mb-4 text-sm text-red-800 bg-red-50 rounded-lg dark:bg-red-900 dark:text-red-400" role="alert" />
+                <ValidationSummary class="p-3 mb-4 text-sm text-danger bg-danger-100 rounded-lg" role="alert" />
 
                 <div class="mb-4">
-                    <label for="Input.Email" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Email</label>
+                    <label for="Input.Email" class="block mb-2 text-sm font-medium text-foreground">Email</label>
                     <InputText @bind-Value="Input.Email" id="Input.Email" type="email"
-                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                               class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
                                autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                    <ValidationMessage For="() => Input.Email" class="mt-1 text-xs text-red-600 dark:text-red-400" />
+                    <ValidationMessage For="() => Input.Email" class="mt-1 text-xs text-danger" />
                 </div>
 
                 <div class="mb-4">
-                    <label for="Input.Password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Password</label>
+                    <label for="Input.Password" class="block mb-2 text-sm font-medium text-foreground">Password</label>
                     <InputText type="password" @bind-Value="Input.Password" id="Input.Password"
-                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                               class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
                                autocomplete="new-password" aria-required="true" placeholder="••••••••" />
-                    <ValidationMessage For="() => Input.Password" class="mt-1 text-xs text-red-600 dark:text-red-400" />
+                    <ValidationMessage For="() => Input.Password" class="mt-1 text-xs text-danger" />
                 </div>
 
                 <div class="mb-6">
-                    <label for="Input.ConfirmPassword" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Confirm password</label>
+                    <label for="Input.ConfirmPassword" class="block mb-2 text-sm font-medium text-foreground">Confirm password</label>
                     <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword"
-                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                               class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
                                autocomplete="new-password" aria-required="true" placeholder="••••••••" />
-                    <ValidationMessage For="() => Input.ConfirmPassword" class="mt-1 text-xs text-red-600 dark:text-red-400" />
+                    <ValidationMessage For="() => Input.ConfirmPassword" class="mt-1 text-xs text-danger" />
                 </div>
 
-                <button type="submit"
-                        class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-                    Create account
-                </button>
+                <LumexButton Type="ButtonType.Submit" FullWidth Color="ThemeColor.Primary">Create account</LumexButton>
             </EditForm>
 
-            <p class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            <p class="mt-6 text-center text-sm text-foreground-400">
                 Already have an account?
-                <a href="Account/Login" class="font-medium text-blue-600 hover:underline dark:text-blue-400">Sign in</a>
+                <a href="Account/Login" class="font-medium text-primary hover:underline">Sign in</a>
             </p>
         </div>
     </div>
@@ -107,6 +105,14 @@
         }
 
         Logger.LogInformation("User created a new account with password.");
+
+        // Make the first registered user an admin
+        var userCount = await UserManager.Users.CountAsync();
+        if (userCount == 1)
+        {
+            user.IsAdmin = true;
+            await UserManager.UpdateAsync(user);
+        }
 
         var userId = await UserManager.GetUserIdAsync(user);
         var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);

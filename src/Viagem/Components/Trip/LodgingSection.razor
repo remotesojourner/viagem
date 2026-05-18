@@ -1,124 +1,102 @@
-@using Viagem.Services.Interfaces
+﻿@using Viagem.Services.Interfaces
 @inject ILodgingService LodgingService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
-@inject IJSRuntime JS
 
 <!-- Add / Edit Modal -->
-@if (showModal)
-{
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    @(editItem != null ? "Edit Lodging" : "Add Lodging")
-                </h3>
-                <button @onclick="CloseModal" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
+<LumexModal @bind-Open="showModal" OnClose="CloseModal">
+    <LumexModalContent Context="modal">
+        <LumexModalHeader>
+            <h3 class="text-lg font-semibold text-foreground">
+                @(editItem != null ? "Edit Lodging" : "Add Lodging")
+            </h3>
+        </LumexModalHeader>
+        <LumexModalBody>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2">
+                <LumexTextbox @bind-Value="form.Name" Label="Name *" Placeholder="Hotel name, Airbnb, etc." />
             </div>
-            <div class="p-6 space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
-                        <input @bind="form.Name" type="text" class="@InputClass" placeholder="Hotel name, Airbnb, etc." />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-                        <Combobox Value="@form.Type.ToString()"
-                                  ValueChanged="@(v => { if (Enum.TryParse<LodgingType>(v, out var t)) form.Type = t; })"
-                                  Placeholder="Select type...">
-                            @foreach (var t in Enum.GetValues<LodgingType>())
-                            {
-                                <ComboboxItem Value="@t.ToString()" Label="@GetTypeLabel(t)" />
-                            }
-                        </Combobox>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirmation Code</label>
-                        <input @bind="form.ConfirmationCode" type="text" class="@InputClass" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-in *</label>
-                        <input @bind="form.StartDate" type="datetime-local" class="@InputClass" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-out *</label>
-                        <input @bind="form.EndDate" type="datetime-local" class="@InputClass" />
-                    </div>
-                    <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Timezone</label>
-                        <select @bind="form.Timezone" class="@InputClass">
-                            <option value="">— select timezone —</option>
-                            @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
-                            {
-                                <option value="@tz">@tz</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address</label>
-                        <input @bind="form.Address" type="text" class="@InputClass" placeholder="Street address" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost</label>
-                        <input @bind="form.CostAmount" type="number" step="0.01" class="@InputClass" placeholder="0.00" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Currency</label>
-                        <Combobox @bind-Value="form.CostCurrency" Placeholder="Select currency..." SearchPlaceholder="Search currencies...">
-                            @foreach (var c in Currencies)
-                            {
-                                <ComboboxItem Value="@c" Label="@c" />
-                            }
-                        </Combobox>
-                    </div>
-                    <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Booking Link</label>
-                        <input @bind="form.Link" type="url" class="@InputClass" placeholder="https://..." />
-                    </div>
-                    <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
-                        <textarea @bind="form.Notes" rows="2" class="@InputClass"></textarea>
-                    </div>
-                </div>
+            <div>
+                <LumexSelect TValue="LodgingType" @bind-Value="form.Type" Label="Type">
+                    @foreach (var t in Enum.GetValues<LodgingType>())
+                    {
+                        <LumexSelectItem Value="@t">@GetTypeLabel(t)</LumexSelectItem>
+                    }
+                </LumexSelect>
             </div>
-            <div class="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
-                <button @onclick="CloseModal" class="@SecondaryBtnClass">Cancel</button>
-                <button @onclick="SaveItem" disabled="@saving" class="@PrimaryBtnClass">
-                    @(saving ? "Saving..." : (editItem != null ? "Save Changes" : "Add"))
-                </button>
+            <div>
+                <LumexTextbox @bind-Value="form.ConfirmationCode" Label="Confirmation Code" />
+            </div>
+            <div>
+                <LumexDatebox TValue="DateTime" @bind-Value="form.StartDate" Label="Check-in *" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+            </div>
+            <div>
+                <LumexDatebox TValue="DateTime" @bind-Value="form.EndDate" Label="Check-out *" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+            </div>
+            <div class="col-span-2">
+                <LumexSelect TValue="string" @bind-Value="form.Timezone" Label="Timezone" Placeholder="— select timezone —">
+                    @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
+                    {
+                        <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
+                    }
+                </LumexSelect>
+            </div>
+            <div class="col-span-2">
+                <LumexTextbox @bind-Value="form.Address" Label="Address" Placeholder="Street address" />
+            </div>
+            <div>
+                <LumexNumbox TValue="decimal?" @bind-Value="form.CostAmount" Label="Cost" Placeholder="0.00" />
+            </div>
+            <div>
+                <LumexSelect TValue="string" @bind-Value="form.CostCurrency" Label="Currency">
+                    @foreach (var c in Currencies)
+                    {
+                        <LumexSelectItem Value="@c">@c</LumexSelectItem>
+                    }
+                </LumexSelect>
+            </div>
+            <div class="col-span-2">
+                <LumexTextbox @bind-Value="form.Link" Label="Booking Link" Placeholder="https://..." />
+            </div>
+            <div class="col-span-2">
+                <LumexTextbox @bind-Value="form.Notes" Label="Notes" Multiline="@true" Rows="2" />
             </div>
         </div>
-    </div>
-}
+        </LumexModalBody>
+        <LumexModalFooter>
+            <div class="flex justify-end gap-3 w-full">
+                <LumexButton OnClick="CloseModal">Cancel</LumexButton>
+                <LumexButton Color="ThemeColor.Primary" Disabled="@saving" OnClick="SaveItem">
+                    @(editItem != null ? "Save Changes" : "Add")
+                </LumexButton>
+            </div>
+        </LumexModalFooter>
+    </LumexModalContent>
+</LumexModal>
 
 @if (loading)
 {
-    <div class="text-center py-6"><div class="animate-spin inline-block rounded-full h-6 w-6 border-b-2 border-blue-700"></div></div>
+    <div class="text-center py-6"><LumexSpinner /></div>
 }
 else
 {
     @if (CanEdit)
     {
         <div class="flex justify-end mb-4">
-            <button @onclick="OpenAddModal"
-                    class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">
+            <LumexButton OnClick="OpenAddModal" Color="@ThemeColor.Primary">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 Add Lodging
-            </button>
+            </LumexButton>
         </div>
     }
 
     @if (items.Count == 0)
     {
-        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+        <div class="border-2 border-dashed border-divider rounded-lg p-8 text-center">
             <span class="text-4xl block mb-3">🏨</span>
-            <p class="text-sm text-gray-400 dark:text-gray-500">No lodging booked yet.</p>
+            <p class="text-sm text-foreground-400">No lodging booked yet.</p>
         </div>
     }
     else
@@ -126,36 +104,29 @@ else
         <div class="space-y-2">
             @foreach (var item in items.OrderBy(i => i.StartDate))
             {
-                <div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-colors">
+                <div class="flex items-start justify-between p-3 bg-default-50 rounded-xl border border-divider hover:border-foreground-300 transition-colors">
                     <div class="flex items-start gap-3">
                         <span class="text-2xl mt-0.5">@GetIcon(item.Type)</span>
                         <div>
                             <div class="flex flex-wrap items-baseline gap-2">
-                                <span class="font-semibold text-gray-900 dark:text-white text-sm">@item.Name</span>
-                                <span class="text-xs text-gray-500 dark:text-gray-400">@GetTypeLabel(item.Type)</span>
+                                <span class="font-semibold text-foreground text-sm">@item.Name</span>
+                                <span class="text-xs text-foreground-400">@GetTypeLabel(item.Type)</span>
                                 @if (!string.IsNullOrEmpty(item.ConfirmationCode))
                                 {
-                                    <span class="text-xs font-mono bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">@item.ConfirmationCode</span>
+                                    <span class="text-xs font-mono bg-default-200 text-foreground-500 px-1.5 py-0.5 rounded">@item.ConfirmationCode</span>
                                 }
                             </div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex flex-wrap items-center gap-x-2">
+                            <div class="text-xs text-foreground-400 mt-0.5 flex flex-wrap items-center gap-x-2">
                                 @{
-                                    var tzTipId = $"lodge-tz-{item.Id}";
                                     var tzTip = FormatTimezoneTooltip(item.Timezone);
                                 }
                                 @if (!string.IsNullOrEmpty(tzTip))
                                 {
-                                    <span class="relative inline-block">
-                                        <span data-tooltip-target="@tzTipId" data-tooltip-placement="top"
-                                              class="cursor-default underline decoration-dotted decoration-gray-400">
+                                    <LumexTooltip Content="@tzTip" Placement="TooltipPlacement.Top">
+                                        <span class="cursor-default underline decoration-dotted decoration-foreground-300">
                                             @item.StartDate.ToString("MMM d, HH:mm") — @item.EndDate.ToString("MMM d, HH:mm yyyy")
                                         </span>
-                                        <div id="@tzTipId" role="tooltip"
-                                             class="absolute z-30 invisible inline-block px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700 whitespace-nowrap">
-                                            @tzTip
-                                            <div class="tooltip-arrow" data-popper-arrow></div>
-                                        </div>
-                                    </span>
+                                    </LumexTooltip>
                                 }
                                 else
                                 {
@@ -163,11 +134,11 @@ else
                                 }
                                 <span>(@((item.EndDate.Date - item.StartDate.Date).Days) nights)</span>
                                 @if (!string.IsNullOrEmpty(item.Address)) { <span>📍 @item.Address</span> }
-                                @if (item.CostAmount.HasValue) { <span class="font-medium text-gray-700 dark:text-gray-300">@item.CostAmount.Value.ToString("N2") @item.CostCurrency</span> }
+                                @if (item.CostAmount.HasValue) { <span class="font-medium text-foreground-500">@item.CostAmount.Value.ToString("N2") @item.CostCurrency</span> }
                             </div>
                             @if (!string.IsNullOrEmpty(item.Notes))
                             {
-                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 italic">@item.Notes</p>
+                                <p class="text-xs text-foreground-400 mt-1 italic">@item.Notes</p>
                             }
                         </div>
                     </div>
@@ -175,7 +146,7 @@ else
                     {
                         <div class="relative ml-2 shrink-0">
                             <button @onclick="() => menuOpenId = (menuOpenId == item.Id ? null : item.Id)"
-                                    class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600">
+                                    class="p-1.5 text-foreground-400 hover:text-foreground-500 rounded-lg hover:bg-default-100">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                     <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
                                 </svg>
@@ -183,20 +154,20 @@ else
                             @if (menuOpenId == item.Id)
                             {
                                 <div class="fixed inset-0 z-10" @onclick="() => menuOpenId = null"></div>
-                                <div class="absolute right-0 top-8 z-20 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-1 min-w-[140px]">
+                                <div class="absolute right-0 top-8 z-20 bg-surface1 rounded-lg shadow-lg border border-divider py-1 min-w-[140px]">
                                     @if (!string.IsNullOrEmpty(item.Link))
                                     {
-                                        <a href="@item.Link" target="_blank" rel="noopener" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Open link ↗</a>
+                                        <a href="@item.Link" target="_blank" rel="noopener" class="flex items-center px-4 py-2 text-sm text-foreground-500 hover:bg-default-100">Open link ↗</a>
                                     }
-                                    <button @onclick="() => { OpenEditModal(item); menuOpenId = null; }" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Edit</button>
-                                    <button @onclick="async () => { await DeleteItem(item.Id); menuOpenId = null; }" class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">Remove</button>
+                                    <button @onclick="() => { OpenEditModal(item); menuOpenId = null; }" class="w-full text-left px-4 py-2 text-sm text-foreground-500 hover:bg-default-100">Edit</button>
+                                    <button @onclick="async () => { await DeleteItem(item.Id); menuOpenId = null; }" class="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger-100">Remove</button>
                                 </div>
                             }
                         </div>
                     }
                     else if (!string.IsNullOrEmpty(item.Link))
                     {
-                        <a href="@item.Link" target="_blank" rel="noopener" class="text-xs text-blue-600 hover:underline dark:text-blue-400 ml-2 shrink-0">Link</a>
+                        <a href="@item.Link" target="_blank" rel="noopener" class="text-xs text-primary hover:underline ml-2 shrink-0">Link</a>
                     }
                 </div>
             }
@@ -221,9 +192,6 @@ else
 
     private string? userTimezone;
 
-    private string InputClass => "bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
-    private string PrimaryBtnClass => "px-5 py-2.5 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg dark:bg-blue-600 dark:hover:bg-blue-700";
-    private string SecondaryBtnClass => "px-5 py-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600";
 
     protected override async Task OnInitializedAsync()
     {
@@ -235,11 +203,6 @@ else
             var user = await UserManager.FindByIdAsync(userId);
             userTimezone = user?.Timezone;
         }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        await JS.InvokeVoidAsync("initFlowbite");
     }
 
     private async Task LoadItems()

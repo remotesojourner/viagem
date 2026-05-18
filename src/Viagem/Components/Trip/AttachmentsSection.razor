@@ -1,41 +1,40 @@
-@using Viagem.Services.Interfaces
+﻿@using Viagem.Services.Interfaces
 @inject IAttachmentService AttachmentService
 @inject AuthenticationStateProvider AuthStateProvider
 
 @if (loading)
 {
-    <div class="text-center py-6"><div class="animate-spin inline-block rounded-full h-6 w-6 border-b-2 border-blue-700"></div></div>
+    <div class="text-center py-6"><Spinner Size="SpinnerSize.Md" Color="SpinnerColor.Info" /></div>
 }
 else
 {
     @if (CanEdit)
     {
-        <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload file</label>
-            <InputFile OnChange="HandleFileChange" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-400" />
+        <div class="mb-6 p-4 bg-default-50 rounded-xl border border-dashed border-divider">
+            <label class="block text-sm font-medium text-foreground-500 mb-2">Upload file</label>
+            <InputFile OnChange="HandleFileChange" class="block w-full text-sm text-foreground-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100" />
             @if (selectedFile != null)
             {
                 <div class="flex items-center gap-3 mt-3">
-                    <span class="text-sm text-gray-600 dark:text-gray-300 truncate">@selectedFile.Name <span class="text-gray-400">(@FormatSize(selectedFile.Size))</span></span>
-                    <button @onclick="UploadFile" disabled="@uploading"
-                            class="px-3 py-1.5 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:opacity-60">
+                    <span class="text-sm text-foreground-500 truncate">@selectedFile.Name <span class="text-foreground-400">(@FormatSize(selectedFile.Size))</span></span>
+                    <LumexButton OnClick="UploadFile" Disabled="@uploading" Color="ThemeColor.Primary">
                         @(uploading ? "Uploading..." : "Upload")
-                    </button>
-                    <button @onclick="() => selectedFile = null" class="text-xs text-gray-400 hover:text-gray-600">Clear</button>
+                    </LumexButton>
+                    <LumexButton OnClick="() => selectedFile = null">Clear</LumexButton>
                 </div>
             }
             @if (!string.IsNullOrEmpty(uploadError))
             {
-                <p class="text-sm text-red-600 dark:text-red-400 mt-2">@uploadError</p>
+                <p class="text-sm text-danger mt-2">@uploadError</p>
             }
         </div>
     }
 
     @if (items.Count == 0)
     {
-        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+        <div class="border-2 border-dashed border-divider rounded-lg p-8 text-center">
             <span class="text-4xl block mb-3">📎</span>
-            <p class="text-sm text-gray-400 dark:text-gray-500">No attachments yet.</p>
+            <p class="text-sm text-foreground-400">No attachments yet.</p>
         </div>
     }
     else
@@ -43,19 +42,18 @@ else
         <div class="space-y-2">
             @foreach (var item in items.OrderByDescending(i => i.UploadedAt))
             {
-                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600">
+                <div class="flex items-center justify-between p-3 bg-default-50 rounded-xl border border-divider">
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="text-2xl flex-shrink-0">@GetFileIcon(item.ContentType)</span>
                         <div class="min-w-0">
                             <a href="@item.FilePath" target="_blank" rel="noopener"
-                               class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400 truncate block">@item.FileName</a>
-                            <p class="text-xs text-gray-400 dark:text-gray-500">@FormatSize(item.FileSize) · @item.UploadedAt.ToString("MMM d, yyyy")</p>
+                               class="text-sm font-medium text-primary hover:underline truncate block">@item.FileName</a>
+                            <p class="text-xs text-foreground-400">@FormatSize(item.FileSize) · @item.UploadedAt.ToString("MMM d, yyyy")</p>
                         </div>
                     </div>
                     @if (CanEdit)
                     {
-                        <button @onclick="() => DeleteItem(item.Id)"
-                                class="text-xs text-red-500 hover:text-red-700 ml-2 shrink-0">Remove</button>
+                        <LumexButton OnClick="() => DeleteItem(item.Id)" Color="ThemeColor.Danger">Remove</LumexButton>
                     }
                 </div>
             }

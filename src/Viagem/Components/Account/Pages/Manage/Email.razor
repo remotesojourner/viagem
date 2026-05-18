@@ -5,19 +5,21 @@
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
-@using Viagem.Data
+@using Viagem.Services
 
 @inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
 @inject IEmailSender<ApplicationUser> EmailSender
 @inject IdentityUserAccessor UserAccessor
 @inject NavigationManager NavigationManager
+@inject SiteSettingsService SiteSettingsService
 
 <PageTitle>Change email</PageTitle>
 
 <StatusMessage Message="@message"/>
 
-<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Change email</h2>
+<div class="bg-surface1 rounded-xl border border-divider p-6">
+    <h2 class="text-lg font-semibold text-foreground mb-4">Change email</h2>
 
     <form @onsubmit="OnSendEmailVerificationAsync" @formname="send-verification" id="send-verification-form" method="post">
         <AntiforgeryToken />
@@ -25,23 +27,23 @@
 
     <EditForm Model="Input" FormName="change-email" OnValidSubmit="OnValidSubmitAsync" method="post">
         <DataAnnotationsValidator />
-        <ValidationSummary class="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400" role="alert" />
+        <ValidationSummary class="p-3 mb-4 text-sm text-danger rounded-lg bg-danger-100" role="alert" />
 
         <div class="mb-4">
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Current email</label>
+            <label class="block mb-2 text-sm font-medium text-foreground">Current email</label>
             @if (isEmailConfirmed)
             {
                 <div class="flex items-center gap-2">
-                    <input type="text" value="@email" class="bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-400 cursor-not-allowed" disabled />
-                    <span class="text-green-600 dark:text-green-400 font-bold text-lg flex-shrink-0" title="Email confirmed">✓</span>
+                    <input type="text" value="@email" class="bg-default-100 border border-divider text-foreground-400 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed" disabled />
+                    <span class="text-success-600 font-bold text-lg flex-shrink-0" title="Email confirmed">✓</span>
                 </div>
             }
             else
             {
                 <div class="flex flex-col gap-2">
-                    <input type="text" value="@email" class="bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-400 cursor-not-allowed" disabled />
+                    <input type="text" value="@email" class="bg-default-100 border border-divider text-foreground-400 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed" disabled />
                     <button type="submit" form="send-verification-form"
-                            class="self-start text-sm text-blue-600 hover:underline dark:text-blue-400">
+                            class="self-start text-sm text-primary hover:underline">
                         Send verification email
                     </button>
                 </div>
@@ -49,16 +51,14 @@
         </div>
 
         <div class="mb-6">
-            <label for="Input.NewEmail" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">New email</label>
+            <label for="Input.NewEmail" class="block mb-2 text-sm font-medium text-foreground">New email</label>
             <InputText @bind-Value="Input.NewEmail" id="Input.NewEmail"
-                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                       class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
                        autocomplete="email" aria-required="true" placeholder="Enter new email address" />
-            <ValidationMessage For="() => Input.NewEmail" class="mt-1 text-sm text-red-600 dark:text-red-400" />
+            <ValidationMessage For="() => Input.NewEmail" class="mt-1 text-sm text-danger" />
         </div>
 
-        <button type="submit" class="px-5 py-2.5 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300">
-            Change email
-        </button>
+        <LumexButton Type="ButtonType.Submit" Color="ThemeColor.Primary">Change email</LumexButton>
     </EditForm>
 </div>
 
@@ -91,9 +91,29 @@
             return;
         }
 
-        var userId = await UserManager.GetUserIdAsync(user);
+        var smtpConfigured = await SiteSettingsService.IsSmtpConfiguredAsync();
+
         var code = await UserManager.GenerateChangeEmailTokenAsync(user, Input.NewEmail);
+
+        if (!smtpConfigured)
+        {
+            // No SMTP — apply the change directly without email confirmation
+            var result = await UserManager.ChangeEmailAsync(user, Input.NewEmail, code);
+            if (!result.Succeeded)
+            {
+                message = "Error changing email.";
+                return;
+            }
+
+            await UserManager.SetUserNameAsync(user, Input.NewEmail);
+            await SignInManager.RefreshSignInAsync(user);
+            email = Input.NewEmail;
+            message = "Your email has been changed successfully.";
+            return;
+        }
+
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        var userId = await UserManager.GetUserIdAsync(user);
         var callbackUrl = NavigationManager.GetUriWithQueryParameters(
             NavigationManager.ToAbsoluteUri("Account/ConfirmEmailChange").AbsoluteUri,
             new Dictionary<string, object?> { ["userId"] = userId, ["email"] = Input.NewEmail, ["code"] = code });

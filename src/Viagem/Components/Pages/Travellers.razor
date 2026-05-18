@@ -1,4 +1,4 @@
-@page "/travellers"
+﻿@page "/travellers"
 @rendermode InteractiveServer
 @attribute [Authorize]
 @using System.Security.Cryptography
@@ -12,85 +12,64 @@
 
 <div class="max-w-4xl mx-auto">
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Traveller Profiles</h1>
-        <button @onclick="OpenAddModal"
-                class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300">
-            + Add Profile
-        </button>
+        <h1 class="text-2xl font-bold text-foreground">Traveller Profiles</h1>
+        <LumexButton OnClick="OpenAddModal" Color="ThemeColor.Primary">+ Add Profile</LumexButton>
     </div>
 
     @if (!string.IsNullOrEmpty(successMsg))
     {
-        <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-green-900 dark:text-green-400">
-            @successMsg
-        </div>
+        <LumexAlert Color="ThemeColor.Success" Variant="AlertVariant.Flat" Description="@successMsg" Class="mb-4" />
     }
     @if (!string.IsNullOrEmpty(errorMsg))
     {
-        <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400">
-            @errorMsg
-        </div>
+        <LumexAlert Color="ThemeColor.Danger" Variant="AlertVariant.Flat" Description="@errorMsg" Class="mb-4" />
     }
 
     @foreach (var profile in profiles)
     {
-        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+        <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
             <div class="flex items-start justify-between">
                 <div>
                     <div class="flex items-center gap-2 mb-1">
-                        <span class="text-lg font-semibold text-gray-900 dark:text-white">@profile.LegalName</span>
+                        <span class="text-lg font-semibold text-foreground">@profile.LegalName</span>
                         @if (profile.LinkedUserId == currentUserId)
                         {
-                            <span class="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full dark:bg-blue-900 dark:text-blue-300">You</span>
+                            <LumexChip Color="ThemeColor.Primary" Size="Size.Small">You</LumexChip>
                         }
                         else if (!string.IsNullOrEmpty(profile.LinkedUserId))
                         {
-                            <span class="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full dark:bg-green-900 dark:text-green-300">Linked</span>
+                            <LumexChip Color="ThemeColor.Success" Size="Size.Small">Linked</LumexChip>
                         }
                         else
                         {
-                            <span class="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full dark:bg-gray-700 dark:text-gray-400">Not linked</span>
+                            <LumexChip Size="Size.Small">Not linked</LumexChip>
                         }
                     </div>
                     @if (!string.IsNullOrEmpty(profile.Email))
                     {
-                        <p class="text-sm text-gray-500 dark:text-gray-400">@profile.Email</p>
+                        <p class="text-sm text-foreground-400">@profile.Email</p>
                     }
                 </div>
                 <div class="flex items-center gap-2">
                     @if (isAdmin && string.IsNullOrEmpty(profile.LinkedUserId) && !string.IsNullOrEmpty(profile.Email))
                     {
-                        <button @onclick="() => OpenAddUserModal(profile)"
-                                class="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
-                            Add User
-                        </button>
+                        <LumexButton OnClick="() => OpenAddUserModal(profile)" Color="ThemeColor.Success" Size="Size.Small">Add User</LumexButton>
                     }
-                    <button @onclick="() => OpenEditModal(profile)"
-                            class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
-                        Edit
-                    </button>
+                    <LumexButton OnClick="() => OpenEditModal(profile)" Size="Size.Small">Edit</LumexButton>
                     @if (profile.LinkedUserId != currentUserId)
                     {
-                        <button @onclick="() => DeleteProfile(profile.Id)"
-                                class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
-                            Delete
-                        </button>
+                        <LumexButton OnClick="() => DeleteProfile(profile.Id)" Color="ThemeColor.Danger" Size="Size.Small">Delete</LumexButton>
                     }
                 </div>
             </div>
 
             @* Aliases *@
             <div class="mt-4">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Name Aliases</p>
+                <p class="text-xs font-medium text-foreground-400 uppercase tracking-wide mb-2">Name Aliases</p>
                 <div class="flex flex-wrap items-center gap-2">
                     @foreach (var alias in profile.Aliases)
                     {
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 text-sm bg-gray-100 text-gray-700 rounded-full dark:bg-gray-700 dark:text-gray-300">
-                            @alias.Alias
-                            <button @onclick="() => RemoveAlias(alias.Id, profile.Id)"
-                                    class="text-gray-400 hover:text-red-500 ml-1 leading-none"
-                                    title="Remove alias">&#x2715;</button>
-                        </span>
+                        <LumexChip OnClose="() => RemoveAlias(alias.Id, profile.Id)">@alias.Alias</LumexChip>
                     }
                     @* Inline add alias *@
                     <div class="flex items-center gap-1">
@@ -99,9 +78,9 @@
                                @oninput="e => SetAliasInput(profile.Id, e.Value?.ToString() ?? string.Empty)"
                                @onkeydown="e => OnAliasKeyDown(e, profile.Id)"
                                placeholder="Add alias…"
-                               class="px-2.5 py-1 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-1 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white w-32" />
+                               class="px-2.5 py-1 text-sm bg-surface2 border border-divider text-foreground rounded-full focus:outline-none focus:ring-1 focus:ring-primary w-32" />
                         <button @onclick="() => AddAlias(profile.Id)"
-                                class="px-2.5 py-1 text-sm text-white bg-blue-600 rounded-full hover:bg-blue-700">+</button>
+                                class="px-2.5 py-1 text-sm text-white bg-primary rounded-full hover:bg-primary-600">+</button>
                     </div>
                 </div>
             </div>
@@ -110,7 +89,7 @@
 
     @if (profiles.Count == 0)
     {
-        <div class="text-center py-12 text-gray-500 dark:text-gray-400">
+        <div class="text-center py-12 text-foreground-400">
             <p class="text-lg mb-2">No traveller profiles yet.</p>
             <p class="text-sm">Profiles are created automatically when you register. You can also add profiles for family members or travel companions.</p>
         </div>
@@ -118,86 +97,83 @@
 </div>
 
 @* Add User modal *@
-@if (showAddUserModal && addUserProfile != null)
-{
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Create User Account</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">A login account will be created for <strong>@addUserProfile.LegalName</strong>.</p>
+<LumexModal @bind-Open="showAddUserModal" OnClose="CloseAddUserModal">
+    <LumexModalContent Context="modal">
+        <LumexModalHeader>
+            <h3 class="text-lg font-semibold text-foreground">Create User Account</h3>
+        </LumexModalHeader>
+        <LumexModalBody>
+            @if (addUserProfile != null)
+            {
+                <p class="text-sm text-foreground-400 mb-4">A login account will be created for <strong>@addUserProfile.LegalName</strong>.</p>
+            }
             @if (!string.IsNullOrEmpty(addUserCreatedPassword))
             {
-                <div class="p-4 mb-4 bg-green-50 dark:bg-green-900 rounded-lg">
-                    <p class="text-sm font-medium text-green-800 dark:text-green-300 mb-1">Account created! Share this password with the user:</p>
-                    <code class="block text-base font-mono font-bold text-green-900 dark:text-green-200 bg-green-100 dark:bg-green-800 px-3 py-2 rounded select-all">@addUserCreatedPassword</code>
-                    <p class="text-xs text-green-700 dark:text-green-400 mt-1">The user will be required to change their password on first login.</p>
+                <div class="p-4 bg-success-100 rounded-lg">
+                    <p class="text-sm font-medium text-success mb-1">Account created! Share this password with the user:</p>
+                    <code class="block text-base font-mono font-bold text-success px-3 py-2 rounded select-all">@addUserCreatedPassword</code>
+                    <p class="text-xs text-success-600 mt-1">The user will be required to change their password on first login.</p>
                     @if (!string.IsNullOrEmpty(addUserEmailSent))
                     {
-                        <p class="text-xs text-green-700 dark:text-green-400 mt-1">&#x2713; @addUserEmailSent</p>
+                        <p class="text-xs text-success-600 mt-1">&#x2713; @addUserEmailSent</p>
                     }
-                </div>
-                <div class="flex justify-end">
-                    <button @onclick="CloseAddUserModal" class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">Done</button>
                 </div>
             }
             else
             {
-                <div class="mb-4">
-                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Email (login username)</label>
-                    <input type="email" @bind="addUserEmail" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                </div>
+                <LumexTextbox @bind-Value="addUserEmail" Label="Email (login username)" />
                 @if (!string.IsNullOrEmpty(addUserError))
                 {
-                    <div class="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400">@addUserError</div>
+                    <div class="p-3 mt-3 text-sm text-danger rounded-lg bg-danger-100">@addUserError</div>
                 }
-                <div class="flex justify-end gap-3">
-                    <button @onclick="CloseAddUserModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">Cancel</button>
-                    <button @onclick="PerformAddUser" disabled="@addUserSaving"
-                            class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50">
-                        @(addUserSaving ? "Creating..." : "Create Account")
-                    </button>
-                </div>
             }
-        </div>
-    </div>
-}
+        </LumexModalBody>
+        <LumexModalFooter>
+            <div class="flex justify-end gap-3 w-full">
+                @if (!string.IsNullOrEmpty(addUserCreatedPassword))
+                {
+                    <LumexButton OnClick="CloseAddUserModal" Color="ThemeColor.Primary">Done</LumexButton>
+                }
+                else
+                {
+                    <LumexButton OnClick="CloseAddUserModal">Cancel</LumexButton>
+                    <LumexButton OnClick="PerformAddUser" Disabled="@addUserSaving" Color="ThemeColor.Success">
+                        @(addUserSaving ? "Creating..." : "Create Account")
+                    </LumexButton>
+                }
+            </div>
+        </LumexModalFooter>
+    </LumexModalContent>
+</LumexModal>
 
 @* Add / Edit modal *@
-@if (showModal)
-{
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+<LumexModal @bind-Open="showModal" OnClose="CloseModal">
+    <LumexModalContent Context="modal">
+        <LumexModalHeader>
+            <h3 class="text-lg font-semibold text-foreground">
                 @(editingProfile == null ? "Add Traveller Profile" : "Edit Traveller Profile")
-            </h2>
-            <div class="mb-4">
-                <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Name <span class="text-red-500">*</span></label>
-                <input type="text" @bind="modalName"
-                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                       placeholder="Full name" />
+            </h3>
+        </LumexModalHeader>
+        <LumexModalBody>
+            <div class="space-y-4">
+                <LumexTextbox @bind-Value="modalName" Label="Name" Placeholder="Full name" />
+                <LumexTextbox @bind-Value="modalEmail" Label="Email" Placeholder="email@example.com" />
+                @if (!string.IsNullOrEmpty(modalError))
+                {
+                    <div class="p-3 text-sm text-danger rounded-lg bg-danger-100">@modalError</div>
+                }
             </div>
-            <div class="mb-6">
-                <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Email</label>
-                <input type="email" @bind="modalEmail"
-                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                       placeholder="email@example.com" />
-            </div>
-            @if (!string.IsNullOrEmpty(modalError))
-            {
-                <div class="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400">@modalError</div>
-            }
-            <div class="flex justify-end gap-3">
-                <button @onclick="CloseModal"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">
-                    Cancel
-                </button>
-                <button @onclick="SaveModal"
-                        class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">
+        </LumexModalBody>
+        <LumexModalFooter>
+            <div class="flex justify-end gap-3 w-full">
+                <LumexButton OnClick="CloseModal">Cancel</LumexButton>
+                <LumexButton OnClick="SaveModal" Color="ThemeColor.Primary">
                     @(editingProfile == null ? "Add" : "Save")
-                </button>
+                </LumexButton>
             </div>
-        </div>
-    </div>
-}
+        </LumexModalFooter>
+    </LumexModalContent>
+</LumexModal>
 
 @code {
     private string? currentUserId;
@@ -408,6 +384,8 @@
 
             // Link the traveller profile
             addUserProfile.LinkedUserId = newUser.Id;
+            if (string.IsNullOrEmpty(addUserProfile.OwnerId))
+                addUserProfile.OwnerId = newUser.Id;
             await ProfileService.UpdateAsync(addUserProfile);
             addUserCreatedPassword = password;
             await LoadProfiles();

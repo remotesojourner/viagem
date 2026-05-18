@@ -37,6 +37,12 @@ public class SiteSettingsService(ApplicationDbContext db)
         return val?.Enabled ?? true;
     }
 
+    public async Task<bool> IsSmtpConfiguredAsync()
+    {
+        var config = await GetAsync<SmtpConfig>(Keys.SmtpConfig);
+        return config != null && !string.IsNullOrWhiteSpace(config.Host);
+    }
+
     public async Task<OidcExtraConfig> GetOidcExtraConfigAsync()
     {
         return await GetAsync<OidcExtraConfig>(Keys.OidcExtraConfig) ?? new OidcExtraConfig(false, false);

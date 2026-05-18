@@ -1,32 +1,105 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using Viagem.Data
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="@ResolvedTheme">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" />
-    <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["Viagem.styles.css"]" />
+    <link href="/_content/PSC.Blazor.Components.MarkdownEditor/css/easymde.min.css" rel="stylesheet" />
+    <link href="/_content/PSC.Blazor.Components.MarkdownEditor/css/markdowneditor.css" rel="stylesheet" />
     <ImportMap />
-    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="icon" type="image/png" href="img/logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <HeadOutlet />
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-    </style>
+    <!--
+        Theme script.
+        For "light"/"dark" the class is already server-rendered on <html> (via the
+        theme-resolved cookie), so Blazor's enhanced-navigation DOM morph preserves it.
+        For "system" JS resolves the OS preference, writes it to the cookie so the
+        *next* SSR request (including every enhanced-nav fetch) renders the right class,
+        and immediately applies it to the current document.
+    -->
+    <script data-initial-theme="@DbTheme">(function(){
+        var key = "lumexui.theme";
+        var cookieName = "theme-resolved";
+        var el = document.currentScript;
+        var dbTheme = (el ? el.getAttribute("data-initial-theme") : null) || "system";
+        localStorage.setItem(key, dbTheme);
+
+        function setResolvedCookie(val) {
+            document.cookie = cookieName + "=" + val + ";path=/;samesite=strict;max-age=31536000";
+        }
+
+        window._applyLumexTheme = function() {
+            var t = localStorage.getItem(key) || "system";
+            var resolved = t === "system"
+                ? (window.matchMedia("(prefers-color-scheme:dark)").matches ? "dark" : "light")
+                : t;
+            // Keep cookie in sync so the server always renders the right class.
+            setResolvedCookie(resolved);
+            document.documentElement.classList.remove("light","dark");
+            document.documentElement.classList.add(resolved);
+            document.documentElement.style.colorScheme = resolved;
+        };
+
+        window._applyLumexTheme();
+
+        // Re-apply after every enhanced-navigation morph (covers "system" users whose
+        // cookie may differ from the current OS state mid-session).
+        if (!window._themeListenerAttached) {
+            window._themeListenerAttached = true;
+            document.addEventListener('blazor:enhancedload', function() { window._applyLumexTheme(); });
+            // Also react to OS dark/light changes while the tab is open.
+            window.matchMedia("(prefers-color-scheme:dark)").addEventListener("change", function() {
+                if ((localStorage.getItem(key) || "system") === "system") {
+                    window._applyLumexTheme();
+                }
+            });
+        }
+    })();</script>
 </head>
 
-<body class="bg-gray-50 dark:bg-gray-900">
+<body>
     <Routes />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
-    <script src="_content/Flowbite/flowbite.js"></script>
-    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
-    <script src="js/notes-editor.js"></script>
+    <script src="_content/LumexUI/js/LumexUI.js" type="module"></script>
+    <script src="/_content/PSC.Blazor.Components.MarkdownEditor/js/easymde.min.js"></script>
+    <script src="/_content/PSC.Blazor.Components.MarkdownEditor/js/markdownEditor.js"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
 
 </html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private string DbTheme { get; set; } = "system";
+
+    // For light/dark this matches DbTheme directly.
+    // For system we read the "theme-resolved" cookie that JS wrote (dark or light),
+    // so the <html> class is correct on every SSR render including enhanced-nav fetches.
+    private string ResolvedTheme => DbTheme switch
+    {
+        "light" => "light",
+        "dark"  => "dark",
+        _ => HttpContext.Request.Cookies.TryGetValue("theme-resolved", out var c) && (c == "dark" || c == "light")
+                ? c
+                : "light"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = HttpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+        {
+            var userManager = HttpContext.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByIdAsync(userId);
+            DbTheme = user?.WebsiteAppearance ?? "system";
+        }
+    }
+}

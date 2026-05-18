@@ -11,39 +11,36 @@
 
 <PageTitle>Two-factor authentication</PageTitle>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+<div class="min-h-screen flex items-center justify-center bg-default-50 px-4">
     <div class="w-full max-w-md">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Two-factor authentication</h1>
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Enter the code from your authenticator app</p>
+            <h1 class="text-3xl font-bold text-foreground">Two-factor authentication</h1>
+            <p class="mt-2 text-sm text-foreground-400">Enter the code from your authenticator app</p>
         </div>
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+        <div class="bg-surface1 rounded-2xl shadow-sm border border-divider p-8">
             <StatusMessage Message="@message" />
             <EditForm Model="Input" FormName="login-with-2fa" OnValidSubmit="OnValidSubmitAsync" method="post">
                 <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
                 <input type="hidden" name="RememberMe" value="@RememberMe" />
                 <DataAnnotationsValidator />
-                <ValidationSummary class="p-3 mb-4 text-sm text-red-800 bg-red-50 rounded-lg dark:bg-red-900 dark:text-red-400" role="alert" />
+                <ValidationSummary class="p-3 mb-4 text-sm text-danger bg-danger-100 rounded-lg" role="alert" />
                 <div class="mb-4">
-                    <label for="Input.TwoFactorCode" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Authenticator code</label>
+                    <label for="Input.TwoFactorCode" class="block mb-2 text-sm font-medium text-foreground">Authenticator code</label>
                     <InputText @bind-Value="Input.TwoFactorCode" id="Input.TwoFactorCode"
-                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                               class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
                                autocomplete="off" />
-                    <ValidationMessage For="() => Input.TwoFactorCode" class="mt-1 text-xs text-red-600 dark:text-red-400" />
+                    <ValidationMessage For="() => Input.TwoFactorCode" class="mt-1 text-xs text-danger" />
                 </div>
                 <div class="flex items-center gap-2 mb-6">
                     <InputCheckbox @bind-Value="Input.RememberMachine" id="remember-machine"
-                                   class="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 dark:bg-gray-700 dark:border-gray-600" />
-                    <label for="remember-machine" class="text-sm text-gray-600 dark:text-gray-400">Remember this machine</label>
+                                   class="w-4 h-4 border border-divider rounded bg-default-50 focus:ring-3 focus:ring-primary-300" />
+                    <label for="remember-machine" class="text-sm text-foreground-500">Remember this machine</label>
                 </div>
-                <button type="submit"
-                        class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700">
-                    Sign in
-                </button>
+                <LumexButton Type="ButtonType.Submit" FullWidth Color="ThemeColor.Primary">Sign in</LumexButton>
             </EditForm>
-            <p class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            <p class="mt-6 text-center text-sm text-foreground-400">
                 Don't have your device?
-                <a href="Account/LoginWithRecoveryCode?ReturnUrl=@ReturnUrl" class="font-medium text-blue-600 hover:underline dark:text-blue-400">Use a recovery code</a>
+                <a href="Account/LoginWithRecoveryCode?ReturnUrl=@ReturnUrl" class="font-medium text-primary hover:underline">Use a recovery code</a>
             </p>
         </div>
     </div>

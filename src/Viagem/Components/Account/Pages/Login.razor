@@ -14,19 +14,19 @@
 
 <PageTitle>Log in - Viagem</PageTitle>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+<div class="min-h-screen flex items-center justify-center bg-default-50 px-4">
     <div class="w-full max-w-md">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Welcome back</h1>
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Sign in to your Viagem account</p>
+            <h1 class="text-3xl font-bold text-foreground">Welcome back</h1>
+            <p class="mt-2 text-sm text-foreground-400">Sign in to your Viagem account</p>
         </div>
 
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+        <div class="bg-surface1 rounded-2xl shadow-sm border border-divider p-8">
             <StatusMessage Message="@errorMessage" />
 
             @if (oidcAutoRedirect)
             {
-                <div class="text-center text-sm text-gray-500 dark:text-gray-400 mb-4">Redirecting to single sign-on...</div>
+                <div class="text-center text-sm text-foreground-400 mb-4">Redirecting to single sign-on...</div>
                 <form id="oidc-auto-redirect-form" action="Account/PerformExternalLogin" method="post">
                     <AntiforgeryToken />
                     <input type="hidden" name="provider" value="@oidcAutoRedirectProvider" />
@@ -40,41 +40,38 @@
                 {
                     <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
                         <DataAnnotationsValidator />
-                        <ValidationSummary class="p-3 mb-4 text-sm text-red-800 bg-red-50 rounded-lg dark:bg-red-900 dark:text-red-400" role="alert" />
+                        <ValidationSummary class="p-3 mb-4 text-sm text-danger bg-danger-100 rounded-lg" role="alert" />
 
                         <div class="mb-4">
-                            <label for="Input.Email" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Email</label>
+                            <label for="Input.Email" class="block mb-2 text-sm font-medium text-foreground">Email</label>
                             <InputText @bind-Value="Input.Email" id="Input.Email" type="email"
-                                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                       class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
                                        autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                            <ValidationMessage For="() => Input.Email" class="mt-1 text-xs text-red-600 dark:text-red-400" />
+                            <ValidationMessage For="() => Input.Email" class="mt-1 text-xs text-danger" />
                         </div>
 
                         <div class="mb-4">
-                            <label for="Input.Password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Password</label>
+                            <label for="Input.Password" class="block mb-2 text-sm font-medium text-foreground">Password</label>
                             <InputText type="password" @bind-Value="Input.Password" id="Input.Password"
-                                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                       class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
                                        autocomplete="current-password" aria-required="true" placeholder="••••••••" />
-                            <ValidationMessage For="() => Input.Password" class="mt-1 text-xs text-red-600 dark:text-red-400" />
+                            <ValidationMessage For="() => Input.Password" class="mt-1 text-xs text-danger" />
                         </div>
 
                         <div class="flex items-center justify-between mb-6">
-                            <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
-                                <InputCheckbox @bind-Value="Input.RememberMe" class="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-600" />
+                            <label class="flex items-center gap-2 text-sm text-foreground-500 cursor-pointer">
+                                <InputCheckbox @bind-Value="Input.RememberMe" class="w-4 h-4 border border-divider rounded bg-default-50 focus:ring-3 focus:ring-primary-300" />
                                 Remember me
                             </label>
-                            <a href="Account/ForgotPassword" class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">Forgot password?</a>
+                            <a href="Account/ForgotPassword" class="text-sm font-medium text-primary hover:underline">Forgot password?</a>
                         </div>
 
-                        <button type="submit"
-                                class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-                            Sign in
-                        </button>
+                        <LumexButton Type="ButtonType.Submit" FullWidth Color="ThemeColor.Primary">Sign in</LumexButton>
                     </EditForm>
                 }
                 else
                 {
-                    <div class="p-4 mb-4 text-sm text-amber-800 bg-amber-50 rounded-lg dark:bg-amber-900/30 dark:text-amber-300">
+                    <div class="p-4 mb-4 text-sm text-warning bg-warning-100 rounded-lg">
                         Password login is disabled. Please use single sign-on (SSO) below.
                     </div>
                     @if (!string.IsNullOrEmpty(oidcAutoRedirectProvider))
@@ -83,27 +80,24 @@
                             <AntiforgeryToken />
                             <input type="hidden" name="provider" value="@oidcAutoRedirectProvider" />
                             <input type="hidden" name="returnUrl" value="@(ReturnUrl ?? "/")" />
-                            <button type="submit"
-                                    class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-                                Sign in with @oidcAutoRedirectProvider
-                            </button>
+                            <LumexButton Type="ButtonType.Submit" FullWidth Color="ThemeColor.Primary">Sign in with @oidcAutoRedirectProvider</LumexButton>
                         </form>
                     }
                 }
             }
 
-            <p class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            <p class="mt-6 text-center text-sm text-foreground-400">
                 @if (registrationEnabled)
                 {
                     <text>Don't have an account?
                     <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))"
-                       class="font-medium text-blue-600 hover:underline dark:text-blue-400">
+                       class="font-medium text-primary hover:underline">
                         Create one
                     </a></text>
                 }
             </p>
-            <p class="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                <a href="Account/ResendEmailConfirmation" class="font-medium text-blue-600 hover:underline dark:text-blue-400">Resend email confirmation</a>
+            <p class="mt-2 text-center text-sm text-foreground-400">
+                <a href="Account/ResendEmailConfirmation" class="font-medium text-primary hover:underline">Resend email confirmation</a>
             </p>
         </div>
     </div>

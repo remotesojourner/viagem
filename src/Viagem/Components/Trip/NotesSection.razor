@@ -1,62 +1,9 @@
-@inject ITripService TripService
-@inject IJSRuntime JS
+﻿@inject ITripService TripService
 @using Viagem.Services.Interfaces
-@implements IAsyncDisposable
+@using Markdig
 
 <style>
-    .ql-toolbar.ql-snow {
-        border-color: rgb(209 213 219);
-        border-radius: 0.5rem 0.5rem 0 0;
-        background-color: rgb(249 250 251);
-    }
-    .ql-container.ql-snow {
-        border-color: rgb(209 213 219);
-        border-radius: 0 0 0.5rem 0.5rem;
-        font-size: 0.875rem;
-        min-height: 200px;
-    }
-    .ql-editor {
-        min-height: 200px;
-        color: rgb(17 24 39);
-    }
-    .ql-editor.ql-blank::before {
-        color: rgb(156 163 175);
-        font-style: normal;
-    }
-    @@media (prefers-color-scheme: dark) {
-        .ql-toolbar.ql-snow {
-            border-color: rgb(75 85 99);
-            background-color: rgb(55 65 81);
-        }
-        .ql-container.ql-snow {
-            border-color: rgb(75 85 99);
-            background-color: rgb(55 65 81);
-        }
-        .ql-editor {
-            color: rgb(243 244 246);
-        }
-        .ql-toolbar .ql-stroke {
-            stroke: rgb(209 213 219);
-        }
-        .ql-toolbar .ql-fill {
-            fill: rgb(209 213 219);
-        }
-        .ql-toolbar .ql-picker {
-            color: rgb(209 213 219);
-        }
-        .ql-toolbar .ql-picker-options {
-            background-color: rgb(55 65 81);
-            border-color: rgb(75 85 99);
-        }
-        .ql-toolbar button:hover .ql-stroke,
-        .ql-toolbar button.ql-active .ql-stroke {
-            stroke: rgb(255 255 255);
-        }
-        .ql-toolbar button:hover .ql-fill,
-        .ql-toolbar button.ql-active .ql-fill {
-            fill: rgb(255 255 255);
-        }
-    }
+    /* ── Notes display (read-only rendered markdown) ── */
     .notes-display h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
     .notes-display h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
     .notes-display p { margin-bottom: 0.5rem; }
@@ -67,6 +14,68 @@
     .notes-display em { font-style: italic; }
     .notes-display s { text-decoration: line-through; }
     .notes-display a { color: rgb(59 130 246); text-decoration: underline; }
+
+    /* ── EasyMDE light mode baseline ── */
+    .CodeMirror {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        border-radius: 0 0 0.5rem 0.5rem;
+        border-color: rgb(209 213 219);
+        background: rgb(255 255 255);
+        color: rgb(17 24 39);
+    }
+    .editor-toolbar {
+        border-color: rgb(209 213 219);
+        border-radius: 0.5rem 0.5rem 0 0;
+        background: rgb(249 250 251);
+    }
+    .editor-toolbar a { color: rgb(55 65 81) !important; }
+    .editor-toolbar a:hover,
+    .editor-toolbar a.active { background: rgb(229 231 235) !important; color: rgb(17 24 39) !important; border-color: rgb(209 213 219) !important; }
+    .editor-toolbar i.separator { border-color: rgb(209 213 219); }
+    .editor-statusbar { color: rgb(107 114 128); border-color: rgb(209 213 219); font-size: 0.75rem; }
+    .editor-preview { background: rgb(255 255 255); color: rgb(17 24 39); border-color: rgb(209 213 219); font-size: 0.875rem; }
+    .CodeMirror-cursor { border-left-color: rgb(17 24 39); }
+
+    /* ── EasyMDE dark mode overrides (html.dark) ── */
+    html.dark .CodeMirror {
+        background: rgb(31 41 55);
+        color: rgb(243 244 246);
+        border-color: rgb(75 85 99);
+    }
+    html.dark .CodeMirror-selected { background: rgb(55 65 81); }
+    html.dark .CodeMirror-cursor { border-left-color: rgb(243 244 246); }
+    html.dark .CodeMirror-scroll { background: rgb(31 41 55); }
+    html.dark .editor-toolbar {
+        background: rgb(55 65 81);
+        border-color: rgb(75 85 99);
+    }
+    html.dark .editor-toolbar a { color: rgb(209 213 219) !important; border: none !important; }
+    html.dark .editor-toolbar a:hover {
+        background: rgb(75 85 99) !important;
+        color: rgb(255 255 255) !important;
+        border: none !important;
+    }
+    html.dark .editor-toolbar a.active {
+        background: rgb(55 65 81) !important;
+        color: rgb(255 255 255) !important;
+        border: none !important;
+    }
+    html.dark .editor-toolbar i.separator { border-color: rgb(75 85 99); }
+    html.dark .editor-toolbar.disabled-for-preview a:not(.no-disable) { color: rgb(107 114 128) !important; }
+    html.dark .editor-statusbar { color: rgb(156 163 175); border-color: rgb(75 85 99); }
+    html.dark .editor-preview {
+        background: rgb(31 41 55);
+        color: rgb(209 213 219);
+        border-color: rgb(75 85 99);
+    }
+    html.dark .editor-preview pre { background: rgb(17 24 39); }
+    html.dark .CodeMirror-fullscreen,
+    html.dark .editor-toolbar.fullscreen { background: rgb(17 24 39); }
+    html.dark .editor-preview-side {
+        background: rgb(31 41 55);
+        border-color: rgb(75 85 99);
+    }
 </style>
 
 <div class="max-w-2xl">
@@ -76,24 +85,23 @@
         {
             @if (string.IsNullOrWhiteSpace(Notes))
             {
-                <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center mb-4">
+                <div class="border-2 border-dashed border-divider rounded-lg p-8 text-center mb-4">
                     <span class="text-4xl block mb-3">📝</span>
-                    <p class="text-sm text-gray-400 dark:text-gray-500 mb-3">No notes yet.</p>
-                    <button @onclick="StartEditing"
-                            class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">
+                    <p class="text-sm text-foreground-400 mb-3">No notes yet.</p>
+                    <LumexButton OnClick="StartEditing" Color="ThemeColor.Primary">
                         Add Notes
-                    </button>
+                    </LumexButton>
                 </div>
             }
             else
             {
-                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-4">
+                <div class="bg-default-50 rounded-xl p-4 mb-4">
                     <div class="flex items-start justify-between gap-2">
-                        <div class="notes-display text-sm text-gray-700 dark:text-gray-300 flex-1">
-                            @((MarkupString)(Notes ?? ""))
+                        <div class="notes-display text-sm text-foreground-500 flex-1">
+                            @((MarkupString)RenderedNotes)
                         </div>
                         <button @onclick="StartEditing"
-                                class="flex-shrink-0 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 flex items-center gap-1">
+                                class="flex-shrink-0 text-xs text-primary hover:text-primary-700 flex items-center gap-1">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                             </svg>
@@ -106,20 +114,22 @@
         else
         {
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trip Notes</label>
-                <div id="notes-quill-editor"></div>
+                <label class="block text-sm font-medium text-foreground-500 mb-2">Trip Notes</label>
+                <MarkdownEditor @bind-Value="draftNotes"
+                                MinHeight="200px"
+                                Placeholder="Packing lists, reminders, important contacts, visa info..."
+                                SpellChecker="false"
+                                HideIcons="@(new[] { "side-by-side", "fullscreen", "image", "guide" })" />
                 <div class="flex items-center gap-3 mt-3">
-                    <button @onclick="Save" disabled="@saving"
-                            class="px-5 py-2.5 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg dark:bg-blue-600 disabled:opacity-60">
+                    <LumexButton OnClick="Save" disabled="@saving" Color="ThemeColor.Primary">
                         @(saving ? "Saving..." : "Save Notes")
-                    </button>
-                    <button @onclick="CancelEditing" disabled="@saving"
-                            class="px-5 py-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600 disabled:opacity-60">
+                    </LumexButton>
+                    <LumexButton OnClick="CancelEditing" disabled="@saving">
                         Cancel
-                    </button>
+                    </LumexButton>
                     @if (!string.IsNullOrWhiteSpace(savedMessage))
                     {
-                        <span class="text-sm text-green-600 dark:text-green-400">@savedMessage</span>
+                        <span class="text-sm text-success-600">@savedMessage</span>
                     }
                 </div>
             </div>
@@ -129,13 +139,13 @@
     {
         @if (string.IsNullOrWhiteSpace(Notes))
         {
-            <p class="text-sm text-gray-400 dark:text-gray-500 italic">No notes for this trip.</p>
+            <p class="text-sm text-foreground-400 italic">No notes for this trip.</p>
         }
         else
         {
-            <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
-                <div class="notes-display text-sm text-gray-700 dark:text-gray-300">
-                    @((MarkupString)(Notes ?? ""))
+            <div class="bg-default-50 rounded-xl p-4">
+                <div class="notes-display text-sm text-foreground-500">
+                    @((MarkupString)RenderedNotes)
                 </div>
             </div>
         }
@@ -150,40 +160,30 @@
 
     private bool editing = false;
     private bool saving = false;
-    private bool editorNeedsInit = false;
     private string? draftNotes;
     private string? savedMessage;
+
+    private string RenderedNotes => string.IsNullOrWhiteSpace(Notes)
+        ? string.Empty
+        : Markdown.ToHtml(Notes, new MarkdownPipelineBuilder().UseAdvancedExtensions().Build());
 
     private void StartEditing()
     {
         draftNotes = Notes;
         editing = true;
-        editorNeedsInit = true;
         savedMessage = null;
     }
 
-    private async Task CancelEditing()
+    private void CancelEditing()
     {
-        await JS.InvokeVoidAsync("notesEditor.destroy", "notes-quill-editor");
         editing = false;
         draftNotes = null;
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (editorNeedsInit)
-        {
-            editorNeedsInit = false;
-            await JS.InvokeVoidAsync("notesEditor.init", "notes-quill-editor", draftNotes);
-        }
     }
 
     private async Task Save()
     {
         saving = true;
-        draftNotes = await JS.InvokeAsync<string>("notesEditor.getHTML", "notes-quill-editor");
         await TripService.UpdateNotesAsync(TripId, draftNotes);
-        await JS.InvokeVoidAsync("notesEditor.destroy", "notes-quill-editor");
         saving = false;
         editing = false;
         savedMessage = "Saved!";
@@ -191,12 +191,5 @@
         await Task.Delay(3000);
         savedMessage = null;
     }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (editing)
-        {
-            await JS.InvokeVoidAsync("notesEditor.destroy", "notes-quill-editor");
-        }
-    }
 }
+

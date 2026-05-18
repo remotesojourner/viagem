@@ -19,7 +19,7 @@ else
     [Parameter] public string SizeClass { get; set; } = "w-8 h-8";
     [Parameter] public string ExtraClass { get; set; } = "";
     [Parameter] public string TextClass { get; set; } = "text-sm";
-    [Parameter] public string BgClass { get; set; } = "bg-blue-500";
+    [Parameter] public string BgClass { get; set; } = "bg-primary";
 
     private bool useGravatar;
 
@@ -33,7 +33,7 @@ else
     {
         var normalized = email.Trim().ToLowerInvariant();
         var bytes = System.Text.Encoding.UTF8.GetBytes(normalized);
-        var hash = System.Security.Cryptography.MD5.HashData(bytes);
-        return $"https://www.gravatar.com/avatar/{Convert.ToHexString(hash).ToLowerInvariant()}?s={size}&d=identicon";
+        var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+        return $"https://gravatar.com/avatar/{Convert.ToHexString(hash).ToLowerInvariant()}?s={size}&d=identicon";
     }
 }

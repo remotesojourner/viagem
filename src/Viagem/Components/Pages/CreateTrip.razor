@@ -1,4 +1,4 @@
-@page "/trips/create"
+﻿@page "/trips/create"
 @rendermode InteractiveServer
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Identity
@@ -14,97 +14,75 @@
 
 <div class="max-w-2xl mx-auto">
     <div class="mb-6">
-        <a href="/" class="inline-flex items-center text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400">
+        <a href="/" class="inline-flex items-center text-sm text-foreground-400 hover:text-primary">
             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
             Back to My Trips
         </a>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mt-2">Create New Trip</h1>
+        <h1 class="text-2xl font-bold text-foreground mt-2">Create New Trip</h1>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-5">
+    <div class="bg-surface1 rounded-xl border border-divider p-6 space-y-5">
         @if (!string.IsNullOrEmpty(errorMessage))
         {
-            <div class="p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400">@errorMessage</div>
+            <LumexAlert Color="ThemeColor.Danger" Variant="AlertVariant.Flat" Description="@errorMessage" />
         }
 
         <!-- Trip Name -->
-        <div>
-            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Trip Name *</label>
-            <input @bind="name" type="text" class="@InputClass" placeholder="e.g. Summer Europe Trip 2025" />
-        </div>
+        <LumexTextbox @bind-Value="name" Label="Trip Name" Placeholder="e.g. Summer Europe Trip 2025" Required="@true" />
 
         <!-- Dates -->
         <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Start Date *</label>
-                <input @bind="startDate" type="date" class="@InputClass" />
-            </div>
-            <div>
-                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">End Date *</label>
-                <input @bind="endDate" type="date" class="@InputClass" />
-            </div>
+            <LumexDatebox TValue="DateTime?" @bind-Value="startDate" Label="Start Date" Required="@true" />
+            <LumexDatebox TValue="DateTime?" @bind-Value="endDate" Label="End Date" Required="@true" />
         </div>
         @if (dateError != null)
         {
-            <p class="text-xs text-red-600 dark:text-red-400 -mt-3">@dateError</p>
+            <p class="text-xs text-danger -mt-3">@dateError</p>
         }
 
         <!-- Description -->
-        <div>
-            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Description</label>
-            <textarea @bind="description" rows="2" class="@InputClass" placeholder="Brief description of your trip..."></textarea>
-        </div>
+        <LumexTextbox @bind-Value="description" Label="Description" Placeholder="Brief description of your trip..." Multiline="@true" Rows="2" />
 
         <!-- Budget -->
         <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Budget Amount</label>
-                <input @bind="budgetAmount" type="number" step="0.01" min="0" class="@InputClass" placeholder="0.00" />
-            </div>
-            <div>
-                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Currency</label>
-                <Combobox @bind-Value="budgetCurrency" Placeholder="Select currency..." SearchPlaceholder="Search currencies...">
-                    <ComboboxItem Value="" Label="Select currency..." />
-                    @foreach (var c in Currencies)
-                    {
-                        <ComboboxItem Value="@c.Code" Label="@(c.Code + " - " + c.Name)" />
-                    }
-                </Combobox>
-            </div>
+            <LumexNumbox TValue="decimal?" @bind-Value="budgetAmount" Label="Budget Amount" Placeholder="0.00" />
+            <LumexSelect TValue="string" @bind-Value="budgetCurrency" Label="Currency" Placeholder="Select currency...">
+                @foreach (var c in Currencies)
+                {
+                    <LumexSelectItem Value="@c.Code">@(c.Code + " - " + c.Name)</LumexSelectItem>
+                }
+            </LumexSelect>
         </div>
 
         <!-- Destinations -->
         <div>
-            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Destinations</label>
+            <label class="block mb-1.5 text-sm font-medium text-foreground">Destinations</label>
             @if (destinations.Count > 0)
             {
                 <div class="flex flex-wrap gap-2 mb-2">
                     @foreach (var d in destinations)
                     {
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 text-sm bg-blue-100 text-blue-800 rounded-full dark:bg-blue-900 dark:text-blue-300">
-                            📍 @d.DisplayName
-                            <button type="button" @onclick="() => destinations.Remove(d)" class="ml-1 text-blue-500 hover:text-blue-700">&#x2715;</button>
-                        </span>
+                        <LumexChip Color="ThemeColor.Primary" OnClose="() => destinations.Remove(d)">📍 @d.DisplayName</LumexChip>
                     }
                 </div>
             }
             <div class="flex gap-2">
                 <div class="flex-1 relative">
-                    <input value="@destSearch" @oninput="HandleDestInput" type="text" class="@InputClass" placeholder="Search city or type custom name..." />
+                    <LumexTextbox Value="@destSearch" ValueChanged="@(async v => await HandleDestInput(v))" Label="" Placeholder="Search city or type custom name..." />
                     @if (destResults.Count > 0)
                     {
-                        <ul class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+                        <ul class="absolute z-10 mt-1 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-44 overflow-y-auto">
                             @foreach (var place in destResults)
                             {
                                 <li>
                                     <button type="button" @onclick="() => AddDestFromPlace(place)"
-                                            class="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                        <span class="font-semibold text-sm text-gray-800 dark:text-gray-200">@place.Name</span>
+                                            class="w-full text-left px-3 py-2 hover:bg-default-100">
+                                        <span class="font-semibold text-sm text-foreground">@place.Name</span>
                                         @if (!string.IsNullOrEmpty(place.StateName) || !string.IsNullOrEmpty(place.CountryName))
                                         {
-                                            <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                                            <span class="text-xs text-foreground-400 ml-1">
                                                 @(!string.IsNullOrEmpty(place.StateName) ? place.StateName + (!string.IsNullOrEmpty(place.CountryName) ? ", " : "") : "")@(place.CountryName ?? "")
                                             </span>
                                         }
@@ -114,16 +92,13 @@
                         </ul>
                     }
                 </div>
-                <button type="button" @onclick="AddDestCustom"
-                        class="px-3 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 whitespace-nowrap">
-                    Add custom
-                </button>
+                <LumexButton OnClick="AddDestCustom" Color="@ThemeColor.Default">Add custom</LumexButton>
             </div>
         </div>
 
         <!-- Travellers & Organisers -->
         <div>
-            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Travellers &amp; Organisers</label>
+            <label class="block mb-1.5 text-sm font-medium text-foreground">Travellers &amp; Organisers</label>
 
             <!-- Added travellers list -->
             @if (selectedTravellers.Count > 0)
@@ -136,17 +111,17 @@
                         var tIsLinked = !string.IsNullOrEmpty(tProfile?.LinkedUserId);
                         var tIsCurrentUser = kv.Key == currentUserProfileId;
                         var tState = kv.Value;
-                        <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <div class="flex items-center justify-between p-2 bg-default-50 rounded-lg">
                             <div class="flex items-center gap-2 min-w-0">
                                 <UserAvatar Email="@tProfile?.Email" Name="@tName" SizeClass="w-7 h-7" ExtraClass="flex-shrink-0" TextClass="text-xs" />
-                                <span class="text-sm text-gray-900 dark:text-white truncate">@tName</span>
+                                <span class="text-sm text-foreground truncate">@tName</span>
                                 @if (tIsLinked)
                                 {
-                                    <span class="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded dark:bg-green-900/40 dark:text-green-400 flex-shrink-0">User</span>
+                                    <LumexChip Color="ThemeColor.Success" Size="Size.Small">User</LumexChip>
                                 }
                                 @if (tIsCurrentUser)
                                 {
-                                    <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded dark:bg-blue-900/40 dark:text-blue-400 flex-shrink-0">You</span>
+                                    <LumexChip Color="ThemeColor.Primary" Size="Size.Small">You</LumexChip>
                                 }
                             </div>
                             @if (tIsLinked || !tIsCurrentUser)
@@ -154,27 +129,16 @@
                                 <div class="flex items-center gap-3 flex-shrink-0 ml-2">
                                     @if (tIsLinked)
                                     {
-                                        <label class="flex items-center gap-1 cursor-pointer text-xs text-gray-600 dark:text-gray-400 select-none">
-                                            <input type="checkbox" class="w-3.5 h-3.5 text-purple-600 rounded"
-                                                   checked="@tState.IsOrganiser"
-                                                   @onchange="e => SetOrganiserFlag(kv.Key, (bool)(e.Value ?? false))" />
-                                            Organiser
-                                        </label>
+                                        <LumexCheckbox Value="@tState.IsOrganiser" ValueChanged="@(v => SetOrganiserFlag(kv.Key, v))">Organiser</LumexCheckbox>
                                         @if (!tIsCurrentUser)
                                         {
-                                            <label class="flex items-center gap-1 text-xs select-none @(tState.IsOrganiser ? "cursor-not-allowed opacity-50 text-gray-400 dark:text-gray-500" : "cursor-pointer text-gray-600 dark:text-gray-400")">
-                                                <input type="checkbox" class="w-3.5 h-3.5 text-blue-600 rounded"
-                                                       disabled="@tState.IsOrganiser"
-                                                       checked="@tState.EffectiveCanEdit"
-                                                       @onchange="e => SetCanEditFlag(kv.Key, (bool)(e.Value ?? false))" />
-                                                Can edit
-                                            </label>
+                                            <LumexCheckbox Value="@tState.EffectiveCanEdit" ValueChanged="@(v => SetCanEditFlag(kv.Key, v))" Disabled="@tState.IsOrganiser">Can edit</LumexCheckbox>
                                         }
                                     }
                                     @if (!tIsCurrentUser)
                                     {
                                         <button type="button" @onclick="() => selectedTravellers.Remove(kv.Key)"
-                                                class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                                                class="text-foreground-400 hover:text-danger transition-colors">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                             </svg>
@@ -189,20 +153,19 @@
 
             <!-- Search to add travellers -->
             <div class="relative">
-                <input value="@travellerSearch" @oninput="HandleTravellerSearch" type="text" class="@InputClass"
-                       placeholder="Search to add traveller..." autocomplete="off" />
+                <LumexTextbox Value="@travellerSearch" ValueChanged="@(v => HandleTravellerSearch(v))" Label="" Placeholder="Search to add traveller..." />
                 @if (travellerSearchResults.Count > 0)
                 {
-                    <ul class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+                    <ul class="absolute z-10 mt-1 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-44 overflow-y-auto">
                         @foreach (var tp in travellerSearchResults)
                         {
                             <li>
                                 <button type="button" @onclick="() => AddTraveller(tp)"
-                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                                        class="w-full text-left px-3 py-2 text-sm hover:bg-default-100 text-foreground flex items-center gap-2">
                                     <span>@tp.LegalName</span>
                                     @if (!string.IsNullOrEmpty(tp.LinkedUserId))
                                     {
-                                        <span class="text-xs px-1 py-0.5 bg-green-100 text-green-700 rounded dark:bg-green-900/40 dark:text-green-400">User</span>
+                                        <LumexChip Color="ThemeColor.Success" Size="Size.Small">User</LumexChip>
                                     }
                                 </button>
                             </li>
@@ -214,13 +177,10 @@
 
         <!-- Actions -->
         <div class="flex items-center gap-3 pt-2">
-            <button type="button" @onclick="HandleSubmit" disabled="@saving"
-                    class="px-5 py-2.5 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 disabled:opacity-50">
+            <LumexButton OnClick="HandleSubmit" Disabled="@saving" Color="@ThemeColor.Primary">
                 @(saving ? "Creating..." : "Create Trip")
-            </button>
-            <a href="/" class="px-5 py-2.5 text-sm font-medium text-gray-900 bg-white rounded-lg border border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700">
-                Cancel
-            </a>
+            </LumexButton>
+            <LumexButton OnClick='() => Nav.NavigateTo("/")'>Cancel</LumexButton>
         </div>
     </div>
 </div>
@@ -248,7 +208,7 @@
     private string? dateError;
     private string? userId;
 
-    private string InputClass => "bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -267,9 +227,9 @@
         }
     }
 
-    private async Task HandleDestInput(ChangeEventArgs e)
+    private async Task HandleDestInput(string? value)
     {
-        destSearch = e.Value?.ToString() ?? "";
+        destSearch = value ?? "";
         if (destSearch.Length < 2) { destResults = []; return; }
         destResults = await PlaceService.SearchAsync(destSearch);
     }
@@ -292,9 +252,9 @@
         destResults = [];
     }
 
-    private void HandleTravellerSearch(ChangeEventArgs e)
+    private void HandleTravellerSearch(string? value)
     {
-        travellerSearch = e.Value?.ToString() ?? "";
+        travellerSearch = value ?? "";
         if (travellerSearch.Length < 1) { travellerSearchResults = []; return; }
         var lower = travellerSearch.ToLowerInvariant();
         travellerSearchResults = myProfiles

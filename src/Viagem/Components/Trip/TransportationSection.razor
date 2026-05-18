@@ -1,4 +1,4 @@
-@inject ITransportationService TransportationService
+﻿@inject ITransportationService TransportationService
 @inject IAirportService AirportService
 @inject IAirlineService AirlineService
 @inject IFlightRouteService FlightRouteService
@@ -8,112 +8,90 @@
 @using Viagem.Services.Interfaces
 
 <!-- Add / Edit modal -->
-@if (showModal)
-{
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    @(editItem != null ? "Edit Transportation" : "Add Transportation")
-                </h3>
-                <button @onclick="CloseModal" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div class="grid grid-cols-2 gap-4">
+<LumexModal @bind-Open="showModal" OnClose="CloseModal">
+    <LumexModalContent Context="modal">
+        <LumexModalHeader>
+            <h3 class="text-lg font-semibold text-foreground">
+                @(editItem != null ? "Edit Transportation" : "Add Transportation")
+            </h3>
+        </LumexModalHeader>
+        <LumexModalBody>
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type *</label>
-                        <Combobox Value="@form.Type.ToString()"
-                                  ValueChanged="@(v => { if (Enum.TryParse<TransportationType>(v, out var t)) form.Type = t; })"
-                                  Placeholder="Select type...">
+                        <LumexSelect TValue="string" @bind-Value="transportTypeString" Label="Type">
                             @foreach (var t in Enum.GetValues<TransportationType>())
                             {
-                                <ComboboxItem Value="@t.ToString()" Label="@GetTypeLabel(t)" />
+                                <LumexSelectItem Value="@t.ToString()">@GetTypeLabel(t)</LumexSelectItem>
                             }
-                        </Combobox>
+                        </LumexSelect>
                     </div>
 
                     @if (form.Type == TransportationType.CarRental)
                     {
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rental Company</label>
-                            <input @bind="form.RentalCompany" type="text" class="@InputClass" placeholder="Hertz, Enterprise..." />
+                            <LumexTextbox @bind-Value="form.RentalCompany" Label="Rental Company" Placeholder="Hertz, Enterprise..." />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirmation Code</label>
-                            <input @bind="form.ConfirmationCode" type="text" class="@InputClass" />
+                            <LumexTextbox @bind-Value="form.ConfirmationCode" Label="Confirmation Code" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pick-up Location</label>
-                            <input @bind="form.PickupLocation" type="text" class="@InputClass" />
+                            <LumexTextbox @bind-Value="form.PickupLocation" Label="Pick-up Location" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Drop-off Location</label>
-                            <input @bind="form.DropOffLocation" type="text" class="@InputClass" />
+                            <LumexTextbox @bind-Value="form.DropOffLocation" Label="Drop-off Location" />
                         </div>
                     }
                     else if (form.Type == TransportationType.Parking)
                     {
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Parking Address</label>
-                            <input @bind="form.ParkingAddress" type="text" class="@InputClass" />
+                            <LumexTextbox @bind-Value="form.ParkingAddress" Label="Parking Address" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Spot / Level</label>
-                            <input @bind="form.SpotNumber" type="text" class="@InputClass" />
+                            <LumexTextbox @bind-Value="form.SpotNumber" Label="Spot / Level" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirmation Code</label>
-                            <input @bind="form.ConfirmationCode" type="text" class="@InputClass" />
+                            <LumexTextbox @bind-Value="form.ConfirmationCode" Label="Confirmation Code" />
                         </div>
                     }
                     else
                     {
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                @(form.Type == TransportationType.Flight ? "Airline" : "Operator / Provider")
-                            </label>
-                            <input @bind="form.Provider" type="text" class="@InputClass"
-                                   placeholder="@(form.Type == TransportationType.Flight ? "Auto-filled from flight number" : "Provider name")" />
+                            <LumexTextbox @bind-Value="form.Provider" Label="@(form.Type == TransportationType.Flight ? "Airline" : "Operator / Provider")" Placeholder="@(form.Type == TransportationType.Flight ? "Auto-filled from flight number" : "Provider name")" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                @(form.Type == TransportationType.Flight ? "Flight Number" : "Reference / Ticket No.")
-                            </label>
-                            <input value="@form.FlightNumber"
-                                   @oninput="e => form.FlightNumber = e.Value?.ToString() ?? string.Empty"
-                                   @onblur="LookupFlightRoute"
-                                   type="text" class="@InputClass"
-                                   placeholder="@(form.Type == TransportationType.Flight ? "BA123" : "Optional")" />
+                            <LumexTextbox @bind-Value="form.FlightNumber"
+                                          Behavior="InputBehavior.OnInput"
+                                          Label="@(form.Type == TransportationType.Flight ? "Flight Number" : "Reference / Ticket No.")"
+                                          Placeholder="@(form.Type == TransportationType.Flight ? "BA123" : "Optional")"
+                                          OnBlur="LookupFlightRoute" />
                         </div>
                         @if (form.Type == TransportationType.Flight)
                         {
                             @* Flight: separate city + airport for origin *@
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origin City</label>
-                                <input @bind="form.OriginCity" type="text" class="@InputClass" placeholder="e.g. London" />
+                                <LumexTextbox @bind-Value="form.OriginCity" Label="Origin City" Placeholder="e.g. London" />
                             </div>
                             <div class="relative">
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origin Airport</label>
-                                <input type="text" value="@originSearch"
-                                       @oninput="HandleOriginInput" @onfocus="() => showOriginDropdown = originResults.Count > 0"
-                                       @onfocusout="() => showOriginDropdown = false"
-                                       class="@InputClass" placeholder="IATA code or airport name" autocomplete="off" />
+                                <LumexTextbox Value="@originSearch"
+                                              ValueChanged="HandleOriginSearchChanged"
+                                              Behavior="InputBehavior.OnInput"
+                                              Label="Origin Airport"
+                                              Placeholder="IATA code or airport name"
+                                              OnFocus="@(() => showOriginDropdown = originResults.Count > 0)"
+                                              OnBlur="@(() => showOriginDropdown = false)" />
                                 @if (showOriginDropdown && originResults.Count > 0)
                                 {
-                                    <div class="absolute z-20 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                                    <div class="absolute z-20 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
                                         @foreach (var a in originResults)
                                         {
                                             <div @onmousedown='() => SelectOriginAsync(a)'
-                                                 class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-900 dark:text-white">
-                                                <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">@a.IataCode</span>
+                                                 class="px-3 py-2 hover:bg-default-100 cursor-pointer text-sm text-foreground">
+                                                <span class="font-mono font-semibold text-primary">@a.IataCode</span>
                                                 — @a.Name
                                                 @if (!string.IsNullOrEmpty(a.Municipality))
                                                 {
-                                                    <span class="text-gray-500 dark:text-gray-400 ml-1">(@a.Municipality, @a.IsoCountry)</span>
+                                                    <span class="text-foreground-400 ml-1">(@a.Municipality, @a.IsoCountry)</span>
                                                 }
                                             </div>
                                         }
@@ -122,27 +100,28 @@
                             </div>
                             @* Flight: separate city + airport for destination *@
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Destination City</label>
-                                <input @bind="form.DestinationCity" type="text" class="@InputClass" placeholder="e.g. Paris" />
+                                <LumexTextbox @bind-Value="form.DestinationCity" Label="Destination City" Placeholder="e.g. Paris" />
                             </div>
                             <div class="relative">
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Destination Airport</label>
-                                <input type="text" value="@destinationSearch"
-                                       @oninput="HandleDestinationInput" @onfocus="() => showDestinationDropdown = destinationResults.Count > 0"
-                                       @onfocusout="() => showDestinationDropdown = false"
-                                       class="@InputClass" placeholder="IATA code or airport name" autocomplete="off" />
+                                <LumexTextbox Value="@destinationSearch"
+                                              ValueChanged="HandleDestinationSearchChanged"
+                                              Behavior="InputBehavior.OnInput"
+                                              Label="Destination Airport"
+                                              Placeholder="IATA code or airport name"
+                                              OnFocus="@(() => showDestinationDropdown = destinationResults.Count > 0)"
+                                              OnBlur="@(() => showDestinationDropdown = false)" />
                                 @if (showDestinationDropdown && destinationResults.Count > 0)
                                 {
-                                    <div class="absolute z-20 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                                    <div class="absolute z-20 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
                                         @foreach (var a in destinationResults)
                                         {
                                             <div @onmousedown='() => SelectDestinationAsync(a)'
-                                                 class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-900 dark:text-white">
-                                                <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">@a.IataCode</span>
+                                                 class="px-3 py-2 hover:bg-default-100 cursor-pointer text-sm text-foreground">
+                                                <span class="font-mono font-semibold text-primary">@a.IataCode</span>
                                                 — @a.Name
                                                 @if (!string.IsNullOrEmpty(a.Municipality))
                                                 {
-                                                    <span class="text-gray-500 dark:text-gray-400 ml-1">(@a.Municipality, @a.IsoCountry)</span>
+                                                    <span class="text-foreground-400 ml-1">(@a.Municipality, @a.IsoCountry)</span>
                                                 }
                                             </div>
                                         }
@@ -150,24 +129,20 @@
                                 }
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Seat(s)</label>
-                                <input @bind="form.AssignedSeats" type="text" class="@InputClass" placeholder="12A, 12B" />
+                                <LumexTextbox @bind-Value="form.AssignedSeats" Label="Seat(s)" Placeholder="12A, 12B" />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirmation Code</label>
-                                <input @bind="form.ConfirmationCode" type="text" class="@InputClass" />
+                                <LumexTextbox @bind-Value="form.ConfirmationCode" Label="Confirmation Code" />
                             </div>
                         }
                         else
                         {
                             @* Non-flight: plain text From / To *@
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From</label>
-                                <input @bind="form.Origin" type="text" class="@InputClass" placeholder="City, station or address" />
+                                <LumexTextbox @bind-Value="form.Origin" Label="From" Placeholder="City, station or address" />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To</label>
-                                <input @bind="form.Destination" type="text" class="@InputClass" placeholder="City, station or address" />
+                                <LumexTextbox @bind-Value="form.Destination" Label="To" Placeholder="City, station or address" />
                             </div>
                         }
                     }
@@ -176,41 +151,35 @@
                     {
                         @* Single-timezone for location-based types *@
                         <div class="col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Timezone</label>
-                            <select @bind="form.DepartureTimezone" class="@InputClass">
-                                <option value="">— select timezone —</option>
+                            <LumexSelect TValue="string" @bind-Value="form.DepartureTimezone" Label="Timezone" Placeholder="— select timezone —">
                                 @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
                                 {
-                                    <option value="@tz">@tz</option>
+                                    <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
                                 }
-                            </select>
+                            </LumexSelect>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date/Time</label>
-                            <input @bind="form.DepartureTime" type="datetime-local" class="@InputClass" />
+                            <LumexDatebox TValue="DateTime" @bind-Value="form.DepartureTime" Label="Start Date/Time" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date/Time</label>
-                            <input @bind="form.ArrivalTime" type="datetime-local" class="@InputClass" />
+                            <LumexDatebox TValue="DateTime" @bind-Value="form.ArrivalTime" Label="End Date/Time" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                         </div>
                     }
                     else if (form.Type == TransportationType.Flight)
                     {
                         @* Flight timezones auto-filled from airport selection *@
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Departure</label>
-                            <input @bind="form.DepartureTime" type="datetime-local" class="@InputClass" />
+                            <LumexDatebox TValue="DateTime" @bind-Value="form.DepartureTime" Label="Departure" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                             @if (!string.IsNullOrEmpty(form.DepartureTimezone))
                             {
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">⏱ @form.DepartureTimezone</p>
+                                <p class="mt-1 text-xs text-foreground-400">⏱ @form.DepartureTimezone</p>
                             }
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Arrival</label>
-                            <input @bind="form.ArrivalTime" type="datetime-local" class="@InputClass" />
+                            <LumexDatebox TValue="DateTime" @bind-Value="form.ArrivalTime" Label="Arrival" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                             @if (!string.IsNullOrEmpty(form.ArrivalTimezone))
                             {
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">⏱ @form.ArrivalTimezone</p>
+                                <p class="mt-1 text-xs text-foreground-400">⏱ @form.ArrivalTimezone</p>
                             }
                         </div>
                     }
@@ -218,101 +187,92 @@
                     {
                         @* Other transport: departure + arrival each with own timezone *@
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Departure</label>
-                            <input @bind="form.DepartureTime" type="datetime-local" class="@InputClass" />
+                            <LumexDatebox TValue="DateTime" @bind-Value="form.DepartureTime" Label="Departure" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Departure Timezone</label>
-                            <select @bind="form.DepartureTimezone" class="@InputClass">
-                                <option value="">— select timezone —</option>
+                            <LumexSelect TValue="string" @bind-Value="form.DepartureTimezone" Label="Departure Timezone" Placeholder="— select timezone —">
                                 @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
                                 {
-                                    <option value="@tz">@tz</option>
+                                    <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
                                 }
-                            </select>
+                            </LumexSelect>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Arrival</label>
-                            <input @bind="form.ArrivalTime" type="datetime-local" class="@InputClass" />
+                            <LumexDatebox TValue="DateTime" @bind-Value="form.ArrivalTime" Label="Arrival" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Arrival Timezone</label>
-                            <select @bind="form.ArrivalTimezone" class="@InputClass">
-                                <option value="">— select timezone —</option>
+                            <LumexSelect TValue="string" @bind-Value="form.ArrivalTimezone" Label="Arrival Timezone" Placeholder="— select timezone —">
                                 @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
                                 {
-                                    <option value="@tz">@tz</option>
+                                    <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
                                 }
-                            </select>
+                            </LumexSelect>
                         </div>
                     }
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost</label>
-                        <input @bind="form.CostAmount" type="number" step="0.01" class="@InputClass" placeholder="0.00" />
+                        <LumexNumbox TValue="decimal?" @bind-Value="form.CostAmount" Label="Cost" Placeholder="0.00" />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Currency</label>
-                        <Combobox @bind-Value="form.CostCurrency" Placeholder="Select currency..." SearchPlaceholder="Search currencies...">
+                        <LumexSelect TValue="string" @bind-Value="form.CostCurrency" Label="Currency">
                             @foreach (var c in Currencies)
                             {
-                                <ComboboxItem Value="@c" Label="@c" />
+                                <LumexSelectItem Value="@c">@c</LumexSelectItem>
                             }
-                        </Combobox>
+                        </LumexSelect>
                     </div>
 
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Booking Link</label>
-                        <input @bind="form.Link" type="url" class="@InputClass" placeholder="https://..." />
+                        <LumexTextbox @bind-Value="form.Link" Label="Booking Link" Placeholder="https://..." />
                     </div>
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
-                        <textarea @bind="form.Notes" rows="2" class="@InputClass"></textarea>
+                        <LumexTextbox @bind-Value="form.Notes" Label="Notes" Multiline="@true" Rows="2" />
                     </div>
                 </div>
             </div>
-            <div class="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
-                <button @onclick="CloseModal" class="@SecondaryBtnClass">Cancel</button>
-                <button @onclick="SaveItem" disabled="@saving" class="@PrimaryBtnClass">
+        </LumexModalBody>
+        <LumexModalFooter>
+            <div class="flex justify-end gap-3 w-full">
+                <LumexButton OnClick="CloseModal">Cancel</LumexButton>
+                <LumexButton OnClick="SaveItem" Disabled="@saving" Color="@ThemeColor.Primary">
                     @(saving ? "Saving..." : (editItem != null ? "Save Changes" : "Add"))
-                </button>
+                </LumexButton>
             </div>
-        </div>
-    </div>
-}
+        </LumexModalFooter>
+    </LumexModalContent>
+</LumexModal>
 
 <!-- Section body -->
 @if (loading)
 {
-    <div class="text-center py-6"><div class="animate-spin inline-block rounded-full h-6 w-6 border-b-2 border-blue-700"></div></div>
+    <div class="text-center py-6"><LumexSpinner /></div>
 }
 else
 {
     @if (CanEdit)
     {
         <div class="flex justify-end mb-4">
-            <button @onclick="OpenAddModal"
-                    class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800">
+            <LumexButton OnClick="OpenAddModal" Color="@ThemeColor.Primary">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 Add Transportation
-            </button>
+            </LumexButton>
         </div>
     }
 
     @if (items.Count == 0)
     {
-        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+        <div class="border-2 border-dashed border-divider rounded-lg p-8 text-center">
             <span class="text-4xl block mb-3">✈️</span>
-            <p class="text-sm text-gray-400 dark:text-gray-500">No transportation booked yet.</p>
+            <p class="text-sm text-foreground-400">No transportation booked yet.</p>
         </div>
     }
     else
     {
         @if (tickets.Count > 0)
         {
-            <h5 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Tickets &amp; Rides</h5>
+            <h5 class="text-sm font-semibold text-foreground-400 uppercase tracking-wide mb-2">Tickets &amp; Rides</h5>
             <div class="space-y-2 mb-4">
                 @foreach (var item in tickets)
                 {
@@ -322,7 +282,7 @@ else
         }
         @if (rentals.Count > 0)
         {
-            <h5 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Car Rentals</h5>
+            <h5 class="text-sm font-semibold text-foreground-400 uppercase tracking-wide mb-2">Car Rentals</h5>
             <div class="space-y-2 mb-4">
                 @foreach (var item in rentals)
                 {
@@ -332,7 +292,7 @@ else
         }
         @if (parkings.Count > 0)
         {
-            <h5 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Parking</h5>
+            <h5 class="text-sm font-semibold text-foreground-400 uppercase tracking-wide mb-2">Parking</h5>
             <div class="space-y-2">
                 @foreach (var item in parkings)
                 {
@@ -369,9 +329,13 @@ else
 
     private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
 
-    private string InputClass => "bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
-    private string PrimaryBtnClass => "px-5 py-2.5 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg dark:bg-blue-600 dark:hover:bg-blue-700";
-    private string SecondaryBtnClass => "px-5 py-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600";
+    private string transportTypeString
+    {
+        get => form.Type.ToString();
+        set { if (Enum.TryParse<TransportationType>(value, out var t)) form.Type = t; }
+    }
+
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -458,9 +422,9 @@ else
     }
 
     // Airport autocomplete handlers
-    private async Task HandleOriginInput(ChangeEventArgs e)
+    private async Task HandleOriginSearchChanged(string value)
     {
-        originSearch = e.Value?.ToString() ?? "";
+        originSearch = value;
         form.Origin = originSearch;
         if (originSearch.Length >= 2)
         {
@@ -474,9 +438,9 @@ else
         }
     }
 
-    private async Task HandleDestinationInput(ChangeEventArgs e)
+    private async Task HandleDestinationSearchChanged(string value)
     {
-        destinationSearch = e.Value?.ToString() ?? "";
+        destinationSearch = value;
         form.Destination = destinationSearch;
         if (destinationSearch.Length >= 2)
         {

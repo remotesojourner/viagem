@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Flowbite.Services;
+using LumexUI.Extensions;
 using Viagem.Components;
 using Viagem.Components.Account;
 using Viagem.Data;
@@ -39,8 +39,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
-// Flowbite services
-builder.Services.AddFlowbite();
+// LumexUI services
+builder.Services.AddLumexServices();
 
 // Domain services
 builder.Services.AddScoped<ITripService, TripService>();
@@ -67,9 +67,6 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }
-
-app.UseHttpsRedirection();
-
 
 app.UseAntiforgery();
 

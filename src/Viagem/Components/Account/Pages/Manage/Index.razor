@@ -1,34 +1,40 @@
 @page "/Account/Manage"
+@rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
 @using Viagem.Data
 
 @inject UserManager<ApplicationUser> UserManager
-@inject SignInManager<ApplicationUser> SignInManager
-@inject IdentityUserAccessor UserAccessor
-@inject IdentityRedirectManager RedirectManager
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Profile</PageTitle>
 
-<StatusMessage />
+@if (statusMessage is not null)
+{
+    var isError = statusMessage.StartsWith("Error");
+    <div class="@(isError ? "p-4 mb-4 text-sm text-danger rounded-lg bg-danger-100" : "p-4 mb-4 text-sm text-success rounded-lg bg-success-100")" role="alert">
+        @statusMessage
+    </div>
+}
 
-<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
-    <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
+<div class="bg-surface1 rounded-xl border border-divider p-6 mb-6">
+    <EditForm Model="Input" OnValidSubmit="OnValidSubmitAsync">
         <DataAnnotationsValidator />
-        <ValidationSummary class="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-red-900 dark:text-red-400" role="alert" />
+        <ValidationSummary class="p-3 mb-4 text-sm text-danger rounded-lg bg-danger-100" role="alert" />
 
         <div class="mb-4">
-            <label for="Input.FullName" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Full Name</label>
-            <InputText @bind-Value="Input.FullName" id="Input.FullName"
-                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            <label for="fullName" class="block mb-2 text-sm font-medium text-foreground">Full Name</label>
+            <InputText @bind-Value="Input.FullName" id="fullName"
+                       class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
                        placeholder="Your full name" />
-            <ValidationMessage For="() => Input.FullName" class="mt-1 text-sm text-red-600 dark:text-red-400" />
+            <ValidationMessage For="() => Input.FullName" class="mt-1 text-sm text-danger" />
         </div>
 
         <div class="mb-4">
-            <label for="Input.CurrencyCode" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Default Currency</label>
-            <InputSelect @bind-Value="Input.CurrencyCode" id="Input.CurrencyCode"
-                         class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <label for="currencyCode" class="block mb-2 text-sm font-medium text-foreground">Default Currency</label>
+            <InputSelect @bind-Value="Input.CurrencyCode" id="currencyCode"
+                         class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
                 @foreach (var c in Currencies)
                 {
                     <option value="@c.Code">@c.Code - @c.Name</option>
@@ -37,9 +43,9 @@
         </div>
 
         <div class="mb-4">
-            <label for="Input.Timezone" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Timezone</label>
-            <InputSelect @bind-Value="Input.Timezone" id="Input.Timezone"
-                         class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <label for="timezone" class="block mb-2 text-sm font-medium text-foreground">Timezone</label>
+            <InputSelect @bind-Value="Input.Timezone" id="timezone"
+                         class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
                 @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
                 {
                     <option value="@tz">@tz</option>
@@ -48,9 +54,9 @@
         </div>
 
         <div class="mb-4">
-            <label for="Input.Appearance" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Theme</label>
-            <InputSelect @bind-Value="Input.Appearance" id="Input.Appearance"
-                         class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <label for="appearance" class="block mb-2 text-sm font-medium text-foreground">Theme</label>
+            <InputSelect @bind-Value="Input.Appearance" id="appearance"
+                         class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
                 <option value="system">System</option>
@@ -58,28 +64,26 @@
         </div>
 
         <div class="mb-6">
-            <label for="Input.MapsProvider" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Open maps links with</label>
-            <InputSelect @bind-Value="Input.MapsProvider" id="Input.MapsProvider"
-                         class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <label for="mapsProvider" class="block mb-2 text-sm font-medium text-foreground">Open maps links with</label>
+            <InputSelect @bind-Value="Input.MapsProvider" id="mapsProvider"
+                         class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
                 <option value="google">Google Maps</option>
                 <option value="apple">Apple Maps</option>
                 <option value="osm">OpenStreetMap</option>
             </InputSelect>
         </div>
 
-        <button type="submit" class="px-5 py-2.5 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300">
-            Save Profile
-        </button>
+        <LumexButton Type="ButtonType.Submit" disabled="@isSaving" Color="ThemeColor.Primary">
+            @(isSaving ? "Saving..." : "Save Profile")
+        </LumexButton>
     </EditForm>
 </div>
 
 @code {
     private ApplicationUser user = default!;
+    private string? statusMessage;
+    private bool isSaving;
 
-    [CascadingParameter]
-    private HttpContext HttpContext { get; set; } = default!;
-
-    [SupplyParameterFromForm]
     private InputModel Input { get; set; } = new();
 
     private record CurrencyItem(string Code, string Name);
@@ -102,17 +106,24 @@
 
     protected override async Task OnInitializedAsync()
     {
-        user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId is null) return;
 
-        Input.FullName ??= user.FullName;
-        Input.CurrencyCode ??= user.CurrencyCode ?? "USD";
-        Input.Timezone ??= user.Timezone ?? "UTC";
-        Input.Appearance ??= user.WebsiteAppearance ?? "light";
-        Input.MapsProvider ??= user.MapsProvider ?? "google";
+        user = (await UserManager.FindByIdAsync(userId))!;
+
+        Input.FullName = user.FullName;
+        Input.CurrencyCode = user.CurrencyCode ?? "USD";
+        Input.Timezone = user.Timezone ?? "UTC";
+        Input.Appearance = user.WebsiteAppearance ?? "system";
+        Input.MapsProvider = user.MapsProvider ?? "google";
     }
 
     private async Task OnValidSubmitAsync()
     {
+        isSaving = true;
+        statusMessage = null;
+
         user.FullName = Input.FullName;
         user.CurrencyCode = Input.CurrencyCode;
         user.Timezone = Input.Timezone;
@@ -122,19 +133,18 @@
         var updateResult = await UserManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
-            RedirectManager.RedirectToCurrentPageWithStatus(
-                $"Error: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}", HttpContext);
+            statusMessage = $"Error: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}";
+            isSaving = false;
             return;
         }
 
-        await SignInManager.RefreshSignInAsync(user);
-        RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated", HttpContext);
+        statusMessage = "Your profile has been updated";
+        isSaving = false;
     }
 
     private sealed class InputModel
     {
         public string? FullName { get; set; }
-
         public string? CurrencyCode { get; set; }
         public string? Timezone { get; set; }
         public string? Appearance { get; set; }
