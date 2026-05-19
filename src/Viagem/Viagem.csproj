@@ -61,12 +61,16 @@
 		<Exec Command="chmod +x &quot;$(TailwindExe)&quot;" Condition="!$([MSBuild]::IsOSPlatform('Windows'))" />
 	</Target>
 	<Target Name="CopyLumexTheme" BeforeTargets="BuildTailwindCSS">
+		<PropertyGroup>
+			<_LumexThemeDir>$([System.IO.Directory]::GetDirectories("$(NuGetPackageRoot)lumexui", "theme", System.IO.SearchOption.AllDirectories)[0])</_LumexThemeDir>
+		</PropertyGroup>
+		<Error Text="LumexUI theme folder not found in NuGet packages at '$(NuGetPackageRoot)lumexui'. Ensure packages are restored." Condition="'$(_LumexThemeDir)' == ''" />
 		<ItemGroup>
-			<_LumexThemeSrc Include="$(NuGetPackageRoot)lumexui/**/theme/theme.css" />
+			<_LumexThemeSrc Include="$(_LumexThemeDir)/**/*" />
 		</ItemGroup>
-		<Error Text="LumexUI theme.css not found in NuGet packages at '$(NuGetPackageRoot)lumexui'. Ensure packages are restored." Condition="'@(_LumexThemeSrc)' == ''" />
 		<MakeDir Directories="$(MSBuildThisFileDirectory)bin/lumexui" />
-		<Copy SourceFiles="@(_LumexThemeSrc)" DestinationFiles="$(MSBuildThisFileDirectory)bin/lumexui/theme.css" />
+		<Copy SourceFiles="@(_LumexThemeSrc)"
+			  DestinationFiles="@(_LumexThemeSrc->'$(MSBuildThisFileDirectory)bin/lumexui/%(RecursiveDir)%(Filename)%(Extension)')" />
 	</Target>
 	<Target Name="BuildTailwindCSS" BeforeTargets="Build;Publish">
 		<Exec Command="&quot;$(TailwindExe)&quot; -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css --minify" Condition="'$(Configuration)' == 'Release'" />
