@@ -432,3 +432,4 @@ FodyWeavers.xsd
 /src/Viagem/wwwroot/uploads/*
 /src/Viagem/tools
 /src/Viagem/bin/lumexui/
+/src/Viagem/wwwroot/app.css
