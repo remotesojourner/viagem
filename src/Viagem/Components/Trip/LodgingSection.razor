@@ -1,4 +1,5 @@
 ﻿@using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 @inject ILodgingService LodgingService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
@@ -14,10 +15,10 @@
         <LumexModalBody>
         <div class="grid grid-cols-2 gap-4">
             <div class="col-span-2">
-                <LumexTextbox @bind-Value="form.Name" Label="Name *" Placeholder="Hotel name, Airbnb, etc." />
+                <LumexTextbox @bind-Value="formName" Label="Name *" Placeholder="Hotel name, Airbnb, etc." />
             </div>
             <div>
-                <LumexSelect TValue="LodgingType" @bind-Value="form.Type" Label="Type">
+                <LumexSelect TValue="LodgingType" @bind-Value="formType" Label="Type">
                     @foreach (var t in Enum.GetValues<LodgingType>())
                     {
                         <LumexSelectItem Value="@t">@GetTypeLabel(t)</LumexSelectItem>
@@ -25,16 +26,16 @@
                 </LumexSelect>
             </div>
             <div>
-                <LumexTextbox @bind-Value="form.ConfirmationCode" Label="Confirmation Code" />
+                <LumexTextbox @bind-Value="formConfirmationCode" Label="Confirmation Code" />
             </div>
             <div>
-                <LumexDatebox TValue="DateTime" @bind-Value="form.StartDate" Label="Check-in *" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                <LumexDatebox TValue="DateTime" @bind-Value="formStartDate" Label="Check-in *" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
             </div>
             <div>
-                <LumexDatebox TValue="DateTime" @bind-Value="form.EndDate" Label="Check-out *" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                <LumexDatebox TValue="DateTime" @bind-Value="formEndDate" Label="Check-out *" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
             </div>
             <div class="col-span-2">
-                <LumexSelect TValue="string" @bind-Value="form.Timezone" Label="Timezone" Placeholder="— select timezone —">
+                <LumexSelect TValue="string" @bind-Value="formTimezone" Label="Timezone" Placeholder="— select timezone —">
                     @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
                     {
                         <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
@@ -42,13 +43,13 @@
                 </LumexSelect>
             </div>
             <div class="col-span-2">
-                <LumexTextbox @bind-Value="form.Address" Label="Address" Placeholder="Street address" />
+                <LumexTextbox @bind-Value="formAddress" Label="Address" Placeholder="Street address" />
             </div>
             <div>
-                <LumexNumbox TValue="decimal?" @bind-Value="form.CostAmount" Label="Cost" Placeholder="0.00" />
+                <LumexNumbox TValue="decimal?" @bind-Value="formCostAmount" Label="Cost" Placeholder="0.00" />
             </div>
             <div>
-                <LumexSelect TValue="string" @bind-Value="form.CostCurrency" Label="Currency">
+                <LumexSelect TValue="string" @bind-Value="formCostCurrency" Label="Currency">
                     @foreach (var c in Currencies)
                     {
                         <LumexSelectItem Value="@c">@c</LumexSelectItem>
@@ -56,10 +57,10 @@
                 </LumexSelect>
             </div>
             <div class="col-span-2">
-                <LumexTextbox @bind-Value="form.Link" Label="Booking Link" Placeholder="https://..." />
+                <LumexTextbox @bind-Value="formLink" Label="Booking Link" Placeholder="https://..." />
             </div>
             <div class="col-span-2">
-                <LumexTextbox @bind-Value="form.Notes" Label="Notes" Multiline="@true" Rows="2" />
+                <LumexTextbox @bind-Value="formNotes" Label="Notes" Multiline="@true" Rows="2" />
             </div>
         </div>
         </LumexModalBody>
@@ -180,13 +181,25 @@ else
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public string? DefaultTimezone { get; set; }
 
-    private List<Lodging> items = [];
+    private List<LodgingViewModel> items = [];
     private bool loading = true;
     private int? menuOpenId;
     private bool saving = false;
     private bool showModal = false;
-    private Lodging? editItem;
-    private Lodging form = new() { Name = "", Type = LodgingType.Hotel };
+    private LodgingViewModel? editItem;
+
+    // Form state
+    private string formName = "";
+    private LodgingType formType = LodgingType.Hotel;
+    private string? formConfirmationCode;
+    private DateTime formStartDate = DateTime.Today;
+    private DateTime formEndDate = DateTime.Today.AddDays(1);
+    private string formTimezone = "";
+    private string? formAddress;
+    private string? formNotes;
+    private string? formLink;
+    private decimal? formCostAmount;
+    private string formCostCurrency = "USD";
 
     private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
 
@@ -227,23 +240,34 @@ else
     private async Task OpenAddModal()
     {
         editItem = null;
-        var currency = await GetUserCurrencyAsync();
-        form = new Lodging { Name = "", Type = LodgingType.Hotel, TripId = TripId, StartDate = DateTime.Today, EndDate = DateTime.Today.AddDays(1), CostCurrency = currency, Timezone = DefaultTimezone ?? "" };
+        formName = "";
+        formType = LodgingType.Hotel;
+        formConfirmationCode = null;
+        formStartDate = DateTime.Today;
+        formEndDate = DateTime.Today.AddDays(1);
+        formTimezone = DefaultTimezone ?? "";
+        formAddress = null;
+        formNotes = null;
+        formLink = null;
+        formCostAmount = null;
+        formCostCurrency = await GetUserCurrencyAsync();
         showModal = true;
     }
 
-    private void OpenEditModal(Lodging item)
+    private void OpenEditModal(LodgingViewModel item)
     {
         editItem = item;
-        form = new Lodging
-        {
-            Id = item.Id, TripId = item.TripId, Type = item.Type, Name = item.Name,
-            Address = item.Address, ConfirmationCode = item.ConfirmationCode,
-            StartDate = item.StartDate, EndDate = item.EndDate,
-            Timezone = item.Timezone,
-            Notes = item.Notes, Link = item.Link,
-            CostAmount = item.CostAmount, CostCurrency = item.CostCurrency
-        };
+        formName = item.Name;
+        formType = item.Type;
+        formConfirmationCode = item.ConfirmationCode;
+        formStartDate = item.StartDate;
+        formEndDate = item.EndDate;
+        formTimezone = item.Timezone ?? "";
+        formAddress = item.Address;
+        formNotes = item.Notes;
+        formLink = item.Link;
+        formCostAmount = item.CostAmount;
+        formCostCurrency = item.CostCurrency ?? "USD";
         showModal = true;
     }
 
@@ -251,11 +275,12 @@ else
 
     private async Task SaveItem()
     {
-        if (string.IsNullOrWhiteSpace(form.Name)) return;
+        if (string.IsNullOrWhiteSpace(formName)) return;
         saving = true;
-        form.TripId = TripId;
-        if (editItem != null) await LodgingService.UpdateAsync(form);
-        else await LodgingService.CreateAsync(form);
+        if (editItem != null)
+            await LodgingService.UpdateAsync(new UpdateLodgingRequest(editItem.Id, formType, formName, formAddress, formConfirmationCode, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, []));
+        else
+            await LodgingService.CreateAsync(new CreateLodgingRequest(TripId, formType, formName, formAddress, formConfirmationCode, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, []));
         saving = false;
         showModal = false;
         await LoadItems();

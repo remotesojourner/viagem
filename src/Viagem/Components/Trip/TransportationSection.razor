@@ -6,6 +6,7 @@
 @inject UserManager<ApplicationUser> UserManager
 @using GeoTimeZone
 @using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 
 <!-- Add / Edit modal -->
 <LumexModal @bind-Open="showModal" OnClose="CloseModal">
@@ -27,50 +28,50 @@
                         </LumexSelect>
                     </div>
 
-                    @if (form.Type == TransportationType.CarRental)
+                    @if (formType == TransportationType.CarRental)
                     {
                         <div>
-                            <LumexTextbox @bind-Value="form.RentalCompany" Label="Rental Company" Placeholder="Hertz, Enterprise..." />
+                            <LumexTextbox @bind-Value="formRentalCompany" Label="Rental Company" Placeholder="Hertz, Enterprise..." />
                         </div>
                         <div>
-                            <LumexTextbox @bind-Value="form.ConfirmationCode" Label="Confirmation Code" />
+                            <LumexTextbox @bind-Value="formConfirmationCode" Label="Confirmation Code" />
                         </div>
                         <div>
-                            <LumexTextbox @bind-Value="form.PickupLocation" Label="Pick-up Location" />
+                            <LumexTextbox @bind-Value="formPickupLocation" Label="Pick-up Location" />
                         </div>
                         <div>
-                            <LumexTextbox @bind-Value="form.DropOffLocation" Label="Drop-off Location" />
+                            <LumexTextbox @bind-Value="formDropOffLocation" Label="Drop-off Location" />
                         </div>
                     }
-                    else if (form.Type == TransportationType.Parking)
+                    else if (formType == TransportationType.Parking)
                     {
                         <div>
-                            <LumexTextbox @bind-Value="form.ParkingAddress" Label="Parking Address" />
+                            <LumexTextbox @bind-Value="formParkingAddress" Label="Parking Address" />
                         </div>
                         <div>
-                            <LumexTextbox @bind-Value="form.SpotNumber" Label="Spot / Level" />
+                            <LumexTextbox @bind-Value="formSpotNumber" Label="Spot / Level" />
                         </div>
                         <div>
-                            <LumexTextbox @bind-Value="form.ConfirmationCode" Label="Confirmation Code" />
+                            <LumexTextbox @bind-Value="formConfirmationCode" Label="Confirmation Code" />
                         </div>
                     }
                     else
                     {
                         <div>
-                            <LumexTextbox @bind-Value="form.Provider" Label="@(form.Type == TransportationType.Flight ? "Airline" : "Operator / Provider")" Placeholder="@(form.Type == TransportationType.Flight ? "Auto-filled from flight number" : "Provider name")" />
+                            <LumexTextbox @bind-Value="formProvider" Label="@(formType == TransportationType.Flight ? "Airline" : "Operator / Provider")" Placeholder="@(formType == TransportationType.Flight ? "Auto-filled from flight number" : "Provider name")" />
                         </div>
                         <div>
-                            <LumexTextbox @bind-Value="form.FlightNumber"
+                            <LumexTextbox @bind-Value="formFlightNumber"
                                           Behavior="InputBehavior.OnInput"
-                                          Label="@(form.Type == TransportationType.Flight ? "Flight Number" : "Reference / Ticket No.")"
-                                          Placeholder="@(form.Type == TransportationType.Flight ? "BA123" : "Optional")"
+                                          Label="@(formType == TransportationType.Flight ? "Flight Number" : "Reference / Ticket No.")"
+                                          Placeholder="@(formType == TransportationType.Flight ? "BA123" : "Optional")"
                                           OnBlur="LookupFlightRoute" />
                         </div>
-                        @if (form.Type == TransportationType.Flight)
+                        @if (formType == TransportationType.Flight)
                         {
                             @* Flight: separate city + airport for origin *@
                             <div>
-                                <LumexTextbox @bind-Value="form.OriginCity" Label="Origin City" Placeholder="e.g. London" />
+                                <LumexTextbox @bind-Value="formOriginCity" Label="Origin City" Placeholder="e.g. London" />
                             </div>
                             <div class="relative">
                                 <LumexTextbox Value="@originSearch"
@@ -100,7 +101,7 @@
                             </div>
                             @* Flight: separate city + airport for destination *@
                             <div>
-                                <LumexTextbox @bind-Value="form.DestinationCity" Label="Destination City" Placeholder="e.g. Paris" />
+                                <LumexTextbox @bind-Value="formDestinationCity" Label="Destination City" Placeholder="e.g. Paris" />
                             </div>
                             <div class="relative">
                                 <LumexTextbox Value="@destinationSearch"
@@ -129,29 +130,29 @@
                                 }
                             </div>
                             <div>
-                                <LumexTextbox @bind-Value="form.AssignedSeats" Label="Seat(s)" Placeholder="12A, 12B" />
+                                <LumexTextbox @bind-Value="formAssignedSeats" Label="Seat(s)" Placeholder="12A, 12B" />
                             </div>
                             <div>
-                                <LumexTextbox @bind-Value="form.ConfirmationCode" Label="Confirmation Code" />
+                                <LumexTextbox @bind-Value="formConfirmationCode" Label="Confirmation Code" />
                             </div>
                         }
                         else
                         {
                             @* Non-flight: plain text From / To *@
                             <div>
-                                <LumexTextbox @bind-Value="form.Origin" Label="From" Placeholder="City, station or address" />
+                                <LumexTextbox @bind-Value="formOrigin" Label="From" Placeholder="City, station or address" />
                             </div>
                             <div>
-                                <LumexTextbox @bind-Value="form.Destination" Label="To" Placeholder="City, station or address" />
+                                <LumexTextbox @bind-Value="formDestination" Label="To" Placeholder="City, station or address" />
                             </div>
                         }
                     }
 
-                    @if (form.Type == TransportationType.Parking || form.Type == TransportationType.CarRental)
+                    @if (formType == TransportationType.Parking || formType == TransportationType.CarRental)
                     {
                         @* Single-timezone for location-based types *@
                         <div class="col-span-2">
-                            <LumexSelect TValue="string" @bind-Value="form.DepartureTimezone" Label="Timezone" Placeholder="— select timezone —">
+                            <LumexSelect TValue="string" @bind-Value="formDepartureTimezone" Label="Timezone" Placeholder="— select timezone —">
                                 @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
                                 {
                                     <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
@@ -159,27 +160,27 @@
                             </LumexSelect>
                         </div>
                         <div>
-                            <LumexDatebox TValue="DateTime" @bind-Value="form.DepartureTime" Label="Start Date/Time" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                            <LumexDatebox TValue="DateTime" @bind-Value="formDepartureTime" Label="Start Date/Time" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                         </div>
                         <div>
-                            <LumexDatebox TValue="DateTime" @bind-Value="form.ArrivalTime" Label="End Date/Time" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                            <LumexDatebox TValue="DateTime" @bind-Value="formArrivalTime" Label="End Date/Time" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                         </div>
                     }
-                    else if (form.Type == TransportationType.Flight)
+                    else if (formType == TransportationType.Flight)
                     {
                         @* Flight timezones auto-filled from airport selection *@
                         <div>
-                            <LumexDatebox TValue="DateTime" @bind-Value="form.DepartureTime" Label="Departure" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
-                            @if (!string.IsNullOrEmpty(form.DepartureTimezone))
+                            <LumexDatebox TValue="DateTime" @bind-Value="formDepartureTime" Label="Departure" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                            @if (!string.IsNullOrEmpty(formDepartureTimezone))
                             {
-                                <p class="mt-1 text-xs text-foreground-400">⏱ @form.DepartureTimezone</p>
+                                <p class="mt-1 text-xs text-foreground-400">⏱ @formDepartureTimezone</p>
                             }
                         </div>
                         <div>
-                            <LumexDatebox TValue="DateTime" @bind-Value="form.ArrivalTime" Label="Arrival" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
-                            @if (!string.IsNullOrEmpty(form.ArrivalTimezone))
+                            <LumexDatebox TValue="DateTime" @bind-Value="formArrivalTime" Label="Arrival" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                            @if (!string.IsNullOrEmpty(formArrivalTimezone))
                             {
-                                <p class="mt-1 text-xs text-foreground-400">⏱ @form.ArrivalTimezone</p>
+                                <p class="mt-1 text-xs text-foreground-400">⏱ @formArrivalTimezone</p>
                             }
                         </div>
                     }
@@ -187,10 +188,10 @@
                     {
                         @* Other transport: departure + arrival each with own timezone *@
                         <div>
-                            <LumexDatebox TValue="DateTime" @bind-Value="form.DepartureTime" Label="Departure" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                            <LumexDatebox TValue="DateTime" @bind-Value="formDepartureTime" Label="Departure" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                         </div>
                         <div>
-                            <LumexSelect TValue="string" @bind-Value="form.DepartureTimezone" Label="Departure Timezone" Placeholder="— select timezone —">
+                            <LumexSelect TValue="string" @bind-Value="formDepartureTimezone" Label="Departure Timezone" Placeholder="— select timezone —">
                                 @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
                                 {
                                     <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
@@ -198,10 +199,10 @@
                             </LumexSelect>
                         </div>
                         <div>
-                            <LumexDatebox TValue="DateTime" @bind-Value="form.ArrivalTime" Label="Arrival" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                            <LumexDatebox TValue="DateTime" @bind-Value="formArrivalTime" Label="Arrival" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                         </div>
                         <div>
-                            <LumexSelect TValue="string" @bind-Value="form.ArrivalTimezone" Label="Arrival Timezone" Placeholder="— select timezone —">
+                            <LumexSelect TValue="string" @bind-Value="formArrivalTimezone" Label="Arrival Timezone" Placeholder="— select timezone —">
                                 @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
                                 {
                                     <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
@@ -211,10 +212,10 @@
                     }
 
                     <div>
-                        <LumexNumbox TValue="decimal?" @bind-Value="form.CostAmount" Label="Cost" Placeholder="0.00" />
+                        <LumexNumbox TValue="decimal?" @bind-Value="formCostAmount" Label="Cost" Placeholder="0.00" />
                     </div>
                     <div>
-                        <LumexSelect TValue="string" @bind-Value="form.CostCurrency" Label="Currency">
+                        <LumexSelect TValue="string" @bind-Value="formCostCurrency" Label="Currency">
                             @foreach (var c in Currencies)
                             {
                                 <LumexSelectItem Value="@c">@c</LumexSelectItem>
@@ -223,10 +224,10 @@
                     </div>
 
                     <div class="col-span-2">
-                        <LumexTextbox @bind-Value="form.Link" Label="Booking Link" Placeholder="https://..." />
+                        <LumexTextbox @bind-Value="formLink" Label="Booking Link" Placeholder="https://..." />
                     </div>
                     <div class="col-span-2">
-                        <LumexTextbox @bind-Value="form.Notes" Label="Notes" Multiline="@true" Rows="2" />
+                        <LumexTextbox @bind-Value="formNotes" Label="Notes" Multiline="@true" Rows="2" />
                     </div>
                 </div>
             </div>
@@ -308,22 +309,45 @@ else
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public string? DefaultTimezone { get; set; }
 
-    private List<Transportation> items = [];
-    private List<Transportation> tickets => items.Where(i => i.Type != TransportationType.CarRental && i.Type != TransportationType.Parking).OrderBy(i => i.DepartureTime).ToList();
-    private List<Transportation> rentals => items.Where(i => i.Type == TransportationType.CarRental).OrderBy(i => i.DepartureTime).ToList();
-    private List<Transportation> parkings => items.Where(i => i.Type == TransportationType.Parking).OrderBy(i => i.DepartureTime).ToList();
+    private List<TransportationViewModel> items = [];
+    private List<TransportationViewModel> tickets => items.Where(i => i.Type != TransportationType.CarRental && i.Type != TransportationType.Parking).OrderBy(i => i.DepartureTime).ToList();
+    private List<TransportationViewModel> rentals => items.Where(i => i.Type == TransportationType.CarRental).OrderBy(i => i.DepartureTime).ToList();
+    private List<TransportationViewModel> parkings => items.Where(i => i.Type == TransportationType.Parking).OrderBy(i => i.DepartureTime).ToList();
 
     private bool loading = true;
     private bool saving = false;
     private bool showModal = false;
-    private Transportation? editItem;
-    private Transportation form = new() { Type = TransportationType.Flight };
+    private TransportationViewModel? editItem;
+
+    // Form state
+    private TransportationType formType = TransportationType.Flight;
+    private string? formOrigin;
+    private string? formOriginCity;
+    private string? formDestination;
+    private string? formDestinationCity;
+    private string? formProvider;
+    private string? formConfirmationCode;
+    private string? formFlightNumber;
+    private string? formAssignedSeats;
+    private string? formNotes;
+    private string? formLink;
+    private DateTime formDepartureTime = DateTime.Today;
+    private DateTime formArrivalTime = DateTime.Today;
+    private string? formDepartureTimezone;
+    private string? formArrivalTimezone;
+    private decimal? formCostAmount;
+    private string formCostCurrency = "USD";
+    private string? formRentalCompany;
+    private string? formPickupLocation;
+    private string? formDropOffLocation;
+    private string? formSpotNumber;
+    private string? formParkingAddress;
 
     // Airport autocomplete state
     private string originSearch = "";
     private string destinationSearch = "";
-    private List<Airport> originResults = [];
-    private List<Airport> destinationResults = [];
+    private List<AirportViewModel> originResults = [];
+    private List<AirportViewModel> destinationResults = [];
     private bool showOriginDropdown = false;
     private bool showDestinationDropdown = false;
 
@@ -331,8 +355,8 @@ else
 
     private string transportTypeString
     {
-        get => form.Type.ToString();
-        set { if (Enum.TryParse<TransportationType>(value, out var t)) form.Type = t; }
+        get => formType.ToString();
+        set { if (Enum.TryParse<TransportationType>(value, out var t)) formType = t; }
     }
 
 
@@ -373,44 +397,39 @@ else
     private async Task OpenAddModal()
     {
         editItem = null;
-        var currency = await GetUserCurrencyAsync();
-        form = new Transportation
-        {
-            Type = TransportationType.Flight, TripId = TripId,
-            DepartureTime = DateTime.Today, ArrivalTime = DateTime.Today,
-            CostCurrency = currency,
-            DepartureTimezone = DefaultTimezone ?? "",
-            ArrivalTimezone = DefaultTimezone ?? ""
-        };
-        originSearch = "";
-        destinationSearch = "";
-        originResults = [];
-        destinationResults = [];
+        formType = TransportationType.Flight;
+        formOrigin = null; formOriginCity = null;
+        formDestination = null; formDestinationCity = null;
+        formProvider = null; formFlightNumber = null; formAssignedSeats = null;
+        formConfirmationCode = null; formNotes = null; formLink = null;
+        formDepartureTime = DateTime.Today; formArrivalTime = DateTime.Today;
+        formDepartureTimezone = DefaultTimezone; formArrivalTimezone = DefaultTimezone;
+        formRentalCompany = null; formPickupLocation = null; formDropOffLocation = null;
+        formSpotNumber = null; formParkingAddress = null;
+        formCostAmount = null;
+        formCostCurrency = await GetUserCurrencyAsync();
+        originSearch = ""; destinationSearch = "";
+        originResults = []; destinationResults = [];
         showModal = true;
     }
 
-    private void OpenEditModal(Transportation item)
+    private void OpenEditModal(TransportationViewModel item)
     {
         editItem = item;
-        form = new Transportation
-        {
-            Id = item.Id, TripId = item.TripId, Type = item.Type,
-            Provider = item.Provider, FlightNumber = item.FlightNumber,
-            Origin = item.Origin, OriginCity = item.OriginCity,
-            Destination = item.Destination, DestinationCity = item.DestinationCity,
-            DepartureTime = item.DepartureTime, ArrivalTime = item.ArrivalTime,
-            DepartureTimezone = item.DepartureTimezone, ArrivalTimezone = item.ArrivalTimezone,
-            ConfirmationCode = item.ConfirmationCode, AssignedSeats = item.AssignedSeats,
-            Notes = item.Notes, Link = item.Link,
-            CostAmount = item.CostAmount, CostCurrency = item.CostCurrency ?? "USD",
-            RentalCompany = item.RentalCompany, PickupLocation = item.PickupLocation,
-            DropOffLocation = item.DropOffLocation, SpotNumber = item.SpotNumber,
-            ParkingAddress = item.ParkingAddress
-        };
-        originSearch = item.Origin ?? "";
-        destinationSearch = item.Destination ?? "";
-        originResults = [];
-        destinationResults = [];
+        formType = item.Type;
+        formOrigin = item.Origin; formOriginCity = item.OriginCity;
+        formDestination = item.Destination; formDestinationCity = item.DestinationCity;
+        formProvider = item.Provider; formFlightNumber = item.FlightNumber;
+        formAssignedSeats = item.AssignedSeats; formConfirmationCode = item.ConfirmationCode;
+        formNotes = item.Notes; formLink = item.Link;
+        formDepartureTime = item.DepartureTime; formArrivalTime = item.ArrivalTime;
+        formDepartureTimezone = item.DepartureTimezone; formArrivalTimezone = item.ArrivalTimezone;
+        formCostAmount = item.CostAmount; formCostCurrency = item.CostCurrency ?? "USD";
+        formRentalCompany = item.RentalCompany; formPickupLocation = item.PickupLocation;
+        formDropOffLocation = item.DropOffLocation; formSpotNumber = item.SpotNumber;
+        formParkingAddress = item.ParkingAddress;
+        originSearch = item.Origin ?? ""; destinationSearch = item.Destination ?? "";
+        originResults = []; destinationResults = [];
         showModal = true;
     }
 
@@ -425,7 +444,7 @@ else
     private async Task HandleOriginSearchChanged(string value)
     {
         originSearch = value;
-        form.Origin = originSearch;
+        formOrigin = originSearch;
         if (originSearch.Length >= 2)
         {
             originResults = await AirportService.SearchAsync(originSearch, 8);
@@ -441,7 +460,7 @@ else
     private async Task HandleDestinationSearchChanged(string value)
     {
         destinationSearch = value;
-        form.Destination = destinationSearch;
+        formDestination = destinationSearch;
         if (destinationSearch.Length >= 2)
         {
             destinationResults = await AirportService.SearchAsync(destinationSearch, 8);
@@ -454,83 +473,83 @@ else
         }
     }
 
-    private void SelectOriginAsync(Airport a)
+    private void SelectOriginAsync(AirportViewModel a)
     {
         originSearch = $"{a.IataCode} — {a.Name}";
-        form.Origin = a.IataCode;
+        formOrigin = a.IataCode;
         if (!string.IsNullOrEmpty(a.Municipality))
-            form.OriginCity = a.Municipality;
+            formOriginCity = a.Municipality;
         originResults = [];
         showOriginDropdown = false;
-        if (form.Type == TransportationType.Flight && a.Latitude.HasValue && a.Longitude.HasValue)
+        if (formType == TransportationType.Flight && a.Latitude.HasValue && a.Longitude.HasValue)
         {
             var tz = TimeZoneLookup.GetTimeZone(a.Latitude.Value, a.Longitude.Value).Result;
-            if (!string.IsNullOrEmpty(tz)) form.DepartureTimezone = tz;
+            if (!string.IsNullOrEmpty(tz)) formDepartureTimezone = tz;
         }
     }
 
-    private void SelectDestinationAsync(Airport a)
+    private void SelectDestinationAsync(AirportViewModel a)
     {
         destinationSearch = $"{a.IataCode} — {a.Name}";
-        form.Destination = a.IataCode;
+        formDestination = a.IataCode;
         if (!string.IsNullOrEmpty(a.Municipality))
-            form.DestinationCity = a.Municipality;
+            formDestinationCity = a.Municipality;
         destinationResults = [];
         showDestinationDropdown = false;
-        if (form.Type == TransportationType.Flight && a.Latitude.HasValue && a.Longitude.HasValue)
+        if (formType == TransportationType.Flight && a.Latitude.HasValue && a.Longitude.HasValue)
         {
             var tz = TimeZoneLookup.GetTimeZone(a.Latitude.Value, a.Longitude.Value).Result;
-            if (!string.IsNullOrEmpty(tz)) form.ArrivalTimezone = tz;
+            if (!string.IsNullOrEmpty(tz)) formArrivalTimezone = tz;
         }
     }
 
     // Flight number blur → look up route and populate airline, origin, destination
     private async Task LookupFlightRoute()
     {
-        if (form.Type != TransportationType.Flight) return;
-        var value = form.FlightNumber?.Trim() ?? "";
+        if (formType != TransportationType.Flight) return;
+        var value = formFlightNumber?.Trim() ?? "";
         if (value.Length < 3) return;
 
         var route = await FlightRouteService.GetRouteAsync(value);
         if (route != null)
         {
-            form.Provider = route.AirlineName ?? form.Provider;
+            formProvider = route.AirlineName ?? formProvider;
 
             if (!string.IsNullOrEmpty(route.OriginIataCode))
             {
-                form.Origin = route.OriginIataCode;
+                formOrigin = route.OriginIataCode;
                 originSearch = string.IsNullOrEmpty(route.OriginName)
                     ? route.OriginIataCode
                     : $"{route.OriginIataCode} — {route.OriginName}";
             }
             if (!string.IsNullOrEmpty(route.OriginCity))
-                form.OriginCity = route.OriginCity;
+                formOriginCity = route.OriginCity;
             if (!string.IsNullOrEmpty(route.OriginIataCode))
             {
                 var originAirport = await AirportService.GetByCodeAsync(route.OriginIataCode);
                 if (originAirport?.Latitude.HasValue == true && originAirport.Longitude.HasValue)
                 {
                     var tz = TimeZoneLookup.GetTimeZone(originAirport.Latitude.Value, originAirport.Longitude.Value).Result;
-                    if (!string.IsNullOrEmpty(tz)) form.DepartureTimezone = tz;
+                    if (!string.IsNullOrEmpty(tz)) formDepartureTimezone = tz;
                 }
             }
 
             if (!string.IsNullOrEmpty(route.DestinationIataCode))
             {
-                form.Destination = route.DestinationIataCode;
+                formDestination = route.DestinationIataCode;
                 destinationSearch = string.IsNullOrEmpty(route.DestinationName)
                     ? route.DestinationIataCode
                     : $"{route.DestinationIataCode} — {route.DestinationName}";
             }
             if (!string.IsNullOrEmpty(route.DestinationCity))
-                form.DestinationCity = route.DestinationCity;
+                formDestinationCity = route.DestinationCity;
             if (!string.IsNullOrEmpty(route.DestinationIataCode))
             {
                 var destAirport = await AirportService.GetByCodeAsync(route.DestinationIataCode);
                 if (destAirport?.Latitude.HasValue == true && destAirport.Longitude.HasValue)
                 {
                     var tz = TimeZoneLookup.GetTimeZone(destAirport.Latitude.Value, destAirport.Longitude.Value).Result;
-                    if (!string.IsNullOrEmpty(tz)) form.ArrivalTimezone = tz;
+                    if (!string.IsNullOrEmpty(tz)) formArrivalTimezone = tz;
                 }
             }
 
@@ -545,7 +564,7 @@ else
                 var airline = await AirlineService.GetByCodeAsync(match.Groups[1].Value);
                 if (airline != null)
                 {
-                    form.Provider = airline.Name;
+                    formProvider = airline.Name;
                     StateHasChanged();
                 }
             }
@@ -555,11 +574,10 @@ else
     private async Task SaveItem()
     {
         saving = true;
-        form.TripId = TripId;
         if (editItem != null)
-            await TransportationService.UpdateAsync(form);
+            await TransportationService.UpdateAsync(new UpdateTransportationRequest(editItem.Id, formType, formOrigin, formOriginCity, formDestination, formDestinationCity, formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats, formNotes, formLink, formDepartureTime, formArrivalTime, string.IsNullOrEmpty(formDepartureTimezone) ? null : formDepartureTimezone, string.IsNullOrEmpty(formArrivalTimezone) ? null : formArrivalTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, formRentalCompany, formPickupLocation, formDropOffLocation, formSpotNumber, formParkingAddress, null, null, []));
         else
-            await TransportationService.CreateAsync(form);
+            await TransportationService.CreateAsync(new CreateTransportationRequest(TripId, formType, formOrigin, formOriginCity, formDestination, formDestinationCity, formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats, formNotes, formLink, formDepartureTime, formArrivalTime, string.IsNullOrEmpty(formDepartureTimezone) ? null : formDepartureTimezone, string.IsNullOrEmpty(formArrivalTimezone) ? null : formArrivalTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, formRentalCompany, formPickupLocation, formDropOffLocation, formSpotNumber, formParkingAddress, null, null, []));
         saving = false;
         showModal = false;
         await LoadItems();

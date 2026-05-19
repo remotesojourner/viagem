@@ -2,9 +2,11 @@
 @rendermode InteractiveServer
 @attribute [Authorize]
 @inject ITripService TripService
+@inject IExpenseService ExpenseService
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
 @using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 @using GeoTimeZone
 
 <PageTitle>@(trip?.Name ?? "Trip") - Viagem</PageTitle>
@@ -46,13 +48,12 @@ else
                                 </StartContent>
                                 <ChildContent>
                                     @{
-                                        var totalExpenses = trip.Expenses?.Sum(e => e.Amount ?? 0) ?? 0;
-                                        var pct = totalExpenses > 0 ? Math.Min((double)(totalExpenses / trip.BudgetAmount.Value) * 100, 100) : 0;
+                                        var pct = tripTotalExpenses > 0 ? Math.Min((double)(tripTotalExpenses / trip.BudgetAmount.Value) * 100, 100) : 0;
                                         var pctStr = pct.ToString("F0");
                                     }
                                     <div>
                                         <div class="flex justify-between text-sm mb-2">
-                                            <span class="text-foreground-500">Spent: <strong>@totalExpenses.ToString("N2") @trip.BudgetCurrency</strong></span>
+                                            <span class="text-foreground-500">Spent: <strong>@tripTotalExpenses.ToString("N2") @trip.BudgetCurrency</strong></span>
                                             <span class="text-foreground-500">Budget: <strong>@trip.BudgetAmount?.ToString("N2") @trip.BudgetCurrency</strong></span>
                                         </div>
                                         <div class="w-full bg-default-200 rounded-full h-3 overflow-hidden">
@@ -130,12 +131,13 @@ else
 @code {
     [Parameter] public int Id { get; set; }
 
-    private Trip? trip;
+    private TripDetailViewModel? trip;
     private bool loading = true;
     private bool canEdit = false;
     private string? userId;
     private string activeTab = "organization";
     private string? defaultTimezone;
+    private decimal tripTotalExpenses = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -151,13 +153,13 @@ else
         {
             trip = await TripService.GetTripAsync(Id, userId);
             canEdit = trip != null && await TripService.CanUserEditTripAsync(Id, userId);
-            // Compute most common timezone among trip destinations (with GeoTimeZone fallback via place coordinates)
+            // Compute most common timezone among trip destinations
             defaultTimezone = trip?.Destinations
                 .Select(d =>
                 {
-                    if (!string.IsNullOrEmpty(d.Place?.Timezone)) return d.Place.Timezone;
-                    if (double.TryParse(d.Place?.Latitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat) &&
-                        double.TryParse(d.Place?.Longitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng))
+                    if (!string.IsNullOrEmpty(d.PlaceTimezone)) return d.PlaceTimezone;
+                    if (double.TryParse(d.PlaceLatitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat) &&
+                        double.TryParse(d.PlaceLongitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng))
                         return TimeZoneLookup.GetTimeZone(lat, lng).Result;
                     return null;
                 })
@@ -166,6 +168,10 @@ else
                 .OrderByDescending(g => g.Count())
                 .Select(g => g.Key)
                 .FirstOrDefault();
+            if (trip?.BudgetAmount.HasValue == true && !string.IsNullOrEmpty(trip.BudgetCurrency))
+                tripTotalExpenses = await ExpenseService.GetTotalExpenseAsync(Id, trip.BudgetCurrency);
+            else
+                tripTotalExpenses = 0;
         }
         loading = false;
     }

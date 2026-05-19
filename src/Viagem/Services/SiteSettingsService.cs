@@ -1,35 +1,14 @@
-using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
-using Viagem.Data;
-using Viagem.Data.Models;
+using Viagem.Data.Repositories.Interfaces;
 
 namespace Viagem.Services;
 
-public class SiteSettingsService(ApplicationDbContext db)
+public class SiteSettingsService(ISiteSettingsRepository repo)
 {
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
+    public Task<T?> GetAsync<T>(string key) where T : class
+        => repo.GetAsync<T>(key);
 
-    public async Task<T?> GetAsync<T>(string key) where T : class
-    {
-        var setting = await db.SiteSettings.FindAsync(key);
-        if (setting is null) return null;
-        return JsonSerializer.Deserialize<T>(setting.Value, JsonOpts);
-    }
-
-    public async Task SetAsync<T>(string key, T value) where T : class
-    {
-        var json = JsonSerializer.Serialize(value, JsonOpts);
-        var setting = await db.SiteSettings.FindAsync(key);
-        if (setting is null)
-            db.SiteSettings.Add(new SiteSetting { Key = key, Value = json });
-        else
-            setting.Value = json;
-        await db.SaveChangesAsync();
-    }
+    public Task SetAsync<T>(string key, T value) where T : class
+        => repo.SetAsync(key, value);
 
     public async Task<bool> IsRegistrationEnabledAsync()
     {

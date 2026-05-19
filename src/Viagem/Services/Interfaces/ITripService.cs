@@ -1,20 +1,20 @@
-using Viagem.Data.Models;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services.Interfaces;
 
 public interface ITripService
 {
-    Task<List<Trip>> GetUpcomingTripsAsync(string userId);
-    Task<List<Trip>> GetPastTripsAsync(string userId);
-    Task<Trip?> GetTripAsync(int tripId, string userId);
-    Task<Trip> CreateTripAsync(Trip trip);
-    Task<Trip> UpdateTripAsync(Trip trip);
+    Task<List<TripSummaryViewModel>> GetUpcomingTripsAsync(string userId);
+    Task<List<TripSummaryViewModel>> GetPastTripsAsync(string userId);
+    Task<TripDetailViewModel?> GetTripAsync(int tripId, string userId);
+    Task<TripDetailViewModel> CreateTripAsync(CreateTripRequest request);
+    Task<TripDetailViewModel?> UpdateTripAsync(string userId, UpdateTripRequest request);
     Task DeleteTripAsync(int tripId, string userId);
     Task<bool> CanUserEditTripAsync(int tripId, string userId);
 
     // Destinations
-    Task<TripDestination> AddDestinationAsync(int tripId, int placeId);
-    Task<TripDestination> AddDestinationCustomAsync(int tripId, string customName);
+    Task<TripDestinationViewModel> AddDestinationAsync(int tripId, int placeId);
+    Task<TripDestinationViewModel> AddDestinationCustomAsync(int tripId, string customName);
     Task RemoveDestinationAsync(int destinationId);
 
     // Travellers
@@ -25,22 +25,23 @@ public interface ITripService
 
     // Notes
     Task UpdateNotesAsync(int tripId, string? notes);
+    Task UpdateCoverImageAsync(int tripId, string? coverImagePath);
 }
 
 public interface IPlaceService
 {
-    Task<List<Place>> SearchAsync(string query, int limit = 20);
-    Task<Place?> GetByIdAsync(int id);
+    Task<List<PlaceViewModel>> SearchAsync(string query, int limit = 20);
+    Task<PlaceViewModel?> GetByIdAsync(int id);
 }
 
 public interface IAirportService
 {
-    Task<List<Airport>> SearchAsync(string query, int limit = 10);
-    Task<Airport?> GetByCodeAsync(string iataCode);
+    Task<List<AirportViewModel>> SearchAsync(string query, int limit = 10);
+    Task<AirportViewModel?> GetByCodeAsync(string iataCode);
 }
 
 public interface IAirlineService
 {
-    Task<Airline?> GetByCodeAsync(string code);
-    Task<List<Airline>> SearchAsync(string query, int limit = 5);
+    Task<AirlineViewModel?> GetByCodeAsync(string code);
+    Task<List<AirlineViewModel>> SearchAsync(string query, int limit = 5);
 }

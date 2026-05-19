@@ -1,4 +1,5 @@
 ﻿@using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 @inject IExpenseService ExpenseService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
@@ -14,14 +15,14 @@
         <LumexModalBody>
         <div class="space-y-4">
             <div>
-                <LumexTextbox @bind-Value="form.Name" Label="Name *" Placeholder="Dinner, museum ticket..." />
+                <LumexTextbox @bind-Value="formName" Label="Name *" Placeholder="Dinner, museum ticket..." />
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <LumexNumbox TValue="decimal?" @bind-Value="form.Amount" Label="Amount" Placeholder="0.00" />
+                    <LumexNumbox TValue="decimal?" @bind-Value="formAmount" Label="Amount" Placeholder="0.00" />
                 </div>
                 <div>
-                    <LumexSelect TValue="string" @bind-Value="form.Currency" Label="Currency">
+                    <LumexSelect TValue="string" @bind-Value="formCurrency" Label="Currency">
                         @foreach (var c in Currencies)
                         {
                             <LumexSelectItem Value="@c">@c</LumexSelectItem>
@@ -38,10 +39,10 @@
                 </LumexSelect>
             </div>
             <div>
-                <LumexDatebox TValue="DateTime?" @bind-Value="form.OccurredOn" Label="Date" />
+                <LumexDatebox TValue="DateTime?" @bind-Value="formOccurredOn" Label="Date" />
             </div>
             <div>
-                <LumexTextbox @bind-Value="form.Notes" Label="Notes" Multiline="@true" Rows="2" />
+                <LumexTextbox @bind-Value="formNotes" Label="Notes" Multiline="@true" Rows="2" />
             </div>
         </div>
         </LumexModalBody>
@@ -193,21 +194,29 @@ else
     [Parameter] public decimal? TripBudgetAmount { get; set; }
     [Parameter] public string? TripBudgetCurrency { get; set; }
 
-    private List<Expense> items = [];
+    private List<ExpenseViewModel> items = [];
     private bool loading = true;
     private int? menuOpenId;
     private bool saving = false;
     private bool showModal = false;
-    private Expense? editItem;
-    private Expense form = new() { Name = "" };
+    private ExpenseViewModel? editItem;
+    private string? currentUserId;
+
+    // Form state
+    private string formName = "";
+    private decimal? formAmount;
+    private string formCurrency = "USD";
+    private ExpenseCategory? formCategory;
+    private DateTime? formOccurredOn;
+    private string? formNotes;
 
     private decimal totalSpent => items.Sum(i => i.Amount ?? 0);
     private string defaultCurrency => items.FirstOrDefault(i => !string.IsNullOrEmpty(i.Currency))?.Currency ?? TripBudgetCurrency ?? "USD";
 
     private string categoryString
     {
-        get => form.Category?.ToString() ?? "";
-        set => form.Category = string.IsNullOrEmpty(value) ? null : Enum.Parse<ExpenseCategory>(value);
+        get => formCategory?.ToString() ?? "";
+        set => formCategory = string.IsNullOrEmpty(value) ? null : Enum.Parse<ExpenseCategory>(value);
     }
     private Dictionary<ExpenseCategory, decimal> byCategory => items
         .Where(i => i.Category.HasValue && i.Amount.HasValue)
@@ -217,7 +226,12 @@ else
 
     private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
 
-    protected override async Task OnInitializedAsync() => await LoadItems();
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        await LoadItems();
+    }
 
     private async Task LoadItems()
     {
@@ -241,20 +255,24 @@ else
     private async Task OpenAddModal()
     {
         editItem = null;
-        var currency = await GetUserCurrencyAsync();
-        form = new Expense { Name = "", TripId = TripId, OccurredOn = DateTime.Today, Currency = currency };
+        formName = "";
+        formAmount = null;
+        formCurrency = await GetUserCurrencyAsync();
+        formCategory = null;
+        formOccurredOn = DateTime.Today;
+        formNotes = null;
         showModal = true;
     }
 
-    private void OpenEditModal(Expense item)
+    private void OpenEditModal(ExpenseViewModel item)
     {
         editItem = item;
-        form = new Expense
-        {
-            Id = item.Id, TripId = item.TripId, Name = item.Name,
-            Amount = item.Amount, Currency = item.Currency,
-            Category = item.Category, OccurredOn = item.OccurredOn, Notes = item.Notes
-        };
+        formName = item.Name;
+        formAmount = item.Amount;
+        formCurrency = item.Currency ?? defaultCurrency;
+        formCategory = item.Category;
+        formOccurredOn = item.OccurredOn;
+        formNotes = item.Notes;
         showModal = true;
     }
 
@@ -262,11 +280,12 @@ else
 
     private async Task SaveItem()
     {
-        if (string.IsNullOrWhiteSpace(form.Name)) return;
+        if (string.IsNullOrWhiteSpace(formName)) return;
         saving = true;
-        form.TripId = TripId;
-        if (editItem != null) await ExpenseService.UpdateAsync(form);
-        else await ExpenseService.CreateAsync(form);
+        if (editItem != null)
+            await ExpenseService.UpdateAsync(new UpdateExpenseRequest(editItem.Id, formName, formCategory, formNotes, formAmount, string.IsNullOrEmpty(formCurrency) ? null : formCurrency, formOccurredOn, []));
+        else
+            await ExpenseService.CreateAsync(new CreateExpenseRequest(TripId, currentUserId, formName, formCategory, formNotes, formAmount, string.IsNullOrEmpty(formCurrency) ? null : formCurrency, formOccurredOn, []));
         saving = false;
         showModal = false;
         await LoadItems();

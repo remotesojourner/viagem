@@ -1,12 +1,12 @@
-using Viagem.Data.Models;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services.Interfaces;
 
 public interface ITransportationService
 {
-    Task<List<Transportation>> GetTripTransportationsAsync(int tripId);
-    Task<Transportation?> GetTransportationAsync(int id);
-    Task<Transportation> CreateAsync(Transportation transportation);
-    Task<Transportation> UpdateAsync(Transportation transportation);
+    Task<List<TransportationViewModel>> GetTripTransportationsAsync(int tripId);
+    Task<TransportationViewModel?> GetTransportationAsync(int id);
+    Task<TransportationViewModel> CreateAsync(CreateTransportationRequest request);
+    Task<TransportationViewModel?> UpdateAsync(UpdateTransportationRequest request);
     Task DeleteAsync(int id);
 }

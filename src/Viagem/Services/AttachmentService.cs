@@ -1,29 +1,26 @@
 using Microsoft.AspNetCore.Components.Forms;
-using Microsoft.EntityFrameworkCore;
-using Viagem.Data;
 using Viagem.Data.Models;
+using Viagem.Data.Repositories.Interfaces;
 using Viagem.Services.Interfaces;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services;
 
-public class AttachmentService(ApplicationDbContext db, IWebHostEnvironment env) : IAttachmentService
+public class AttachmentService(IAttachmentRepository repo, IWebHostEnvironment env) : IAttachmentService
 {
     private const long MaxFileSizeBytes = 50 * 1024 * 1024; // 50 MB
 
-    public async Task<List<TripAttachment>> GetTripAttachmentsAsync(int tripId)
-        => await db.TripAttachments
-            .Where(a => a.TripId == tripId)
-            .OrderByDescending(a => a.UploadedAt)
-            .ToListAsync();
+    public async Task<List<AttachmentViewModel>> GetTripAttachmentsAsync(int tripId)
+    {
+        var items = await repo.GetByTripAsync(tripId);
+        return items.Select(ToViewModel).ToList();
+    }
 
-    public async Task<TripAttachment> UploadAsync(int tripId, string userId, IBrowserFile file)
+    public async Task<AttachmentViewModel> UploadAsync(int tripId, string userId, IBrowserFile file)
     {
         var uploadsDir = Path.Combine(env.WebRootPath, "uploads", "trips", tripId.ToString());
         Directory.CreateDirectory(uploadsDir);
 
-        var safeFileName = Path.GetFileNameWithoutExtension(file.Name)
-            .Replace(" ", "_")
-            .Replace("..", "_");
         var ext = Path.GetExtension(file.Name);
         var uniqueName = $"{Guid.NewGuid():N}{ext}";
         var filePath = Path.Combine(uploadsDir, uniqueName);
@@ -43,20 +40,27 @@ public class AttachmentService(ApplicationDbContext db, IWebHostEnvironment env)
             UploadedAt = DateTime.UtcNow
         };
 
-        db.TripAttachments.Add(attachment);
-        await db.SaveChangesAsync();
-        return attachment;
+        var saved = await repo.AddAsync(attachment);
+        return ToViewModel(saved);
     }
 
     public async Task DeleteAsync(int id)
     {
-        var a = await db.TripAttachments.FindAsync(id);
-        if (a == null) return;
+        var attachment = await repo.GetByIdAsync(id);
+        if (attachment == null) return;
 
-        var physicalPath = Path.Combine(env.WebRootPath, a.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-        if (File.Exists(physicalPath)) File.Delete(physicalPath);
+        var physicalPath = Path.Combine(
+            env.WebRootPath,
+            attachment.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
 
-        db.TripAttachments.Remove(a);
-        await db.SaveChangesAsync();
+        if (File.Exists(physicalPath))
+            File.Delete(physicalPath);
+
+        await repo.DeleteAsync(id);
     }
+
+    // ── Mapping ───────────────────────────────────────────────────────────────
+
+    private static AttachmentViewModel ToViewModel(TripAttachment a)
+        => new(a.Id, a.FileName, a.FilePath, a.ContentType, a.FileSize, a.UploadedAt);
 }

@@ -3,6 +3,7 @@
 @attribute [Authorize]
 @using System.Security.Cryptography
 @using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
 @inject ITravellerProfileService ProfileService
@@ -178,13 +179,13 @@
 @code {
     private string? currentUserId;
     private bool isAdmin;
-    private List<TravellerProfile> profiles = [];
+    private List<TravellerProfileViewModel> profiles = [];
     private string? successMsg;
     private string? errorMsg;
 
     // Add User modal state
     private bool showAddUserModal;
-    private TravellerProfile? addUserProfile;
+    private TravellerProfileViewModel? addUserProfile;
     private string addUserEmail = "";
     private string? addUserError;
     private string? addUserCreatedPassword;
@@ -193,7 +194,7 @@
 
     // Modal state
     private bool showModal;
-    private TravellerProfile? editingProfile;
+    private TravellerProfileViewModel? editingProfile;
     private string modalName = "";
     private string? modalEmail;
     private string? modalError;
@@ -234,7 +235,7 @@
         showModal = true;
     }
 
-    private void OpenEditModal(TravellerProfile profile)
+    private void OpenEditModal(TravellerProfileViewModel profile)
     {
         editingProfile = profile;
         modalName = profile.LegalName;
@@ -258,20 +259,12 @@
         {
             if (editingProfile == null)
             {
-                var newProfile = new TravellerProfile
-                {
-                    LegalName = modalName.Trim(),
-                    Email = string.IsNullOrWhiteSpace(modalEmail) ? null : modalEmail.Trim(),
-                    OwnerId = currentUserId!
-                };
-                await ProfileService.CreateAsync(newProfile);
+                await ProfileService.CreateAsync(new CreateTravellerProfileRequest(currentUserId!, modalName.Trim(), string.IsNullOrWhiteSpace(modalEmail) ? null : modalEmail.Trim()));
                 successMsg = "Profile added.";
             }
             else
             {
-                editingProfile.LegalName = modalName.Trim();
-                editingProfile.Email = string.IsNullOrWhiteSpace(modalEmail) ? null : modalEmail.Trim();
-                await ProfileService.UpdateAsync(editingProfile);
+                await ProfileService.UpdateAsync(currentUserId!, new UpdateTravellerProfileRequest(editingProfile.Id, modalName.Trim(), string.IsNullOrWhiteSpace(modalEmail) ? null : modalEmail.Trim()));
                 successMsg = "Profile updated.";
             }
             showModal = false;
@@ -336,7 +329,7 @@
             await AddAlias(profileId);
     }
 
-    private void OpenAddUserModal(TravellerProfile profile)
+    private void OpenAddUserModal(TravellerProfileViewModel profile)
     {
         addUserProfile = profile;
         addUserEmail = profile.Email ?? "";
@@ -383,10 +376,7 @@
             }
 
             // Link the traveller profile
-            addUserProfile.LinkedUserId = newUser.Id;
-            if (string.IsNullOrEmpty(addUserProfile.OwnerId))
-                addUserProfile.OwnerId = newUser.Id;
-            await ProfileService.UpdateAsync(addUserProfile);
+            await ProfileService.LinkUserAsync(addUserProfile.Id, newUser.Id, newUser.Id);
             addUserCreatedPassword = password;
             await LoadProfiles();
 

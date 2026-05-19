@@ -1,106 +1,80 @@
-using Microsoft.EntityFrameworkCore;
-using Viagem.Data;
 using Viagem.Data.Models;
+using Viagem.Data.Repositories.Interfaces;
 using Viagem.Services.Interfaces;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services;
 
-public class TravellerProfileService(ApplicationDbContext db) : ITravellerProfileService
+public class TravellerProfileService(ITravellerProfileRepository repo) : ITravellerProfileService
 {
-    public async Task<List<TravellerProfile>> GetMyProfilesAsync(string userId)
-        => await db.TravellerProfiles
-            .Include(tp => tp.Aliases)
-            .Include(tp => tp.AdditionalFields)
-            .Include(tp => tp.Managers).ThenInclude(m => m.ManagerUser)
-            .Where(tp => tp.OwnerId == userId || tp.Managers.Any(m => m.ManagerUserId == userId))
-            .OrderBy(tp => tp.LegalName)
-            .ToListAsync();
-
-    public async Task<TravellerProfile?> GetProfileAsync(int id, string userId)
-        => await db.TravellerProfiles
-            .Include(tp => tp.Aliases)
-            .Include(tp => tp.AdditionalFields)
-            .Include(tp => tp.Managers).ThenInclude(m => m.ManagerUser)
-            .Include(tp => tp.Attachments).ThenInclude(a => a.Attachment)
-            .Where(tp => tp.OwnerId == userId || tp.Managers.Any(m => m.ManagerUserId == userId))
-            .FirstOrDefaultAsync(tp => tp.Id == id);
-
-    public async Task<TravellerProfile> CreateAsync(TravellerProfile profile)
+    public async Task<List<TravellerProfileViewModel>> GetMyProfilesAsync(string userId)
     {
-        profile.CreatedAt = DateTime.UtcNow;
-        profile.UpdatedAt = DateTime.UtcNow;
-        db.TravellerProfiles.Add(profile);
-        await db.SaveChangesAsync();
-        return profile;
+        var profiles = await repo.GetByUserAsync(userId);
+        return profiles.Select(ToViewModel).ToList();
     }
 
-    public async Task<TravellerProfile> UpdateAsync(TravellerProfile profile)
+    public async Task<TravellerProfileViewModel?> GetProfileAsync(int id, string userId)
     {
-        profile.UpdatedAt = DateTime.UtcNow;
-        db.TravellerProfiles.Update(profile);
-        await db.SaveChangesAsync();
-        return profile;
+        var profile = await repo.GetByIdAsync(id, userId);
+        return profile == null ? null : ToViewModel(profile);
     }
 
-    public async Task DeleteAsync(int id, string userId)
+    public async Task<TravellerProfileViewModel> CreateAsync(CreateTravellerProfileRequest request)
     {
-        var profile = await db.TravellerProfiles
-            .FirstOrDefaultAsync(tp => tp.Id == id && tp.OwnerId == userId);
-        if (profile != null)
+        var entity = new TravellerProfile
         {
-            db.TravellerProfiles.Remove(profile);
-            await db.SaveChangesAsync();
-        }
+            OwnerId = request.OwnerId,
+            LegalName = request.LegalName,
+            Email = request.Email
+        };
+
+        var created = await repo.CreateAsync(entity);
+        var full = await repo.GetByIdAsync(created.Id, request.OwnerId);
+        return ToViewModel(full!);
     }
 
-    public async Task AddAliasAsync(int profileId, string alias)
+    public async Task<TravellerProfileViewModel?> UpdateAsync(string userId, UpdateTravellerProfileRequest request)
     {
-        if (string.IsNullOrWhiteSpace(alias)) return;
-        db.TravellerProfileAliases.Add(new TravellerProfileAlias
-        {
-            TravellerProfileId = profileId,
-            Alias = alias.Trim()
-        });
-        await db.SaveChangesAsync();
+        var existing = await repo.GetByIdAsync(request.Id, userId);
+        if (existing == null) return null;
+
+        existing.LegalName = request.LegalName;
+        existing.Email = request.Email;
+
+        await repo.UpdateAsync(existing);
+        var full = await repo.GetByIdAsync(request.Id, userId);
+        return full == null ? null : ToViewModel(full);
     }
 
-    public async Task RemoveAliasAsync(int aliasId)
+    public Task DeleteAsync(int id, string userId) => repo.DeleteAsync(id, userId);
+
+    public Task AddAliasAsync(int profileId, string alias) => repo.AddAliasAsync(profileId, alias);
+
+    public Task RemoveAliasAsync(int aliasId) => repo.RemoveAliasAsync(aliasId);
+
+    public Task EnsureProfileExistsForUserAsync(string userId, string email, string? name)
+        => repo.EnsureExistsAsync(userId, email, name);
+
+    public async Task LinkUserAsync(int profileId, string linkedUserId, string? ownerId = null)
     {
-        var alias = await db.TravellerProfileAliases.FindAsync(aliasId);
-        if (alias != null)
-        {
-            db.TravellerProfileAliases.Remove(alias);
-            await db.SaveChangesAsync();
-        }
+        var existing = await repo.GetByIdDirectAsync(profileId);
+        if (existing == null) return;
+        existing.LinkedUserId = linkedUserId;
+        if (!string.IsNullOrEmpty(ownerId))
+            existing.OwnerId = ownerId;
+        await repo.UpdateAsync(existing);
     }
 
-    public async Task EnsureProfileExistsForUserAsync(string userId, string email, string? name)
-    {
-        // Check if this user already has a profile
-        var existing = await db.TravellerProfiles
-            .FirstOrDefaultAsync(tp => tp.LinkedUserId == userId);
-        if (existing != null) return;
+    // ── Mapping ───────────────────────────────────────────────────────────────
 
-        // Check for an unlinked profile with the same email (created via invite)
-        var invited = await db.TravellerProfiles
-            .FirstOrDefaultAsync(tp => tp.Email == email && tp.LinkedUserId == null);
-        if (invited != null)
-        {
-            invited.LinkedUserId = userId;
-            if (string.IsNullOrEmpty(invited.OwnerId))
-                invited.OwnerId = userId;
-            await db.SaveChangesAsync();
-            return;
-        }
+    private static TravellerAliasViewModel ToAliasViewModel(TravellerProfileAlias a)
+        => new(a.Id, a.Alias);
 
-        // Create a new profile
-        db.TravellerProfiles.Add(new TravellerProfile
-        {
-            LegalName = name ?? email,
-            Email = email,
-            OwnerId = userId,
-            LinkedUserId = userId
-        });
-        await db.SaveChangesAsync();
-    }
+    private static TravellerAdditionalFieldViewModel ToFieldViewModel(TravellerAdditionalField f)
+        => new(f.Id, f.Key, f.Label, f.Value);
+
+    private static TravellerProfileViewModel ToViewModel(TravellerProfile p)
+        => new(p.Id, p.LegalName, p.Email, p.OwnerId, p.LinkedUserId,
+            p.Aliases.Select(ToAliasViewModel).ToList(),
+            p.AdditionalFields.Select(ToFieldViewModel).ToList());
 }

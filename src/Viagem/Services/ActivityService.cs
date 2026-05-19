@@ -1,54 +1,93 @@
-using Microsoft.EntityFrameworkCore;
-using Viagem.Data;
 using Viagem.Data.Models;
+using Viagem.Data.Repositories.Interfaces;
 using Viagem.Services.Interfaces;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services;
 
-public class ActivityService(ApplicationDbContext db) : IActivityService
+public class ActivityService(IActivityRepository repo) : IActivityService
 {
-    public async Task<List<Activity>> GetTripActivitiesAsync(int tripId)
-        => await db.Activities
-            .Include(a => a.Place)
-            .Include(a => a.Travellers).ThenInclude(at => at.TravellerProfile)
-            .Where(a => a.TripId == tripId)
-            .OrderBy(a => a.StartDate)
-            .ToListAsync();
-
-    public async Task<Activity?> GetActivityAsync(int id)
-        => await db.Activities
-            .Include(a => a.Place)
-            .Include(a => a.Travellers).ThenInclude(at => at.TravellerProfile)
-            .Include(a => a.Attachments).ThenInclude(aa => aa.Attachment)
-            .FirstOrDefaultAsync(a => a.Id == id);
-
-    public async Task<Activity> CreateAsync(Activity activity)
+    public async Task<List<ActivityViewModel>> GetTripActivitiesAsync(int tripId)
     {
-        activity.CreatedAt = DateTime.UtcNow;
-        activity.UpdatedAt = DateTime.UtcNow;
-        db.Activities.Add(activity);
-        await db.SaveChangesAsync();
-        return activity;
+        var items = await repo.GetByTripAsync(tripId);
+        return items.Select(ToViewModel).ToList();
     }
 
-    public async Task<Activity> UpdateAsync(Activity activity)
+    public async Task<ActivityViewModel?> GetActivityAsync(int id)
     {
-        activity.UpdatedAt = DateTime.UtcNow;
-        var tracked = db.ChangeTracker.Entries<Activity>()
-            .FirstOrDefault(e => e.Entity.Id == activity.Id);
-        tracked?.State = EntityState.Detached;
-        db.Activities.Update(activity);
-        await db.SaveChangesAsync();
-        return activity;
+        var item = await repo.GetByIdAsync(id);
+        return item == null ? null : ToViewModel(item);
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task<ActivityViewModel> CreateAsync(CreateActivityRequest request)
     {
-        var item = await db.Activities.FindAsync(id);
-        if (item != null)
+        var entity = new Activity
         {
-            db.Activities.Remove(item);
-            await db.SaveChangesAsync();
-        }
+            TripId = request.TripId,
+            Name = request.Name,
+            Description = request.Description,
+            Address = request.Address,
+            Notes = request.Notes,
+            Link = request.Link,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            Timezone = request.Timezone,
+            CostAmount = request.CostAmount,
+            CostCurrency = request.CostCurrency,
+            PlaceId = request.PlaceId,
+            Travellers = request.TravellerProfileIds
+                .Select(id => new ActivityTraveller { TravellerProfileId = id })
+                .ToList()
+        };
+
+        var created = await repo.CreateAsync(entity);
+        var full = await repo.GetByIdAsync(created.Id);
+        return ToViewModel(full!);
     }
+
+    public async Task<ActivityViewModel?> UpdateAsync(UpdateActivityRequest request)
+    {
+        var existing = await repo.GetByIdAsync(request.Id);
+        if (existing == null) return null;
+
+        // Build a stub with only scalar fields to avoid graph traversal issues
+        var stub = new Activity
+        {
+            Id = existing.Id,
+            TripId = existing.TripId,
+            Name = request.Name,
+            Description = request.Description,
+            Address = request.Address,
+            Notes = request.Notes,
+            Link = request.Link,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            Timezone = request.Timezone,
+            CostAmount = request.CostAmount,
+            CostCurrency = request.CostCurrency,
+            PlaceId = request.PlaceId,
+            ExpenseId = existing.ExpenseId,
+            CreatedAt = existing.CreatedAt
+        };
+
+        await repo.UpdateAsync(stub);
+        var full = await repo.GetByIdAsync(request.Id);
+        return full == null ? null : ToViewModel(full);
+    }
+
+    public Task DeleteAsync(int id) => repo.DeleteAsync(id);
+
+    // ── Mapping ───────────────────────────────────────────────────────────────
+
+    private static TravellerProfileSummaryViewModel ToTravellerSummary(TravellerProfile tp)
+        => new(tp.Id, tp.LegalName, tp.Email);
+
+    private static ActivityViewModel ToViewModel(Activity a)
+        => new(a.Id, a.TripId, a.Name, a.Description, a.Address, a.Notes, a.Link,
+            a.StartDate, a.EndDate, a.Timezone, a.CostAmount, a.CostCurrency,
+            a.PlaceId, a.Place?.Name,
+            a.Travellers
+                .Where(at => at.TravellerProfile != null)
+                .Select(at => ToTravellerSummary(at.TravellerProfile!))
+                .ToList());
 }

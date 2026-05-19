@@ -430,3 +430,4 @@ FodyWeavers.xsd
 
 /src/Viagem/Data/app.db*
 /src/Viagem/wwwroot/uploads/*
+/src/Viagem/tools

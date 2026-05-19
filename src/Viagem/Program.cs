@@ -5,6 +5,8 @@ using LumexUI.Extensions;
 using Viagem.Components;
 using Viagem.Components.Account;
 using Viagem.Data;
+using Viagem.Data.Repositories;
+using Viagem.Data.Repositories.Interfaces;
 using Viagem.Services;
 using Viagem.Services.Interfaces;
 
@@ -41,6 +43,20 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 
 // LumexUI services
 builder.Services.AddLumexServices();
+
+// Repositories
+builder.Services.AddScoped<ITripRepository, TripRepository>();
+builder.Services.AddScoped<IPlaceRepository, PlaceRepository>();
+builder.Services.AddScoped<IAirportRepository, AirportRepository>();
+builder.Services.AddScoped<IAirlineRepository, AirlineRepository>();
+builder.Services.AddScoped<ITransportationRepository, TransportationRepository>();
+builder.Services.AddScoped<ILodgingRepository, LodgingRepository>();
+builder.Services.AddScoped<IActivityRepository, ActivityRepository>();
+builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
+builder.Services.AddScoped<ITravellerProfileRepository, TravellerProfileRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+builder.Services.AddScoped<ISiteSettingsRepository, SiteSettingsRepository>();
 
 // Domain services
 builder.Services.AddScoped<ITripService, TripService>();

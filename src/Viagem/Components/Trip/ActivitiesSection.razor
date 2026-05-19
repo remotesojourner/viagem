@@ -1,5 +1,5 @@
 ﻿@using Viagem.Services.Interfaces
-@using ViagemActivity = Viagem.Data.Models.Activity
+@using Viagem.Services.ViewModels
 @inject IActivityService ActivityService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
@@ -15,18 +15,18 @@
         <LumexModalBody>
         <div class="space-y-4">
             <div>
-                <LumexTextbox @bind-Value="form.Name" Label="Name *" Placeholder="City tour, museum, hike..." />
+                <LumexTextbox @bind-Value="formName" Label="Name *" Placeholder="City tour, museum, hike..." />
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <LumexDatebox TValue="DateTime" @bind-Value="form.StartDate" Label="Start Date/Time *" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                    <LumexDatebox TValue="DateTime" @bind-Value="formStartDate" Label="Start Date/Time *" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                 </div>
                 <div>
-                    <LumexDatebox TValue="DateTime?" @bind-Value="form.EndDate" Label="End Date/Time" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                    <LumexDatebox TValue="DateTime?" @bind-Value="formEndDate" Label="End Date/Time" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
                 </div>
             </div>
             <div>
-                <LumexSelect TValue="string" @bind-Value="form.Timezone" Label="Timezone" Placeholder="— select timezone —">
+                <LumexSelect TValue="string" @bind-Value="formTimezone" Label="Timezone" Placeholder="— select timezone —">
                     @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
                     {
                         <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
@@ -34,17 +34,17 @@
                 </LumexSelect>
             </div>
             <div>
-                <LumexTextbox @bind-Value="form.Address" Label="Address / Location" Placeholder="Where is this?" />
+                <LumexTextbox @bind-Value="formAddress" Label="Address / Location" Placeholder="Where is this?" />
             </div>
             <div>
-                <LumexTextbox @bind-Value="form.Description" Label="Description" Placeholder="What is this activity?" Multiline="@true" Rows="2" />
+                <LumexTextbox @bind-Value="formDescription" Label="Description" Placeholder="What is this activity?" Multiline="@true" Rows="2" />
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <LumexNumbox TValue="decimal?" @bind-Value="form.CostAmount" Label="Cost" Placeholder="0.00" />
+                    <LumexNumbox TValue="decimal?" @bind-Value="formCostAmount" Label="Cost" Placeholder="0.00" />
                 </div>
                 <div>
-                    <LumexSelect TValue="string" @bind-Value="form.CostCurrency" Label="Currency">
+                    <LumexSelect TValue="string" @bind-Value="formCostCurrency" Label="Currency">
                         @foreach (var c in Currencies)
                         {
                             <LumexSelectItem Value="@c">@c</LumexSelectItem>
@@ -53,10 +53,10 @@
                 </div>
             </div>
             <div>
-                <LumexTextbox @bind-Value="form.Link" Label="Booking Link" Placeholder="https://..." />
+                <LumexTextbox @bind-Value="formLink" Label="Booking Link" Placeholder="https://..." />
             </div>
             <div>
-                <LumexTextbox @bind-Value="form.Notes" Label="Notes" Multiline="@true" Rows="2" />
+                <LumexTextbox @bind-Value="formNotes" Label="Notes" Multiline="@true" Rows="2" />
             </div>
         </div>
         </LumexModalBody>
@@ -187,13 +187,24 @@ else
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public string? DefaultTimezone { get; set; }
 
-    private List<ViagemActivity> items = [];
+    private List<ActivityViewModel> items = [];
     private bool loading = true;
     private int? menuOpenId;
     private bool saving = false;
     private bool showModal = false;
-    private ViagemActivity? editItem;
-    private ViagemActivity form = new() { Name = "" };
+    private ActivityViewModel? editItem;
+
+    // Form state
+    private string formName = "";
+    private DateTime formStartDate = DateTime.Today;
+    private DateTime? formEndDate;
+    private string formTimezone = "";
+    private string? formAddress;
+    private string? formDescription;
+    private string? formNotes;
+    private string? formLink;
+    private decimal? formCostAmount;
+    private string formCostCurrency = "USD";
 
 
     private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
@@ -234,23 +245,32 @@ else
     private async Task OpenAddModal()
     {
         editItem = null;
-        var currency = await GetUserCurrencyAsync();
-        form = new ViagemActivity { Name = "", TripId = TripId, StartDate = DateTime.Today, CostCurrency = currency, Timezone = DefaultTimezone ?? "" };
+        formName = "";
+        formStartDate = DateTime.Today;
+        formEndDate = null;
+        formTimezone = DefaultTimezone ?? "";
+        formAddress = null;
+        formDescription = null;
+        formNotes = null;
+        formLink = null;
+        formCostAmount = null;
+        formCostCurrency = await GetUserCurrencyAsync();
         showModal = true;
     }
 
-    private void OpenEditModal(ViagemActivity item)
+    private void OpenEditModal(ActivityViewModel item)
     {
         editItem = item;
-        form = new ViagemActivity
-        {
-            Id = item.Id, TripId = item.TripId, Name = item.Name,
-            StartDate = item.StartDate, EndDate = item.EndDate,
-            Timezone = item.Timezone,
-            Address = item.Address, Description = item.Description,
-            Notes = item.Notes, Link = item.Link,
-            CostAmount = item.CostAmount, CostCurrency = item.CostCurrency
-        };
+        formName = item.Name;
+        formStartDate = item.StartDate;
+        formEndDate = item.EndDate;
+        formTimezone = item.Timezone ?? "";
+        formAddress = item.Address;
+        formDescription = item.Description;
+        formNotes = item.Notes;
+        formLink = item.Link;
+        formCostAmount = item.CostAmount;
+        formCostCurrency = item.CostCurrency ?? "USD";
         showModal = true;
     }
 
@@ -258,11 +278,12 @@ else
 
     private async Task SaveItem()
     {
-        if (string.IsNullOrWhiteSpace(form.Name)) return;
+        if (string.IsNullOrWhiteSpace(formName)) return;
         saving = true;
-        form.TripId = TripId;
-        if (editItem != null) await ActivityService.UpdateAsync(form);
-        else await ActivityService.CreateAsync(form);
+        if (editItem != null)
+            await ActivityService.UpdateAsync(new UpdateActivityRequest(editItem.Id, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, []));
+        else
+            await ActivityService.CreateAsync(new CreateActivityRequest(TripId, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, []));
         saving = false;
         showModal = false;
         await LoadItems();

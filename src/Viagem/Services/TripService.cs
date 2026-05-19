@@ -1,213 +1,188 @@
-using Microsoft.EntityFrameworkCore;
-using Viagem.Data;
 using Viagem.Data.Models;
+using Viagem.Data.Repositories.Interfaces;
 using Viagem.Services.Interfaces;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services;
 
-public class TripService(ApplicationDbContext db) : ITripService
+public class TripService(ITripRepository repo) : ITripService
 {
-    public async Task<List<Trip>> GetUpcomingTripsAsync(string userId)
+    public async Task<List<TripSummaryViewModel>> GetUpcomingTripsAsync(string userId)
     {
-        var now = DateTime.UtcNow.Date;
-        return await db.Trips
-            .Include(t => t.Destinations).ThenInclude(d => d.Place)
-            .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile)
-            .Where(t => t.OwnerId == userId ||
-                t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId))
-            .Where(t => t.EndDate >= now)
-            .OrderBy(t => t.StartDate)
-            .ToListAsync();
+        var trips = await repo.GetUpcomingAsync(userId);
+        return trips.Select(t => ToSummaryViewModel(t, userId)).ToList();
     }
 
-    public async Task<List<Trip>> GetPastTripsAsync(string userId)
+    public async Task<List<TripSummaryViewModel>> GetPastTripsAsync(string userId)
     {
-        var cutoff = DateTime.UtcNow.AddYears(-1).Date;
-        var now = DateTime.UtcNow.Date;
-        return await db.Trips
-            .Include(t => t.Destinations).ThenInclude(d => d.Place)
-            .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile)
-            .Where(t => t.OwnerId == userId ||
-                t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId))
-            .Where(t => t.EndDate < now && t.EndDate >= cutoff)
-            .OrderByDescending(t => t.StartDate)
-            .ToListAsync();
+        var trips = await repo.GetPastAsync(userId);
+        return trips.Select(t => ToSummaryViewModel(t, userId)).ToList();
     }
 
-    public async Task<Trip?> GetTripAsync(int tripId, string userId)
+    public async Task<TripDetailViewModel?> GetTripAsync(int tripId, string userId)
     {
-        return await db.Trips
-            .Include(t => t.Destinations).ThenInclude(d => d.Place)
-            .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile)
-            .Include(t => t.Transportations).ThenInclude(tr => tr.OriginPlace)
-            .Include(t => t.Transportations).ThenInclude(tr => tr.DestinationPlace)
-            .Include(t => t.Transportations).ThenInclude(tr => tr.Travellers).ThenInclude(tt => tt.TravellerProfile)
-            .Include(t => t.Lodgings).ThenInclude(l => l.Place)
-            .Include(t => t.Lodgings).ThenInclude(l => l.Travellers).ThenInclude(lt => lt.TravellerProfile)
-            .Include(t => t.Activities).ThenInclude(a => a.Place)
-            .Include(t => t.Activities).ThenInclude(a => a.Travellers).ThenInclude(at => at.TravellerProfile)
-            .Include(t => t.Expenses)
-            .Include(t => t.Attachments)
-            .Where(t => t.OwnerId == userId ||
-                t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId))
-            .FirstOrDefaultAsync(t => t.Id == tripId);
+        var trip = await repo.GetByIdAsync(tripId, userId);
+        return trip == null ? null : ToDetailViewModel(trip, userId);
     }
 
-    public async Task<Trip> CreateTripAsync(Trip trip)
+    public async Task<TripDetailViewModel> CreateTripAsync(CreateTripRequest request)
     {
-        var ownerExists = await db.Users.AnyAsync(u => u.Id == trip.OwnerId);
-        if (!ownerExists)
-            throw new InvalidOperationException("Your session has expired. Please sign out and sign back in.");
-
-        trip.CreatedAt = DateTime.UtcNow;
-        trip.UpdatedAt = DateTime.UtcNow;
-        db.Trips.Add(trip);
-        await db.SaveChangesAsync();
-        return trip;
-    }
-
-    public async Task<Trip> UpdateTripAsync(Trip trip)
-    {
-        trip.UpdatedAt = DateTime.UtcNow;
-        var tracked = db.ChangeTracker.Entries<Trip>()
-            .FirstOrDefault(e => e.Entity.Id == trip.Id);
-        if (tracked != null)
-            tracked.State = EntityState.Detached;
-        db.Trips.Update(trip);
-        await db.SaveChangesAsync();
-        return trip;
-    }
-
-    public async Task DeleteTripAsync(int tripId, string userId)
-    {
-        var trip = await db.Trips.FirstOrDefaultAsync(t => t.Id == tripId && t.OwnerId == userId);
-        if (trip != null)
+        var trip = new Trip
         {
-            db.Trips.Remove(trip);
-            await db.SaveChangesAsync();
-        }
+            OwnerId = request.OwnerId,
+            Name = request.Name,
+            Description = request.Description,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            BudgetAmount = request.BudgetAmount,
+            BudgetCurrency = request.BudgetCurrency
+        };
+
+        foreach (var placeId in request.PlaceIds)
+            trip.Destinations.Add(new TripDestination { PlaceId = placeId });
+        foreach (var customName in request.CustomDestinationNames)
+            trip.Destinations.Add(new TripDestination { CustomName = customName.Trim() });
+        foreach (var profileId in request.TravellerProfileIds)
+            trip.Travellers.Add(new TripTraveller { TravellerProfileId = profileId });
+
+        var created = await repo.CreateAsync(trip);
+        var full = await repo.GetByIdAsync(created.Id, request.OwnerId);
+        return ToDetailViewModel(full!, request.OwnerId);
     }
 
-    public async Task<bool> CanUserEditTripAsync(int tripId, string userId)
+    public async Task<TripDetailViewModel?> UpdateTripAsync(string userId, UpdateTripRequest request)
     {
-        return await db.Trips.AnyAsync(t => t.Id == tripId && (
+        var trip = await repo.GetByIdAsync(request.Id, userId);
+        if (trip == null) return null;
+
+        trip.Name = request.Name;
+        trip.Description = request.Description;
+        trip.StartDate = request.StartDate;
+        trip.EndDate = request.EndDate;
+        trip.BudgetAmount = request.BudgetAmount;
+        trip.BudgetCurrency = request.BudgetCurrency;
+
+        await repo.UpdateAsync(trip);
+        var full = await repo.GetByIdAsync(request.Id, userId);
+        return full == null ? null : ToDetailViewModel(full, userId);
+    }
+
+    public Task DeleteTripAsync(int tripId, string userId)
+        => repo.DeleteAsync(tripId, userId);
+
+    public Task<bool> CanUserEditTripAsync(int tripId, string userId)
+        => repo.CanEditAsync(tripId, userId);
+
+    public async Task<TripDestinationViewModel> AddDestinationAsync(int tripId, int placeId)
+    {
+        var dest = await repo.AddDestinationAsync(tripId, placeId);
+        return ToDestinationViewModel(dest);
+    }
+
+    public async Task<TripDestinationViewModel> AddDestinationCustomAsync(int tripId, string customName)
+    {
+        var dest = await repo.AddDestinationCustomAsync(tripId, customName);
+        return ToDestinationViewModel(dest);
+    }
+
+    public Task RemoveDestinationAsync(int destinationId)
+        => repo.RemoveDestinationAsync(destinationId);
+
+    public Task AddTravellerAsync(int tripId, int travellerProfileId, bool canEdit = false, bool isOrganiser = false)
+        => repo.AddTravellerAsync(tripId, travellerProfileId, canEdit, isOrganiser);
+
+    public Task RemoveTravellerAsync(int tripTravellerId)
+        => repo.RemoveTravellerAsync(tripTravellerId);
+
+    public Task SetTravellerEditAsync(int tripTravellerId, bool canEdit)
+        => repo.SetTravellerEditAsync(tripTravellerId, canEdit);
+
+    public Task SetTravellerOrganiserAsync(int tripTravellerId, bool isOrganiser)
+        => repo.SetTravellerOrganiserAsync(tripTravellerId, isOrganiser);
+
+    public Task UpdateNotesAsync(int tripId, string? notes)
+        => repo.UpdateNotesAsync(tripId, notes);
+
+    public Task UpdateCoverImageAsync(int tripId, string? coverImagePath)
+        => repo.UpdateCoverImageAsync(tripId, coverImagePath);
+
+    // ── Mapping ───────────────────────────────────────────────────────────────
+
+    private static TripDestinationViewModel ToDestinationViewModel(TripDestination d)
+        => new(d.Id, d.PlaceId, d.Place?.Name, d.CustomName,
+            d.Place?.Timezone, d.Place?.StateName, d.Place?.CountryName,
+            d.Place?.Latitude, d.Place?.Longitude);
+
+    private static TripTravellerViewModel ToTravellerViewModel(TripTraveller tt)
+        => new(tt.Id, tt.TravellerProfileId,
+            tt.TravellerProfile?.LegalName ?? "",
+            tt.TravellerProfile?.Email,
+            tt.CanEdit, tt.IsOrganiser);
+
+    private static TripSummaryViewModel ToSummaryViewModel(Trip t, string userId)
+        => new(t.Id, t.Name, t.CoverImagePath, t.StartDate, t.EndDate,
+            t.Destinations.Select(ToDestinationViewModel).ToList(),
+            t.OwnerId == userId);
+
+    private static TripDetailViewModel ToDetailViewModel(Trip t, string userId)
+        => new(t.Id, t.Name, t.Description, t.Notes, t.CoverImagePath,
+            t.StartDate, t.EndDate, t.BudgetAmount, t.BudgetCurrency,
             t.OwnerId == userId ||
-            t.Travellers.Any(tt => tt.CanEdit && tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId)
-        ));
-    }
-
-    public async Task<TripDestination> AddDestinationAsync(int tripId, int placeId)
-    {
-        var dest = new TripDestination { TripId = tripId, PlaceId = placeId };
-        db.TripDestinations.Add(dest);
-        await db.SaveChangesAsync();
-        await db.Entry(dest).Reference(d => d.Place).LoadAsync();
-        return dest;
-    }
-
-    public async Task<TripDestination> AddDestinationCustomAsync(int tripId, string customName)
-    {
-        var dest = new TripDestination { TripId = tripId, CustomName = customName.Trim() };
-        db.TripDestinations.Add(dest);
-        await db.SaveChangesAsync();
-        return dest;
-    }
-
-    public async Task RemoveDestinationAsync(int destinationId)
-    {
-        var dest = await db.TripDestinations.FindAsync(destinationId);
-        if (dest != null) { db.TripDestinations.Remove(dest); await db.SaveChangesAsync(); }
-    }
-
-    public async Task AddTravellerAsync(int tripId, int travellerProfileId, bool canEdit = false, bool isOrganiser = false)
-    {
-        var exists = await db.TripTravellers.AnyAsync(t => t.TripId == tripId && t.TravellerProfileId == travellerProfileId);
-        if (!exists)
-        {
-            db.TripTravellers.Add(new TripTraveller { TripId = tripId, TravellerProfileId = travellerProfileId, CanEdit = isOrganiser || canEdit, IsOrganiser = isOrganiser });
-            await db.SaveChangesAsync();
-        }
-    }
-
-    public async Task RemoveTravellerAsync(int tripTravellerId)
-    {
-        var t = await db.TripTravellers.FindAsync(tripTravellerId);
-        if (t != null) { db.TripTravellers.Remove(t); await db.SaveChangesAsync(); }
-    }
-
-    public async Task SetTravellerEditAsync(int tripTravellerId, bool canEdit)
-    {
-        var t = await db.TripTravellers.FindAsync(tripTravellerId);
-        if (t != null) { t.CanEdit = canEdit; await db.SaveChangesAsync(); }
-    }
-
-    public async Task SetTravellerOrganiserAsync(int tripTravellerId, bool isOrganiser)
-    {
-        var t = await db.TripTravellers.FindAsync(tripTravellerId);
-        if (t != null) { t.IsOrganiser = isOrganiser; if (isOrganiser) t.CanEdit = true; await db.SaveChangesAsync(); }
-    }
-
-    public async Task UpdateNotesAsync(int tripId, string? notes)
-    {
-        var trip = await db.Trips.FindAsync(tripId);
-        if (trip != null) { trip.Notes = notes; trip.UpdatedAt = DateTime.UtcNow; await db.SaveChangesAsync(); }
-    }
+                t.Travellers.Any(tt => tt.CanEdit && tt.TravellerProfile?.LinkedUserId == userId),
+            t.Destinations.Select(ToDestinationViewModel).ToList(),
+            t.Travellers.Select(ToTravellerViewModel).ToList());
 }
 
-public class PlaceService(ApplicationDbContext db) : IPlaceService
+public class PlaceService(IPlaceRepository repo) : IPlaceService
 {
-    public async Task<List<Place>> SearchAsync(string query, int limit = 20)
+    public async Task<List<PlaceViewModel>> SearchAsync(string query, int limit = 20)
     {
-        if (string.IsNullOrWhiteSpace(query)) return [];
-        var lower = query.ToLower();
-        return await db.Places
-            .Where(p => p.Name.ToLower().Contains(lower) || (p.CountryName != null && p.CountryName.ToLower().Contains(lower)))
-            .OrderBy(p => p.Name)
-            .Take(limit)
-            .ToListAsync();
+        var places = await repo.SearchAsync(query, limit);
+        return places.Select(ToViewModel).ToList();
     }
 
-    public async Task<Place?> GetByIdAsync(int id) => await db.Places.FindAsync(id);
+    public async Task<PlaceViewModel?> GetByIdAsync(int id)
+    {
+        var place = await repo.GetByIdAsync(id);
+        return place == null ? null : ToViewModel(place);
+    }
+
+    private static PlaceViewModel ToViewModel(Place p)
+        => new(p.Id, p.Name, p.StateName, p.CountryName, p.CountryCode, p.Timezone);
 }
 
-public class AirportService(ApplicationDbContext db) : IAirportService
+public class AirportService(IAirportRepository repo) : IAirportService
 {
-    public async Task<List<Airport>> SearchAsync(string query, int limit = 10)
+    public async Task<List<AirportViewModel>> SearchAsync(string query, int limit = 10)
     {
-        if (string.IsNullOrWhiteSpace(query)) return [];
-        var q = query.ToUpper().Trim();
-        var lower = query.ToLower().Trim();
-        // Prioritise IATA code matches, then name/municipality
-        return await db.Airports
-            .Where(a => a.IataCode.ToUpper().StartsWith(q)
-                     || a.Name.ToLower().Contains(lower)
-                     || (a.Municipality != null && a.Municipality.ToLower().Contains(lower)))
-            .OrderByDescending(a => a.IataCode.ToUpper() == q)
-            .ThenByDescending(a => a.IataCode.ToUpper().StartsWith(q))
-            .ThenBy(a => a.Name)
-            .Take(limit)
-            .ToListAsync();
+        var airports = await repo.SearchAsync(query, limit);
+        return airports.Select(ToViewModel).ToList();
     }
 
-    public async Task<Airport?> GetByCodeAsync(string iataCode) =>
-        await db.Airports.FirstOrDefaultAsync(a => a.IataCode.ToUpper() == iataCode.ToUpper().Trim());
+    public async Task<AirportViewModel?> GetByCodeAsync(string iataCode)
+    {
+        var airport = await repo.GetByCodeAsync(iataCode);
+        return airport == null ? null : ToViewModel(airport);
+    }
+
+    private static AirportViewModel ToViewModel(Airport a)
+        => new(a.Id, a.IataCode, a.Name, a.Municipality, a.IsoCountry, a.Latitude, a.Longitude);
 }
 
-public class AirlineService(ApplicationDbContext db) : IAirlineService
+public class AirlineService(IAirlineRepository repo) : IAirlineService
 {
-    public async Task<Airline?> GetByCodeAsync(string code) =>
-        await db.Airlines.FirstOrDefaultAsync(a => a.Code.ToUpper() == code.ToUpper().Trim());
-
-    public async Task<List<Airline>> SearchAsync(string query, int limit = 5)
+    public async Task<AirlineViewModel?> GetByCodeAsync(string code)
     {
-        if (string.IsNullOrWhiteSpace(query)) return [];
-        var q = query.ToUpper().Trim();
-        var lower = query.ToLower().Trim();
-        return await db.Airlines
-            .Where(a => a.Code.ToUpper().StartsWith(q) || a.Name.ToLower().Contains(lower))
-            .OrderByDescending(a => a.Code.ToUpper() == q)
-            .ThenBy(a => a.Name)
-            .Take(limit)
-            .ToListAsync();
+        var airline = await repo.GetByCodeAsync(code);
+        return airline == null ? null : ToViewModel(airline);
     }
+
+    public async Task<List<AirlineViewModel>> SearchAsync(string query, int limit = 5)
+    {
+        var airlines = await repo.SearchAsync(query, limit);
+        return airlines.Select(ToViewModel).ToList();
+    }
+
+    private static AirlineViewModel ToViewModel(Airline a)
+        => new(a.Id, a.Code, a.Name, a.LogoUrl);
 }

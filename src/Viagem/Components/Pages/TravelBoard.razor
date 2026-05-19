@@ -1,5 +1,6 @@
 ﻿@page "/travel-board"
 @using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 @rendermode InteractiveServer
 @attribute [Authorize]
 @inject ITripService TripService
@@ -73,7 +74,7 @@
 </div>
 
 @code {
-    private List<Trip> upcomingTrips = [];
+    private List<TripSummaryViewModel> upcomingTrips = [];
     private int upcomingCount = 0;
     private int pastCount = 0;
     private int destinationCount = 0;
@@ -91,8 +92,8 @@
             upcomingCount = upcomingTrips.Count;
             pastCount = pastTrips.Count;
             destinationCount = upcomingTrips.Concat(pastTrips)
-                .SelectMany(t => t.Destinations ?? [])
-                .Select(d => d.Place?.Name ?? "?")
+                .SelectMany(t => t.Destinations)
+                .Select(d => d.PlaceName ?? d.CustomName ?? "?")
                 .Distinct()
                 .Count();
         }

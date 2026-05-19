@@ -1,62 +1,83 @@
-using Microsoft.EntityFrameworkCore;
-using Viagem.Data;
 using Viagem.Data.Models;
+using Viagem.Data.Repositories.Interfaces;
 using Viagem.Services.Interfaces;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services;
 
-public class ExpenseService(ApplicationDbContext db) : IExpenseService
+public class ExpenseService(IExpenseRepository repo) : IExpenseService
 {
-    public async Task<List<Expense>> GetTripExpensesAsync(int tripId)
-        => await db.Expenses
-            .Include(e => e.Splits).ThenInclude(s => s.TravellerProfile)
-            .Include(e => e.CreatedBy)
-            .Where(e => e.TripId == tripId)
-            .OrderByDescending(e => e.OccurredOn ?? e.CreatedAt)
-            .ToListAsync();
-
-    public async Task<Expense?> GetExpenseAsync(int id)
-        => await db.Expenses
-            .Include(e => e.Splits).ThenInclude(s => s.TravellerProfile)
-            .Include(e => e.CreatedBy)
-            .Include(e => e.Attachments).ThenInclude(ea => ea.Attachment)
-            .FirstOrDefaultAsync(e => e.Id == id);
-
-    public async Task<Expense> CreateAsync(Expense expense)
+    public async Task<List<ExpenseViewModel>> GetTripExpensesAsync(int tripId)
     {
-        expense.CreatedAt = DateTime.UtcNow;
-        expense.UpdatedAt = DateTime.UtcNow;
-        db.Expenses.Add(expense);
-        await db.SaveChangesAsync();
-        return expense;
+        var items = await repo.GetByTripAsync(tripId);
+        return items.Select(ToViewModel).ToList();
     }
 
-    public async Task<Expense> UpdateAsync(Expense expense)
+    public async Task<ExpenseViewModel?> GetExpenseAsync(int id)
     {
-        expense.UpdatedAt = DateTime.UtcNow;
-        var tracked = db.ChangeTracker.Entries<Expense>()
-            .FirstOrDefault(e => e.Entity.Id == expense.Id);
-        if (tracked != null)
-            tracked.State = EntityState.Detached;
-        db.Expenses.Update(expense);
-        await db.SaveChangesAsync();
-        return expense;
+        var item = await repo.GetByIdAsync(id);
+        return item == null ? null : ToViewModel(item);
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task<ExpenseViewModel> CreateAsync(CreateExpenseRequest request)
     {
-        var item = await db.Expenses.FindAsync(id);
-        if (item != null)
+        var entity = new Expense
         {
-            db.Expenses.Remove(item);
-            await db.SaveChangesAsync();
-        }
+            TripId = request.TripId,
+            CreatedById = request.CreatedById,
+            Name = request.Name,
+            Category = request.Category,
+            Notes = request.Notes,
+            Amount = request.Amount,
+            Currency = request.Currency,
+            OccurredOn = request.OccurredOn,
+            Splits = request.Splits
+                .Select(s => new ExpenseSplit
+                {
+                    TravellerProfileId = s.TravellerProfileId,
+                    Amount = s.Amount
+                })
+                .ToList()
+        };
+
+        var created = await repo.CreateAsync(entity);
+        var full = await repo.GetByIdAsync(created.Id);
+        return ToViewModel(full!);
     }
 
-    public async Task<decimal> GetTotalExpenseAsync(int tripId, string currency)
+    public async Task<ExpenseViewModel?> UpdateAsync(UpdateExpenseRequest request)
     {
-        return await db.Expenses
-            .Where(e => e.TripId == tripId && e.Currency == currency)
-            .SumAsync(e => e.Amount ?? 0);
+        var existing = await repo.GetByIdAsync(request.Id);
+        if (existing == null) return null;
+
+        // Update only scalar fields; split management is handled by separate operations
+        existing.Name = request.Name;
+        existing.Category = request.Category;
+        existing.Notes = request.Notes;
+        existing.Amount = request.Amount;
+        existing.Currency = request.Currency;
+        existing.OccurredOn = request.OccurredOn;
+
+        await repo.UpdateAsync(existing);
+        var full = await repo.GetByIdAsync(request.Id);
+        return full == null ? null : ToViewModel(full);
     }
+
+    public Task DeleteAsync(int id) => repo.DeleteAsync(id);
+
+    public Task<decimal> GetTotalExpenseAsync(int tripId, string currency)
+        => repo.GetTotalAsync(tripId, currency);
+
+    // ── Mapping ───────────────────────────────────────────────────────────────
+
+    private static ExpenseSplitViewModel ToSplitViewModel(ExpenseSplit s)
+        => new(s.Id, s.TravellerProfileId,
+            s.TravellerProfile?.LegalName ?? "",
+            s.Amount);
+
+    private static ExpenseViewModel ToViewModel(Expense e)
+        => new(e.Id, e.TripId, e.Name, e.Category, e.Notes,
+            e.Amount, e.Currency, e.OccurredOn,
+            e.CreatedBy?.UserName,
+            e.Splits.Select(ToSplitViewModel).ToList());
 }

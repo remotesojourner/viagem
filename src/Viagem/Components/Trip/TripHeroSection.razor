@@ -1,4 +1,5 @@
 ﻿@using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 @inject ITripService TripService
 @inject IPlaceService PlaceService
 @inject ITravellerProfileService TravellerService
@@ -286,12 +287,12 @@
     </div>
 
     <!-- Destinations + Travellers strip below image -->
-    @if ((Trip.Destinations?.Count > 0) || (Trip.Travellers?.Count > 0))
+    @if ((Trip.Destinations.Count > 0) || (Trip.Travellers.Count > 0))
     {
         <div class="bg-surface1 px-5 py-3 border-t border-divider">
-            @if (Trip.Destinations?.Count > 0)
+            @if (Trip.Destinations.Count > 0)
             {
-                <div class="flex flex-wrap gap-2 @(Trip.Travellers?.Count > 0 ? "mb-2" : "")">
+                <div class="flex flex-wrap gap-2 @(Trip.Travellers.Count > 0 ? "mb-2" : "")">
                     @foreach (var dest in Trip.Destinations)
                     {
                         var mapUrl = GetMapUrl(dest);
@@ -301,10 +302,10 @@
                                class="inline-flex items-center gap-1 px-2.5 py-1 text-sm bg-default-100 rounded-full text-foreground-500 hover:bg-default-200 transition-colors">
                                 📍
                                 <span class="font-medium">@dest.DisplayName</span>
-                                @if (!string.IsNullOrEmpty(dest.Place?.StateName) || !string.IsNullOrEmpty(dest.Place?.CountryName))
+                                @if (!string.IsNullOrEmpty(dest.PlaceStateName) || !string.IsNullOrEmpty(dest.PlaceCountryName))
                                 {
                                     <span class="text-xs text-foreground-400">
-                                        @(!string.IsNullOrEmpty(dest.Place?.StateName) ? dest.Place!.StateName + (!string.IsNullOrEmpty(dest.Place?.CountryName) ? ", " : "") : "")@(dest.Place?.CountryName ?? "")
+                                        @(!string.IsNullOrEmpty(dest.PlaceStateName) ? dest.PlaceStateName + (!string.IsNullOrEmpty(dest.PlaceCountryName) ? ", " : "") : "")@(dest.PlaceCountryName ?? "")
                                     </span>
                                 }
                             </a>
@@ -312,14 +313,14 @@
                     }
                 </div>
             }
-            @if (Trip.Travellers?.Any(t => !t.IsOrganiser) == true)
+            @if (Trip.Travellers.Any(t => !t.IsOrganiser))
             {
                 <div class="flex flex-wrap gap-2">
                     @foreach (var t in Trip.Travellers.Where(t => !t.IsOrganiser))
                     {
                         <div class="flex items-center gap-1.5 bg-default-100 rounded-full pl-1 pr-3 py-1">
-                            <UserAvatar Email="@t.TravellerProfile?.Email" Name="@t.TravellerProfile?.LegalName" SizeClass="w-6 h-6" TextClass="text-xs" />
-                            <span class="text-sm text-foreground-500">@(t.TravellerProfile?.LegalName ?? "Unknown")</span>
+                            <UserAvatar Email="@t.Email" Name="@t.LegalName" SizeClass="w-6 h-6" TextClass="text-xs" />
+                            <span class="text-sm text-foreground-500">@t.LegalName</span>
                             @if (t.CanEdit)
                             {
                                 <span class="text-xs text-success-600" title="Can edit trip">&#10003;</span>
@@ -333,7 +334,7 @@
 </div>
 
 @code {
-    [Parameter] public required Trip Trip { get; set; }
+    [Parameter] public required TripDetailViewModel Trip { get; set; }
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public EventCallback OnTripUpdated { get; set; }
 
@@ -355,14 +356,14 @@
 
     // Destinations in edit modal
     private string destSearch = "";
-    private List<Place> destResults = [];
+    private List<PlaceViewModel> destResults = [];
     private List<EditDestItem> editDestinations = [];
 
     // Travellers in edit modal
-    private List<TravellerProfile> availableTravellers = [];
+    private List<TravellerProfileViewModel> availableTravellers = [];
     private Dictionary<int, TravellerEditState> editTravellers = [];
     private string travellerSearch = "";
-    private List<TravellerProfile> travellerSearchResults = [];
+    private List<TravellerProfileViewModel> travellerSearchResults = [];
     private int? currentUserProfileId;
 
     // Cover image
@@ -432,7 +433,7 @@
         destResults = await PlaceService.SearchAsync(destSearch);
     }
 
-    private void AddDestFromPlace(Place place)
+    private void AddDestFromPlace(PlaceViewModel place)
     {
         if (!editDestinations.Any(d => d.PlaceId == place.Id && !d.MarkedForRemoval))
             editDestinations.Add(new EditDestItem
@@ -473,7 +474,7 @@
             .ToList();
     }
 
-    private void AddTravellerToEdit(TravellerProfile profile)
+    private void AddTravellerToEdit(TravellerProfileViewModel profile)
     {
         if (!editTravellers.ContainsKey(profile.Id))
             editTravellers[profile.Id] = new TravellerEditState();
@@ -503,13 +504,7 @@
         editError = null;
         try
         {
-            Trip.Name = editName.Trim();
-            Trip.Description = editDescription?.Trim();
-            Trip.StartDate = editStart;
-            Trip.EndDate = editEnd;
-            Trip.BudgetAmount = editBudget;
-            Trip.BudgetCurrency = string.IsNullOrWhiteSpace(editCurrency) ? null : editCurrency.Trim().ToUpper();
-            await TripService.UpdateTripAsync(Trip);
+            await TripService.UpdateTripAsync(userId!, new UpdateTripRequest(Trip.Id, editName.Trim(), editDescription?.Trim(), editStart, editEnd, editBudget, string.IsNullOrWhiteSpace(editCurrency) ? null : editCurrency.Trim().ToUpper()));
 
             foreach (var d in editDestinations.Where(d => d.MarkedForRemoval && d.ExistingId.HasValue))
                 await TripService.RemoveDestinationAsync(d.ExistingId!.Value);
@@ -521,7 +516,7 @@
                     await TripService.AddDestinationCustomAsync(Trip.Id, d.CustomName);
             }
 
-            var currentTravellers = Trip.Travellers?.ToList() ?? [];
+            var currentTravellers = Trip.Travellers.ToList();
             foreach (var t in currentTravellers.Where(t =>
                 !editTravellers.ContainsKey(t.TravellerProfileId) &&
                 t.TravellerProfileId != currentUserProfileId))
@@ -595,8 +590,7 @@
                     File.Delete(oldFile);
             }
 
-            Trip.CoverImagePath = $"/uploads/trip-covers/{fileName}";
-            await TripService.UpdateTripAsync(Trip);
+            await TripService.UpdateCoverImageAsync(Trip.Id, $"/uploads/trip-covers/{fileName}");
             await OnTripUpdated.InvokeAsync();
         }
         catch (Exception ex)
@@ -639,35 +633,32 @@
         new("ZAR","South African Rand")
     ];
 
-    private string GetMapUrl(TripDestination dest)
+    private string GetMapUrl(TripDestinationViewModel dest)
     {
-        var place = dest.Place;
         var provider = userMapsProvider?.ToLowerInvariant() ?? "google";
-        var hasCoords = place != null
-            && !string.IsNullOrEmpty(place.Latitude)
-            && !string.IsNullOrEmpty(place.Longitude);
+        var hasCoords = !string.IsNullOrEmpty(dest.PlaceLatitude) && !string.IsNullOrEmpty(dest.PlaceLongitude);
 
         var query = Uri.EscapeDataString(dest.DisplayName);
 
         return provider switch
         {
             "apple" when hasCoords =>
-                $"https://maps.apple.com/?ll={place!.Latitude},{place.Longitude}&q={query}",
+                $"https://maps.apple.com/?ll={dest.PlaceLatitude},{dest.PlaceLongitude}&q={query}",
             "apple" =>
                 $"https://maps.apple.com/?q={query}",
             "osm" or "openstreetmap" when hasCoords =>
-                $"https://www.openstreetmap.org/#map=12/{place!.Latitude}/{place.Longitude}",
+                $"https://www.openstreetmap.org/#map=12/{dest.PlaceLatitude}/{dest.PlaceLongitude}",
             "osm" or "openstreetmap" =>
                 $"https://www.openstreetmap.org/search?query={query}",
             _ when hasCoords =>
-                $"https://www.google.com/maps/@{place!.Latitude},{place.Longitude},12z",
+                $"https://www.google.com/maps/@{dest.PlaceLatitude},{dest.PlaceLongitude},12z",
             _ =>
                 $"https://www.google.com/maps/search/?api=1&query={query}"
         };
     }
 
-    private string GetTimezoneTooltip(TripDestination dest) =>
-        GetTimezoneTooltipForZone(dest.Place?.Timezone);
+    private string GetTimezoneTooltip(TripDestinationViewModel dest) =>
+        GetTimezoneTooltipForZone(dest.PlaceTimezone);
 
     private string GetTimezoneTooltipForZone(string? timezone)
     {

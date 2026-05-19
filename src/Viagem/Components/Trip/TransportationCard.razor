@@ -2,6 +2,7 @@
 @using Viagem.Data.Models
 @using GeoTimeZone
 @using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 <div class="flex items-start justify-between p-3 bg-default-50 rounded-xl border border-divider hover:border-foreground-300 transition-colors">
     <div class="flex items-start gap-3">
         <span class="text-2xl mt-0.5">@GetIcon(Item.Type)</span>
@@ -197,7 +198,7 @@
 </div>
 
 @code {
-    [Parameter] public required Transportation Item { get; set; }
+    [Parameter] public required TransportationViewModel Item { get; set; }
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public string? UserTimezone { get; set; }
     [Parameter] public EventCallback OnEdit { get; set; }
@@ -211,7 +212,7 @@
 
     // Airport name + coordinate cache, populated for flights
     private Dictionary<string, string> airportNames = new();
-    private Dictionary<string, Airport> airportData = new();
+    private Dictionary<string, AirportViewModel> airportData = new();
 
     protected override async Task OnParametersSetAsync()
     {

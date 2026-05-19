@@ -1,13 +1,13 @@
-using Viagem.Data.Models;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services.Interfaces;
 
 public interface IExpenseService
 {
-    Task<List<Expense>> GetTripExpensesAsync(int tripId);
-    Task<Expense?> GetExpenseAsync(int id);
-    Task<Expense> CreateAsync(Expense expense);
-    Task<Expense> UpdateAsync(Expense expense);
+    Task<List<ExpenseViewModel>> GetTripExpensesAsync(int tripId);
+    Task<ExpenseViewModel?> GetExpenseAsync(int id);
+    Task<ExpenseViewModel> CreateAsync(CreateExpenseRequest request);
+    Task<ExpenseViewModel?> UpdateAsync(UpdateExpenseRequest request);
     Task DeleteAsync(int id);
     Task<decimal> GetTotalExpenseAsync(int tripId, string currency);
 }

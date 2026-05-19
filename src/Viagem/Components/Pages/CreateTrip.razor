@@ -3,6 +3,7 @@
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Identity
 @using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 @inject ITripService TripService
 @inject IPlaceService PlaceService
 @inject ITravellerProfileService TravellerService
@@ -194,13 +195,13 @@
     private string budgetCurrency = "USD";
 
     private string destSearch = "";
-    private List<Place> destResults = [];
+    private List<PlaceViewModel> destResults = [];
     private List<DestItem> destinations = [];
 
-    private List<TravellerProfile> myProfiles = [];
+    private List<TravellerProfileViewModel> myProfiles = [];
     private Dictionary<int, TravellerEditState> selectedTravellers = [];
     private string travellerSearch = "";
-    private List<TravellerProfile> travellerSearchResults = [];
+    private List<TravellerProfileViewModel> travellerSearchResults = [];
     private int? currentUserProfileId;
 
     private bool saving = false;
@@ -234,7 +235,7 @@
         destResults = await PlaceService.SearchAsync(destSearch);
     }
 
-    private void AddDestFromPlace(Place place)
+    private void AddDestFromPlace(PlaceViewModel place)
     {
         if (!destinations.Any(d => d.PlaceId == place.Id))
             destinations.Add(new DestItem { PlaceId = place.Id, DisplayName = place.Name + (!string.IsNullOrEmpty(place.CountryName) ? $", {place.CountryName}" : "") });
@@ -263,7 +264,7 @@
             .ToList();
     }
 
-    private void AddTraveller(TravellerProfile profile)
+    private void AddTraveller(TravellerProfileViewModel profile)
     {
         if (!selectedTravellers.ContainsKey(profile.Id))
             selectedTravellers[profile.Id] = new TravellerEditState();
@@ -297,35 +298,18 @@
         errorMessage = null;
         try
         {
-            var trip = new Trip
-            {
-                Name = name.Trim(),
-                StartDate = start,
-                EndDate = end,
-                Description = description?.Trim(),
-                BudgetAmount = budgetAmount,
-                BudgetCurrency = string.IsNullOrWhiteSpace(budgetCurrency) ? null : budgetCurrency.Trim().ToUpper(),
-                OwnerId = userId
-            };
-            var created = await TripService.CreateTripAsync(trip);
-
-            // Add destinations
-            foreach (var d in destinations)
-            {
-                if (d.PlaceId.HasValue)
-                    await TripService.AddDestinationAsync(created.Id, d.PlaceId.Value);
-                else if (!string.IsNullOrEmpty(d.CustomName))
-                    await TripService.AddDestinationCustomAsync(created.Id, d.CustomName);
-            }
-
-            // Add travellers
-            foreach (var kv in selectedTravellers)
-            {
-                var isCurrentUser = kv.Key == currentUserProfileId;
-                await TripService.AddTravellerAsync(created.Id, kv.Key,
-                    isCurrentUser ? true : kv.Value.EffectiveCanEdit,
-                    kv.Value.IsOrganiser);
-            }
+            var request = new CreateTripRequest(
+                OwnerId: userId,
+                Name: name.Trim(),
+                Description: description?.Trim(),
+                StartDate: start,
+                EndDate: end,
+                BudgetAmount: budgetAmount,
+                BudgetCurrency: string.IsNullOrWhiteSpace(budgetCurrency) ? null : budgetCurrency.Trim().ToUpper(),
+                PlaceIds: destinations.Where(d => d.PlaceId.HasValue).Select(d => d.PlaceId!.Value).ToList(),
+                CustomDestinationNames: destinations.Where(d => !d.PlaceId.HasValue && !string.IsNullOrEmpty(d.CustomName)).Select(d => d.CustomName!).ToList(),
+                TravellerProfileIds: selectedTravellers.Keys.ToList());
+            var created = await TripService.CreateTripAsync(request);
 
             Nav.NavigateTo($"/trips/{created.Id}");
         }

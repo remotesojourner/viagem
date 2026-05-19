@@ -1,55 +1,94 @@
-using Microsoft.EntityFrameworkCore;
-using Viagem.Data;
 using Viagem.Data.Models;
+using Viagem.Data.Repositories.Interfaces;
 using Viagem.Services.Interfaces;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services;
 
-public class LodgingService(ApplicationDbContext db) : ILodgingService
+public class LodgingService(ILodgingRepository repo) : ILodgingService
 {
-    public async Task<List<Lodging>> GetTripLodgingsAsync(int tripId)
-        => await db.Lodgings
-            .Include(l => l.Place)
-            .Include(l => l.Travellers).ThenInclude(lt => lt.TravellerProfile)
-            .Where(l => l.TripId == tripId)
-            .OrderBy(l => l.StartDate)
-            .ToListAsync();
-
-    public async Task<Lodging?> GetLodgingAsync(int id)
-        => await db.Lodgings
-            .Include(l => l.Place)
-            .Include(l => l.Travellers).ThenInclude(lt => lt.TravellerProfile)
-            .Include(l => l.Attachments).ThenInclude(a => a.Attachment)
-            .FirstOrDefaultAsync(l => l.Id == id);
-
-    public async Task<Lodging> CreateAsync(Lodging lodging)
+    public async Task<List<LodgingViewModel>> GetTripLodgingsAsync(int tripId)
     {
-        lodging.CreatedAt = DateTime.UtcNow;
-        lodging.UpdatedAt = DateTime.UtcNow;
-        db.Lodgings.Add(lodging);
-        await db.SaveChangesAsync();
-        return lodging;
+        var items = await repo.GetByTripAsync(tripId);
+        return items.Select(ToViewModel).ToList();
     }
 
-    public async Task<Lodging> UpdateAsync(Lodging lodging)
+    public async Task<LodgingViewModel?> GetLodgingAsync(int id)
     {
-        lodging.UpdatedAt = DateTime.UtcNow;
-        var tracked = db.ChangeTracker.Entries<Lodging>()
-            .FirstOrDefault(e => e.Entity.Id == lodging.Id);
-        if (tracked != null)
-            tracked.State = EntityState.Detached;
-        db.Lodgings.Update(lodging);
-        await db.SaveChangesAsync();
-        return lodging;
+        var item = await repo.GetByIdAsync(id);
+        return item == null ? null : ToViewModel(item);
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task<LodgingViewModel> CreateAsync(CreateLodgingRequest request)
     {
-        var item = await db.Lodgings.FindAsync(id);
-        if (item != null)
+        var entity = new Lodging
         {
-            db.Lodgings.Remove(item);
-            await db.SaveChangesAsync();
-        }
+            TripId = request.TripId,
+            Type = request.Type,
+            Name = request.Name,
+            Address = request.Address,
+            ConfirmationCode = request.ConfirmationCode,
+            Notes = request.Notes,
+            Link = request.Link,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            Timezone = request.Timezone,
+            CostAmount = request.CostAmount,
+            CostCurrency = request.CostCurrency,
+            PlaceId = request.PlaceId,
+            Travellers = request.TravellerProfileIds
+                .Select(id => new LodgingTraveller { TravellerProfileId = id })
+                .ToList()
+        };
+
+        var created = await repo.CreateAsync(entity);
+        var full = await repo.GetByIdAsync(created.Id);
+        return ToViewModel(full!);
     }
+
+    public async Task<LodgingViewModel?> UpdateAsync(UpdateLodgingRequest request)
+    {
+        var existing = await repo.GetByIdAsync(request.Id);
+        if (existing == null) return null;
+
+        var stub = new Lodging
+        {
+            Id = existing.Id,
+            TripId = existing.TripId,
+            Type = request.Type,
+            Name = request.Name,
+            Address = request.Address,
+            ConfirmationCode = request.ConfirmationCode,
+            Notes = request.Notes,
+            Link = request.Link,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            Timezone = request.Timezone,
+            CostAmount = request.CostAmount,
+            CostCurrency = request.CostCurrency,
+            PlaceId = request.PlaceId,
+            ExpenseId = existing.ExpenseId,
+            CreatedAt = existing.CreatedAt
+        };
+
+        await repo.UpdateAsync(stub);
+        var full = await repo.GetByIdAsync(request.Id);
+        return full == null ? null : ToViewModel(full);
+    }
+
+    public Task DeleteAsync(int id) => repo.DeleteAsync(id);
+
+    // ── Mapping ───────────────────────────────────────────────────────────────
+
+    private static TravellerProfileSummaryViewModel ToTravellerSummary(TravellerProfile tp)
+        => new(tp.Id, tp.LegalName, tp.Email);
+
+    private static LodgingViewModel ToViewModel(Lodging l)
+        => new(l.Id, l.TripId, l.Type, l.Name, l.Address, l.ConfirmationCode,
+            l.Notes, l.Link, l.StartDate, l.EndDate, l.Timezone,
+            l.CostAmount, l.CostCurrency, l.PlaceId, l.Place?.Name,
+            l.Travellers
+                .Where(lt => lt.TravellerProfile != null)
+                .Select(lt => ToTravellerSummary(lt.TravellerProfile!))
+                .ToList());
 }

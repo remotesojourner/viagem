@@ -1,40 +1,26 @@
-using Microsoft.EntityFrameworkCore;
-using Viagem.Data;
 using Viagem.Data.Models;
+using Viagem.Data.Repositories.Interfaces;
 using Viagem.Services.Interfaces;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services;
 
-public class NotificationService(ApplicationDbContext db) : INotificationService
+public class NotificationService(INotificationRepository repo) : INotificationService
 {
-    public async Task<List<Notification>> GetUserNotificationsAsync(string userId, bool unreadOnly = false)
+    public async Task<List<NotificationViewModel>> GetUserNotificationsAsync(string userId, bool unreadOnly = false)
     {
-        var query = db.Notifications
-            .Where(n => n.UserId == userId)
-            .Where(n => n.ExpiresAt == null || n.ExpiresAt > DateTime.UtcNow);
-
-        if (unreadOnly) query = query.Where(n => !n.Read);
-
-        return await query.OrderByDescending(n => n.CreatedAt).ToListAsync();
+        var items = await repo.GetByUserAsync(userId, unreadOnly);
+        return items.Select(ToViewModel).ToList();
     }
 
-    public async Task MarkAsReadAsync(int notificationId)
-    {
-        var n = await db.Notifications.FindAsync(notificationId);
-        if (n != null)
-        {
-            n.Read = true;
-            await db.SaveChangesAsync();
-        }
-    }
+    public Task MarkAsReadAsync(int notificationId) => repo.MarkReadAsync(notificationId);
 
-    public async Task MarkAllAsReadAsync(string userId)
-    {
-        await db.Notifications
-            .Where(n => n.UserId == userId && !n.Read)
-            .ExecuteUpdateAsync(s => s.SetProperty(n => n.Read, true));
-    }
+    public Task MarkAllAsReadAsync(string userId) => repo.MarkAllReadAsync(userId);
 
-    public async Task<int> GetUnreadCountAsync(string userId)
-        => await db.Notifications.CountAsync(n => n.UserId == userId && !n.Read);
+    public Task<int> GetUnreadCountAsync(string userId) => repo.GetUnreadCountAsync(userId);
+
+    // ── Mapping ───────────────────────────────────────────────────────────────
+
+    private static NotificationViewModel ToViewModel(Notification n)
+        => new(n.Id, n.Subject, n.Message, n.Sender, n.Read, n.CreatedAt);
 }

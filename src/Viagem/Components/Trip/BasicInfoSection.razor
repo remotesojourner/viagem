@@ -1,7 +1,9 @@
 ﻿@using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 @inject ITripService TripService
 @inject IPlaceService PlaceService
 @inject ITravellerProfileService TravellerService
+@inject IExpenseService ExpenseService
 @inject AuthenticationStateProvider AuthStateProvider
 
 <!-- Consolidated Edit Modal -->
@@ -160,9 +162,9 @@
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm bg-surface1 rounded-lg border border-divider">
                             <span class="text-foreground-400">📍</span>
                             <span class="font-medium text-foreground">@dest.DisplayName</span>
-                            @if (!string.IsNullOrEmpty(dest.Place?.CountryName))
+                            @if (!string.IsNullOrEmpty(dest.PlaceCountryName))
                             {
-                                <span class="text-xs text-foreground-400">@dest.Place.CountryName</span>
+                                <span class="text-xs text-foreground-400">@dest.PlaceCountryName</span>
                             }
                         </span>
                     }
@@ -202,14 +204,14 @@
         <!-- Travellers card -->
         <div class="bg-default-50 rounded-xl p-4">
             <h4 class="font-semibold text-foreground mb-3">Travellers</h4>
-            @if (Trip.Travellers?.Count > 0)
+            @if (Trip.Travellers.Count > 0)
             {
                 <div class="flex flex-wrap gap-2">
                     @foreach (var t in Trip.Travellers)
                     {
                         <div class="flex items-center gap-1.5 bg-surface1 rounded-full pl-1 pr-3 py-1 border border-divider">
-                            <UserAvatar Email="@t.TravellerProfile?.Email" Name="@t.TravellerProfile?.LegalName" SizeClass="w-6 h-6" TextClass="text-xs" />
-                            <span class="text-sm text-foreground">@(t.TravellerProfile?.LegalName ?? "Unknown")</span>
+                            <UserAvatar Email="@t.Email" Name="@t.LegalName" SizeClass="w-6 h-6" TextClass="text-xs" />
+                            <span class="text-sm text-foreground">@(t.LegalName)</span>
                             @if (t.CanEdit)
                             {
                                 <span class="text-xs text-success-600" title="Can edit trip">&#10003;</span>
@@ -227,7 +229,7 @@
 </div>
 
 @code {
-    [Parameter] public required Trip Trip { get; set; }
+    [Parameter] public required TripDetailViewModel Trip { get; set; }
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public EventCallback OnTripUpdated { get; set; }
 
@@ -247,11 +249,11 @@
 
     // Destinations in edit modal
     private string destSearch = "";
-    private List<Place> destResults = [];
+    private List<PlaceViewModel> destResults = [];
     private List<EditDestItem> editDestinations = [];
 
     // Travellers in edit modal
-    private List<TravellerProfile> availableTravellers = [];
+    private List<TravellerProfileViewModel> availableTravellers = [];
     private Dictionary<int, bool> editTravellers = []; // profileId -> canEdit
 
 
@@ -260,7 +262,8 @@
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        totalExpenses = Trip.Expenses?.Sum(e => e.Amount ?? 0) ?? 0;
+        // totalExpenses loaded separately via IExpenseService if needed
+        totalExpenses = await ExpenseService.GetTotalExpenseAsync(Trip.Id, Trip.BudgetCurrency);
     }
 
     private async Task OpenEditModal()
@@ -305,7 +308,7 @@
         destResults = await PlaceService.SearchAsync(destSearch);
     }
 
-    private void AddDestFromPlace(Place place)
+    private void AddDestFromPlace(PlaceViewModel place)
     {
         if (!editDestinations.Any(d => d.PlaceId == place.Id && !d.MarkedForRemoval))
             editDestinations.Add(new EditDestItem
@@ -355,13 +358,7 @@
         editError = null;
         try
         {
-            Trip.Name = editName.Trim();
-            Trip.Description = editDescription?.Trim();
-            Trip.StartDate = editStart;
-            Trip.EndDate = editEnd;
-            Trip.BudgetAmount = editBudget;
-            Trip.BudgetCurrency = string.IsNullOrWhiteSpace(editCurrency) ? null : editCurrency.Trim().ToUpper();
-            await TripService.UpdateTripAsync(Trip);
+            await TripService.UpdateTripAsync(userId!, new UpdateTripRequest(Trip.Id, editName.Trim(), editDescription?.Trim(), editStart, editEnd, editBudget, string.IsNullOrWhiteSpace(editCurrency) ? null : editCurrency.Trim().ToUpper()));
 
             foreach (var d in editDestinations.Where(d => d.MarkedForRemoval && d.ExistingId.HasValue))
                 await TripService.RemoveDestinationAsync(d.ExistingId!.Value);
@@ -373,7 +370,7 @@
                     await TripService.AddDestinationCustomAsync(Trip.Id, d.CustomName);
             }
 
-            var currentTravellers = Trip.Travellers?.ToList() ?? [];
+            var currentTravellers = Trip.Travellers.ToList();
             foreach (var t in currentTravellers.Where(t => !editTravellers.ContainsKey(t.TravellerProfileId)))
                 await TripService.RemoveTravellerAsync(t.Id);
             var existingProfileIds = currentTravellers.Select(t => t.TravellerProfileId).ToHashSet();

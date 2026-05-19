@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
 @rendermode InteractiveServer
 @attribute [Authorize]
 @inject ITripService TripService
@@ -86,8 +87,8 @@
 </div>
 
 @code {
-    private List<Trip>? upcomingTrips;
-    private List<Trip>? pastTrips;
+    private List<TripSummaryViewModel>? upcomingTrips;
+    private List<TripSummaryViewModel>? pastTrips;
     private bool loading = true;
     private string? userId;
 

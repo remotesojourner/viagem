@@ -1,38 +1,68 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>aspnet-Viagem-b853e399-9822-43c0-9cdf-aebc3ffa7f37</UserSecretsId>
-    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <DockerfileContext>..\..</DockerfileContext>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UserSecretsId>aspnet-Viagem-b853e399-9822-43c0-9cdf-aebc3ffa7f37</UserSecretsId>
+		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+		<DockerfileContext>..\..</DockerfileContext>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="GeoTimeZone" Version="6.1.0" />
-    <PackageReference Include="LumexUI" Version="2.3.6" />
-    <PackageReference Include="Markdig" Version="1.2.0" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
-    <PackageReference Include="PSC.Blazor.Components.MarkdownEditor" Version="10.0.9" />
-    <PackageReference Include="QRCoder" Version="1.8.0" />
-    <PackageReference Include="TimeZoneConverter" Version="7.2.0" />
-  </ItemGroup>
-
-
-  <ItemGroup>
-    <ProjectReference Include="..\Viagem.Data\Viagem.Data.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="GeoTimeZone" Version="6.1.0" />
+		<PackageReference Include="LumexUI" Version="2.3.6" />
+		<PackageReference Include="Markdig" Version="1.2.0" />
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
+		<PackageReference Include="PSC.Blazor.Components.MarkdownEditor" Version="10.0.9" />
+		<PackageReference Include="QRCoder" Version="1.8.0" />
+		<PackageReference Include="TimeZoneConverter" Version="7.2.0" />
+	</ItemGroup>
 
 
-  <ItemGroup>
-    <Folder Include="Data\" />
-    <Folder Include="wwwroot\js\" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Viagem.Data\Viagem.Data.csproj" />
+	</ItemGroup>
 
-  <Target Name="BuildTailwindCSS" BeforeTargets="Build;Publish">
-    <Exec Command="$(MSBuildThisFileDirectory)tools\tailwindcss.exe -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css --minify" Condition="'$(Configuration)' == 'Release'" />
-    <Exec Command="$(MSBuildThisFileDirectory)tools\tailwindcss.exe -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css" Condition="'$(Configuration)' != 'Release'" />
-  </Target>
+
+	<ItemGroup>
+		<Folder Include="Data\" />
+		<Folder Include="wwwroot\js\" />
+	</ItemGroup>
+	<PropertyGroup>
+		<TailwindVersion>v4.3.0</TailwindVersion>
+		<TailwindToolsDir>$(MSBuildThisFileDirectory)tools</TailwindToolsDir>
+		<!-- Windows -->
+		<TailwindExe Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TailwindToolsDir)\tailwindcss-windows-x64.exe</TailwindExe>
+		<!-- Linux x64 -->
+		<TailwindExe Condition="$([MSBuild]::IsOSPlatform('Linux')) And '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">$(TailwindToolsDir)/tailwindcss-linux-x64</TailwindExe>
+		<!-- Linux arm64 -->
+		<TailwindExe Condition="$([MSBuild]::IsOSPlatform('Linux')) And '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">$(TailwindToolsDir)/tailwindcss-linux-arm64</TailwindExe>
+		<!-- macOS x64 -->
+		<TailwindExe Condition="$([MSBuild]::IsOSPlatform('OSX')) And '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">$(TailwindToolsDir)/tailwindcss-macos-x64</TailwindExe>
+		<!-- macOS arm64 (Apple Silicon) -->
+		<TailwindExe Condition="$([MSBuild]::IsOSPlatform('OSX')) And '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">$(TailwindToolsDir)/tailwindcss-macos-arm64</TailwindExe>
+		<TailwindDownloadUrl>https://github.com/tailwindlabs/tailwindcss/releases/download/$(TailwindVersion)/</TailwindDownloadUrl>
+		<!-- Windows -->
+		<TailwindDownloadUrl Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TailwindDownloadUrl)tailwindcss-windows-x64.exe</TailwindDownloadUrl>
+		<!-- Linux x64 -->
+		<TailwindDownloadUrl Condition="$([MSBuild]::IsOSPlatform('Linux')) And '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">$(TailwindDownloadUrl)tailwindcss-linux-x64</TailwindDownloadUrl>
+		<!-- Linux arm64 -->
+		<TailwindDownloadUrl Condition="$([MSBuild]::IsOSPlatform('Linux')) And '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">$(TailwindDownloadUrl)tailwindcss-linux-arm64</TailwindDownloadUrl>
+		<!-- macOS x64 -->
+		<TailwindDownloadUrl Condition="$([MSBuild]::IsOSPlatform('OSX')) And '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">$(TailwindDownloadUrl)tailwindcss-macos-x64</TailwindDownloadUrl>
+		<!-- macOS arm64 -->
+		<TailwindDownloadUrl Condition="$([MSBuild]::IsOSPlatform('OSX')) And '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">$(TailwindDownloadUrl)tailwindcss-macos-arm64</TailwindDownloadUrl>
+	</PropertyGroup>
+	<Target Name="DownloadTailwind" BeforeTargets="BuildTailwindCSS" Condition="!Exists('$(TailwindExe)')">
+		<MakeDir Directories="$(TailwindToolsDir)" />
+		<Message Text="Downloading Tailwind CSS CLI $(TailwindVersion)..." Importance="high" />
+		<Exec Command="curl -fsSL &quot;$(TailwindDownloadUrl)&quot; -o &quot;$(TailwindExe)&quot;" />
+		<Exec Command="chmod +x &quot;$(TailwindExe)&quot;" Condition="!$([MSBuild]::IsOSPlatform('Windows'))" />
+	</Target>
+	<Target Name="BuildTailwindCSS" BeforeTargets="Build;Publish">
+		<Exec Command="&quot;$(TailwindExe)&quot; -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css --minify" Condition="'$(Configuration)' == 'Release'" />
+		<Exec Command="&quot;$(TailwindExe)&quot; -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css" Condition="'$(Configuration)' != 'Release'" />
+	</Target>
 
 </Project>

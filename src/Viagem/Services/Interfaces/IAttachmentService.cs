@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Components.Forms;
-using Viagem.Data.Models;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services.Interfaces;
 
 public interface IAttachmentService
 {
-    Task<List<TripAttachment>> GetTripAttachmentsAsync(int tripId);
-    Task<TripAttachment> UploadAsync(int tripId, string userId, IBrowserFile file);
+    Task<List<AttachmentViewModel>> GetTripAttachmentsAsync(int tripId);
+    Task<AttachmentViewModel> UploadAsync(int tripId, string userId, IBrowserFile file);
     Task DeleteAsync(int id);
 }

@@ -1,15 +1,16 @@
-using Viagem.Data.Models;
+using Viagem.Services.ViewModels;
 
 namespace Viagem.Services.Interfaces;
 
 public interface ITravellerProfileService
 {
-    Task<List<TravellerProfile>> GetMyProfilesAsync(string userId);
-    Task<TravellerProfile?> GetProfileAsync(int id, string userId);
-    Task<TravellerProfile> CreateAsync(TravellerProfile profile);
-    Task<TravellerProfile> UpdateAsync(TravellerProfile profile);
+    Task<List<TravellerProfileViewModel>> GetMyProfilesAsync(string userId);
+    Task<TravellerProfileViewModel?> GetProfileAsync(int id, string userId);
+    Task<TravellerProfileViewModel> CreateAsync(CreateTravellerProfileRequest request);
+    Task<TravellerProfileViewModel?> UpdateAsync(string userId, UpdateTravellerProfileRequest request);
     Task DeleteAsync(int id, string userId);
     Task AddAliasAsync(int profileId, string alias);
     Task RemoveAliasAsync(int aliasId);
     Task EnsureProfileExistsForUserAsync(string userId, string email, string? name);
+    Task LinkUserAsync(int profileId, string linkedUserId, string? ownerId = null);
 }
