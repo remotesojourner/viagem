@@ -8,6 +8,7 @@
 /* Scan all Razor and C# files for Tailwind classes */
 @source "../Components/**/*.razor";
 @source "../Components/**/*.cs";
+@source "../bin/lumexui/*.cs"; /* styles */
 
 /* Use .dark class for dark mode (set on <html> element) */
 @custom-variant dark (&:where(.dark, .dark *));
