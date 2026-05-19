@@ -1,12 +1,11 @@
 ﻿@using Viagem.Services.Interfaces
-@using ViagemActivity = Viagem.Data.Models.Activity
 @inject ITransportationService TransportationService
 @inject ILodgingService LodgingService
 @inject IActivityService ActivityService
 
 @if (loading)
 {
-    <div class="text-center py-6"><Spinner Size="SpinnerSize.Md" Color="SpinnerColor.Info" /></div>
+    <LumexSpinner />
 }
 else if (days.Count == 0)
 {

@@ -263,7 +263,7 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         // totalExpenses loaded separately via IExpenseService if needed
-        totalExpenses = await ExpenseService.GetTotalExpenseAsync(Trip.Id, Trip.BudgetCurrency);
+        totalExpenses = await ExpenseService.GetTotalExpenseAsync(Trip.Id, Trip.BudgetCurrency!);
     }
 
     private async Task OpenEditModal()

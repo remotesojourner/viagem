@@ -60,6 +60,14 @@
 		<Exec Command="curl -fsSL &quot;$(TailwindDownloadUrl)&quot; -o &quot;$(TailwindExe)&quot;" />
 		<Exec Command="chmod +x &quot;$(TailwindExe)&quot;" Condition="!$([MSBuild]::IsOSPlatform('Windows'))" />
 	</Target>
+	<Target Name="CopyLumexTheme" BeforeTargets="BuildTailwindCSS">
+		<ItemGroup>
+			<_LumexThemeSrc Include="$(NuGetPackageRoot)lumexui/**/theme/theme.css" />
+		</ItemGroup>
+		<Error Text="LumexUI theme.css not found in NuGet packages at '$(NuGetPackageRoot)lumexui'. Ensure packages are restored." Condition="'@(_LumexThemeSrc)' == ''" />
+		<MakeDir Directories="$(MSBuildThisFileDirectory)bin/lumexui" />
+		<Copy SourceFiles="@(_LumexThemeSrc)" DestinationFiles="$(MSBuildThisFileDirectory)bin/lumexui/theme.css" />
+	</Target>
 	<Target Name="BuildTailwindCSS" BeforeTargets="Build;Publish">
 		<Exec Command="&quot;$(TailwindExe)&quot; -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css --minify" Condition="'$(Configuration)' == 'Release'" />
 		<Exec Command="&quot;$(TailwindExe)&quot; -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css" Condition="'$(Configuration)' != 'Release'" />

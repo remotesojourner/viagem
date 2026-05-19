@@ -1,14 +1,9 @@
 @page "/Account/Register"
-
-@using System.ComponentModel.DataAnnotations
 @using System.Text
 @using System.Text.Encodings.Web
-@using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.EntityFrameworkCore
-@using Viagem.Data
 @using Viagem.Services.Interfaces
-@using Viagem.Services
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IUserStore<ApplicationUser> UserStore
@@ -75,7 +70,7 @@
     private IEnumerable<IdentityError>? identityErrors;
 
     [SupplyParameterFromForm]
-    private InputModel Input { get; set; } = new();
+    private InputModel Input { get; set; } = default!;
 
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
@@ -84,6 +79,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Input ??= new();
         var enabled = await SettingsSvc.IsRegistrationEnabledAsync();
         if (!enabled)
             RedirectManager.RedirectTo("Account/Login");
