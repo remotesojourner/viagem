@@ -3,6 +3,7 @@
 @using System.Text
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.WebUtilities
+@using Viagem.Services.Interfaces
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
@@ -11,6 +12,7 @@
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<ExternalLogin> Logger
+@inject ITravellerProfileService ProfileService
 
 <PageTitle>Register</PageTitle>
 
@@ -158,6 +160,8 @@
                     NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
                     new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code });
                 await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+
+                await ProfileService.EnsureProfileExistsForUserAsync(userId, Input.Email, null);
 
                 // If account confirmation is required, we need to show the link if we don't have a real email sender
                 if (UserManager.Options.SignIn.RequireConfirmedAccount)

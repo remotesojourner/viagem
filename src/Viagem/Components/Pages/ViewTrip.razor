@@ -1,4 +1,4 @@
-﻿@page "/trips/{Id:int}"
+@page "/trips/{Id:int}"
 @rendermode InteractiveServer
 @attribute [Authorize]
 @inject ITripService TripService
@@ -32,7 +32,7 @@ else
 
         <!-- Tabs -->
         <div class="mt-6">
-            <LumexTabs @bind-SelectedId="activeTab" Color="ThemeColor.Primary" FullWidth>
+            <LumexTabs @bind-SelectedId="activeTab" Color="ThemeColor.Primary" FullWidth Classes="@(new TabsSlots { TabList = "flex-wrap md:flex-nowrap" })">
 
                 <LumexTab Id="organization" Title="Organization">
                     <LumexAccordion Variant="AccordionVariant.Splitted" SelectionMode="SelectionMode.Multiple" FullWidth>

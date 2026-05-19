@@ -1,7 +1,8 @@
+using LumexUI.Extensions;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using LumexUI.Extensions;
+using Microsoft.Extensions.FileProviders;
 using Viagem.Components;
 using Viagem.Components.Account;
 using Viagem.Data;
@@ -87,6 +88,12 @@ if (!app.Environment.IsDevelopment())
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(builder.Environment.WebRootPath, "uploads")),
+    RequestPath = "/uploads"
+});
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

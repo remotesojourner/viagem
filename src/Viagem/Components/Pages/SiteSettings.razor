@@ -1,4 +1,4 @@
-﻿@page "/site-settings"
+@page "/site-settings"
 @rendermode InteractiveServer
 @attribute [Authorize]
 @inject AuthenticationStateProvider AuthStateProvider
@@ -17,357 +17,360 @@
     return;
 }
 
-<div class="max-w-5xl mx-auto">
-    <h1 class="text-2xl font-bold text-foreground mb-6">Site Settings</h1>
+<div class="max-w-7xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-foreground">Site Settings</h1>
+        <p class="text-sm text-foreground-400 mt-1">Manage your site settings</p>
+    </div>
 
-    @* Messages *@
-    @if (!string.IsNullOrEmpty(pageMsg))
-    {
-        <LumexAlert Color="ThemeColor.Success" Variant="AlertVariant.Flat" Description="@pageMsg" Class="mb-4" />
-    }
-    @if (!string.IsNullOrEmpty(pageErr))
-    {
-        <LumexAlert Color="ThemeColor.Danger" Variant="AlertVariant.Flat" Description="@pageErr" Class="mb-4" />
-    }
+@* Messages *@
+@if (!string.IsNullOrEmpty(pageMsg))
+{
+    <LumexAlert Color="ThemeColor.Success" Variant="AlertVariant.Flat" Description="@pageMsg" Class="mb-4"/>
+}
+@if (!string.IsNullOrEmpty(pageErr))
+{
+    <LumexAlert Color="ThemeColor.Danger" Variant="AlertVariant.Flat" Description="@pageErr" Class="mb-4"/>
+}
 
-    <LumexTabs @bind-SelectedId="activeTab" @bind-SelectedId:after="ClearMessages" Color="ThemeColor.Primary">
+<LumexTabs @bind-SelectedId="activeTab" @bind-SelectedId:after="ClearMessages" Color="ThemeColor.Primary" Classes="@(new TabsSlots { TabList = "flex-wrap md:flex-nowrap" })">
 
-        @* ────────────────── GENERAL TAB ────────────────── *@
-        <LumexTab Id="users">
-            <TitleContent>
-                <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                    General
-                </div>
-            </TitleContent>
-            <ChildContent>
-                <div class="bg-surface1 rounded-xl border border-divider p-6">
-                    <h2 class="text-lg font-semibold text-foreground mb-4">General</h2>
-                    @if (allUsers == null)
-                    {
-                        <p class="text-sm text-foreground-400">Loading...</p>
-                    }
-                    else
-                    {
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left text-foreground-400">
-                                <thead class="text-xs text-foreground-500 uppercase bg-default-50">
-                                    <tr>
-                                        <th class="px-4 py-3">Name</th>
-                                        <th class="px-4 py-3">Email</th>
-                                        <th class="px-4 py-3">Admin</th>
-                                        <th class="px-4 py-3">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var u in allUsers)
+@* ────────────────── GENERAL TAB ────────────────── *@
+<LumexTab Id="users">
+    <TitleContent>
+        <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            General
+        </div>
+    </TitleContent>
+    <ChildContent>
+        <div class="bg-surface1 rounded-xl border border-divider p-6">
+            <h2 class="text-lg font-semibold text-foreground mb-4">General</h2>
+            @if (allUsers == null)
+            {
+                <p class="text-sm text-foreground-400">Loading...</p>
+            }
+            else
+            {
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-foreground-400">
+                        <thead class="text-xs text-foreground-500 uppercase bg-default-50">
+                        <tr>
+                            <th class="px-4 py-3">Name</th>
+                            <th class="px-4 py-3">Email</th>
+                            <th class="px-4 py-3">Admin</th>
+                            <th class="px-4 py-3">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var u in allUsers)
+                        {
+                            <tr class="bg-surface1 border-b hover:bg-default-100">
+                                <td class="px-4 py-3 font-medium text-foreground">@(u.FullName ?? "—")</td>
+                                <td class="px-4 py-3">@u.Email</td>
+                                <td class="px-4 py-3">
+                                    <LumexCheckbox Value="@u.IsAdmin" ValueChanged="@(v => ToggleAdmin(u, v))" Disabled="@(u.Id == currentUserId)"/>
+                                </td>
+                                <td class="px-4 py-3">
+                                    @if (u.Id != currentUserId)
                                     {
-                                        <tr class="bg-surface1 border-b hover:bg-default-100">
-                                            <td class="px-4 py-3 font-medium text-foreground">@(u.FullName ?? "—")</td>
-                                            <td class="px-4 py-3">@u.Email</td>
-                                            <td class="px-4 py-3">
-                                                <LumexCheckbox Value="@u.IsAdmin" ValueChanged="@(v => ToggleAdmin(u, v))" Disabled="@(u.Id == currentUserId)" />
-                                            </td>
-                                            <td class="px-4 py-3">
-                                                @if (u.Id != currentUserId)
-                                                {
-                                                    <LumexButton OnClick="() => DeleteUser(u)" Color="ThemeColor.Danger">Delete</LumexButton>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-xs text-foreground-400">(you)</span>
-                                                }
-                                            </td>
-                                        </tr>
+                                        <LumexButton OnClick="() => DeleteUser(u)" Color="ThemeColor.Danger">Delete</LumexButton>
                                     }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
+                                    else
+                                    {
+                                        <span class="text-xs text-foreground-400">(you)</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
                 </div>
-            </ChildContent>
-        </LumexTab>
+            }
+        </div>
+    </ChildContent>
+</LumexTab>
 
-        @* ────────────────── CONFIGURATION TAB ────────────────── *@
-        <LumexTab Id="config">
-            <TitleContent>
-                <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    Configuration
+@* ────────────────── CONFIGURATION TAB ────────────────── *@
+<LumexTab Id="config">
+    <TitleContent>
+        <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Configuration
+        </div>
+    </TitleContent>
+    <ChildContent>
+        @* User Settings *@
+        <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
+            <h2 class="text-lg font-semibold text-foreground mb-4">Users</h2>
+            <div class="space-y-4">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <span class="text-sm font-medium text-foreground">User Registration</span>
+                        <p class="text-xs text-foreground-400 mt-0.5">Allow new users to self-register an account.</p>
+                    </div>
+                    <LumexSwitch @bind-Value="registrationEnabled"/>
                 </div>
-            </TitleContent>
-            <ChildContent>
-                @* User Settings *@
-                <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
-                    <h2 class="text-lg font-semibold text-foreground mb-4">Users</h2>
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <span class="text-sm font-medium text-foreground">Gravatar avatars</span>
+                        <p class="text-xs text-foreground-400 mt-0.5">Use Gravatar images (based on email) instead of initial letter avatars.</p>
+                    </div>
+                    <LumexSwitch @bind-Value="gravatarEnabled"/>
+                </div>
+            </div>
+            <div class="mt-4"><LumexButton OnClick="SaveUsersConfig" Color="ThemeColor.Primary">Save</LumexButton></div>
+        </div>
+
+        @* SMTP Settings *@
+        <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
+            <h2 class="text-lg font-semibold text-foreground mb-4">SMTP Settings</h2>
+            <p class="text-sm text-foreground-400 mb-4">Configure outgoing email for notifications and invitations.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <LumexTextbox @bind-Value="smtpHost" Label="SMTP Host" Placeholder="smtp.example.com"/>
+                </div>
+                <div>
+                    <LumexNumbox TValue="int" @bind-Value="smtpPort" Label="Port" Placeholder="587"/>
+                </div>
+                <div>
+                    <LumexTextbox @bind-Value="smtpUsername" Label="Username" Placeholder="user@example.com"/>
+                </div>
+                <div>
+                    <LumexTextbox @bind-Value="smtpPassword" Label="Password" Type="InputType.Password"/>
+                </div>
+                <div>
+                    <LumexTextbox @bind-Value="smtpFromAddress" Label="From Address" Placeholder="Viagem@example.com"/>
+                </div>
+                <div>
+                    <LumexTextbox @bind-Value="smtpFromName" Label="From Name" Placeholder="Viagem"/>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <LumexCheckbox @bind-Value="smtpUseSsl">Use SSL/TLS</LumexCheckbox>
+                </div>
+            </div>
+            <div class="mt-4"><LumexButton OnClick="SaveSmtpConfig" Color="ThemeColor.Primary">Save SMTP</LumexButton></div>
+        </div>
+
+        @* OAuth2 / OIDC Settings *@
+        <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-foreground">OIDC Login</h2>
+                    <p class="text-sm text-foreground-400 mt-1">Allow users to sign in via an external identity provider.</p>
+                </div>
+                <LumexSwitch @bind-Value="oauthEnabled"/>
+            </div>
+            @if (oauthEnabled)
+            {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <LumexTextbox @bind-Value="oauthProviderName" Label="Provider Name" Placeholder="e.g. Keycloak"/>
+                    </div>
+                    <div>
+                        <LumexTextbox @bind-Value="oauthClientId" Label="Client ID"/>
+                    </div>
+                    <div>
+                        <LumexTextbox @bind-Value="oauthClientSecret" Label="Client Secret" Type="InputType.Password"/>
+                    </div>
+                    <div>
+                        <LumexTextbox @bind-Value="oauthAuthority" Label="Authority / Issuer URL" Placeholder="https://idp.example.com/realms/myrealm"/>
+                        <p class="mt-1 text-xs text-foreground-400">.NET uses OIDC discovery — only the authority is needed.</p>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-divider">
+                    <h3 class="text-sm font-semibold text-foreground mb-3">Login Behavior</h3>
                     <div class="space-y-4">
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <span class="text-sm font-medium text-foreground">User Registration</span>
-                                <p class="text-xs text-foreground-400 mt-0.5">Allow new users to self-register an account.</p>
+                                <span class="text-sm font-medium text-foreground">Disable password login</span>
+                                <p class="text-xs text-foreground-400 mt-0.5">Hides the email/password form on the login page. Users must sign in via SSO.</p>
+                                <p class="text-xs text-warning-600 mt-0.5">Can be overridden with environment variable <code class="font-mono">Viagem_ALLOW_PASSWORD_LOGIN=true</code>.</p>
                             </div>
-                            <LumexSwitch @bind-Value="registrationEnabled" />
+                            <LumexSwitch @bind-Value="oidcDisablePasswordLogin"/>
                         </div>
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <span class="text-sm font-medium text-foreground">Gravatar avatars</span>
-                                <p class="text-xs text-foreground-400 mt-0.5">Use Gravatar images (based on email) instead of initial letter avatars.</p>
+                                <span class="text-sm font-medium text-foreground">Auto-redirect to OIDC</span>
+                                <p class="text-xs text-foreground-400 mt-0.5">When enabled, visiting the login page automatically redirects to the configured OIDC provider.</p>
                             </div>
-                            <LumexSwitch @bind-Value="gravatarEnabled" />
-                        </div>
-                    </div>
-                    <div class="mt-4"><LumexButton OnClick="SaveUsersConfig" Color="ThemeColor.Primary">Save</LumexButton></div>
-                </div>
-
-                @* SMTP Settings *@
-                <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
-                    <h2 class="text-lg font-semibold text-foreground mb-4">SMTP Settings</h2>
-                    <p class="text-sm text-foreground-400 mb-4">Configure outgoing email for notifications and invitations.</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <LumexTextbox @bind-Value="smtpHost" Label="SMTP Host" Placeholder="smtp.example.com" />
-                        </div>
-                        <div>
-                            <LumexNumbox TValue="int" @bind-Value="smtpPort" Label="Port" Placeholder="587" />
-                        </div>
-                        <div>
-                            <LumexTextbox @bind-Value="smtpUsername" Label="Username" Placeholder="user@example.com" />
-                        </div>
-                        <div>
-                            <LumexTextbox @bind-Value="smtpPassword" Label="Password" Type="InputType.Password" />
-                        </div>
-                        <div>
-                            <LumexTextbox @bind-Value="smtpFromAddress" Label="From Address" Placeholder="Viagem@example.com" />
-                        </div>
-                        <div>
-                            <LumexTextbox @bind-Value="smtpFromName" Label="From Name" Placeholder="Viagem" />
-                        </div>
-                        <div class="flex items-center gap-2 mt-2">
-                            <LumexCheckbox @bind-Value="smtpUseSsl">Use SSL/TLS</LumexCheckbox>
-                        </div>
-                    </div>
-                    <div class="mt-4"><LumexButton OnClick="SaveSmtpConfig" Color="ThemeColor.Primary">Save SMTP</LumexButton></div>
-                </div>
-
-                @* OAuth2 / OIDC Settings *@
-                <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h2 class="text-lg font-semibold text-foreground">OIDC Login</h2>
-                            <p class="text-sm text-foreground-400 mt-1">Allow users to sign in via an external identity provider.</p>
-                        </div>
-                        <LumexSwitch @bind-Value="oauthEnabled" />
-                    </div>
-                    @if (oauthEnabled)
-                    {
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <LumexTextbox @bind-Value="oauthProviderName" Label="Provider Name" Placeholder="e.g. Keycloak" />
-                            </div>
-                            <div>
-                                <LumexTextbox @bind-Value="oauthClientId" Label="Client ID" />
-                            </div>
-                            <div>
-                                <LumexTextbox @bind-Value="oauthClientSecret" Label="Client Secret" Type="InputType.Password" />
-                            </div>
-                            <div>
-                                <LumexTextbox @bind-Value="oauthAuthority" Label="Authority / Issuer URL" Placeholder="https://idp.example.com/realms/myrealm" />
-                                <p class="mt-1 text-xs text-foreground-400">.NET uses OIDC discovery — only the authority is needed.</p>
-                            </div>
-                        </div>
-                        <div class="mt-4 pt-4 border-t border-divider">
-                            <h3 class="text-sm font-semibold text-foreground mb-3">Login Behavior</h3>
-                            <div class="space-y-4">
-                                <div class="flex items-start justify-between gap-4">
-                                    <div>
-                                        <span class="text-sm font-medium text-foreground">Disable password login</span>
-                                        <p class="text-xs text-foreground-400 mt-0.5">Hides the email/password form on the login page. Users must sign in via SSO.</p>
-                                        <p class="text-xs text-warning-600 mt-0.5">Can be overridden with environment variable <code class="font-mono">Viagem_ALLOW_PASSWORD_LOGIN=true</code>.</p>
-                                    </div>
-                                    <LumexSwitch @bind-Value="oidcDisablePasswordLogin" />
-                                </div>
-                                <div class="flex items-start justify-between gap-4">
-                                    <div>
-                                        <span class="text-sm font-medium text-foreground">Auto-redirect to OIDC</span>
-                                        <p class="text-xs text-foreground-400 mt-0.5">When enabled, visiting the login page automatically redirects to the configured OIDC provider.</p>
-                                    </div>
-                                    <LumexSwitch @bind-Value="oidcAutoRedirect" />
-                                </div>
-                            </div>
-                        </div>
-                    }
-                    <div class="mt-4"><LumexButton OnClick="SaveOAuthConfig" Color="ThemeColor.Primary">Save OIDC Settings</LumexButton></div>
-                </div>
-            </ChildContent>
-        </LumexTab>
-
-        @* ────────────────── DATASETS TAB ────────────────── *@
-        <LumexTab Id="datasets">
-            <TitleContent>
-                <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
-                    Datasets
-                </div>
-            </TitleContent>
-            <ChildContent>
-                <div class="bg-surface1 rounded-xl border border-divider p-6">
-                    <h2 class="text-lg font-semibold text-foreground mb-1">Datasets</h2>
-                    <p class="text-sm text-foreground-400 mb-4">Load reference data used for autocomplete. Downloads from public sources.</p>
-                    @if (!string.IsNullOrEmpty(datasetMsg))
-                    {
-                        <LumexAlert Color="ThemeColor.Primary" Variant="AlertVariant.Flat" Description="@datasetMsg" Class="mb-4" />
-                    }
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                        <div class="border border-divider rounded-lg p-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="font-medium text-foreground">Airports</span>
-                                <span class="text-xs bg-default-100 text-foreground-500 px-2 py-0.5 rounded-full">@airportCount records</span>
-                            </div>
-                            <p class="text-xs text-foreground-400 mb-3">IATA airport data from OurAirports</p>
-                            <LumexButton OnClick="LoadAirports" Disabled="@datasetLoading" Color="ThemeColor.Primary" Class="w-full">
-                                @(airportCount > 0 ? "Reload" : "Load") Airports
-                            </LumexButton>
-                        </div>
-                        <div class="border border-divider rounded-lg p-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="font-medium text-foreground">Airlines</span>
-                                <span class="text-xs bg-default-100 text-foreground-500 px-2 py-0.5 rounded-full">@airlineCount records</span>
-                            </div>
-                            <p class="text-xs text-foreground-400 mb-3">Airline data from dotmarn/Airlines</p>
-                            <LumexButton OnClick="LoadAirlines" Disabled="@datasetLoading" Color="ThemeColor.Primary" Class="w-full">
-                                @(airlineCount > 0 ? "Reload" : "Load") Airlines
-                            </LumexButton>
-                        </div>
-                        <div class="border border-divider rounded-lg p-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="font-medium text-foreground">Places</span>
-                                <span class="text-xs bg-default-100 text-foreground-500 px-2 py-0.5 rounded-full">@placeCount records</span>
-                            </div>
-                            <p class="text-xs text-foreground-400 mb-3">World cities / municipalities</p>
-                            <LumexButton OnClick="LoadPlaces" Disabled="@datasetLoading" Color="ThemeColor.Primary" Class="w-full">
-                                @(placeCount > 0 ? "Reload" : "Load") Places
-                            </LumexButton>
+                            <LumexSwitch @bind-Value="oidcAutoRedirect"/>
                         </div>
                     </div>
                 </div>
-            </ChildContent>
-        </LumexTab>
+            }
+            <div class="mt-4"><LumexButton OnClick="SaveOAuthConfig" Color="ThemeColor.Primary">Save OIDC Settings</LumexButton></div>
+        </div>
+    </ChildContent>
+</LumexTab>
 
-        @* ────────────────── INTEGRATIONS TAB ────────────────── *@
-        <LumexTab Id="integrations">
-            <TitleContent>
-                <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                    Integrations
-                </div>
-            </TitleContent>
-            <ChildContent>
-                <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
+@* ────────────────── DATASETS TAB ────────────────── *@
+<LumexTab Id="datasets">
+    <TitleContent>
+        <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+            Datasets
+        </div>
+    </TitleContent>
+    <ChildContent>
+        <div class="bg-surface1 rounded-xl border border-divider p-6">
+            <h2 class="text-lg font-semibold text-foreground mb-1">Datasets</h2>
+            <p class="text-sm text-foreground-400 mb-4">Load reference data used for autocomplete. Downloads from public sources.</p>
+            @if (!string.IsNullOrEmpty(datasetMsg))
+            {
+                <LumexAlert Color="ThemeColor.Primary" Variant="AlertVariant.Flat" Description="@datasetMsg" Class="mb-4"/>
+            }
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div class="border border-divider rounded-lg p-4">
                     <div class="flex items-center justify-between mb-2">
-                        <div>
-                            <h2 class="text-lg font-semibold text-foreground">Flight Information Integration</h2>
-                            <p class="text-sm text-foreground-400 mt-1">Automatically fetch live flight details when adding transportation.</p>
-                        </div>
-                        <LumexSwitch @bind-Value="flightEnabled" />
+                        <span class="font-medium text-foreground">Airports</span>
+                        <span class="text-xs bg-default-100 text-foreground-500 px-2 py-0.5 rounded-full">@airportCount records</span>
                     </div>
-                    <LumexAlert Color="ThemeColor.Warning" Variant="AlertVariant.Flat" Class="mb-4">
-                        <strong>Data Privacy:</strong> These integrations connect to third-party services that have not been vetted for their data privacy practices.
-                    </LumexAlert>
-                    @if (flightEnabled)
-                    {
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <div>
-                                <LumexSelect TValue="string" @bind-Value="flightProvider" Label="Provider" Placeholder="Select provider...">
-                                    <LumexSelectItem Value="@("adsbdb")">adsbdb.com (free, no key required)</LumexSelectItem>
-                                    <LumexSelectItem Value="@("flightaware")">FlightAware.com (API key required)</LumexSelectItem>
-                                </LumexSelect>
-                            </div>
-                            @if (flightProvider == "flightaware")
-                            {
-                                <div>
-                                    <LumexTextbox @bind-Value="flightApiKey" Label="FlightAware API Key" Type="InputType.Password" Placeholder="Your FlightAware API key" />
-                                </div>
-                            }
-                        </div>
-                    }
-                    <div class="mt-4"><LumexButton OnClick="SaveFlightConfig" Color="ThemeColor.Primary">Save Integration</LumexButton></div>
+                    <p class="text-xs text-foreground-400 mb-3">IATA airport data from OurAirports</p>
+                    <LumexButton OnClick="LoadAirports" Disabled="@datasetLoading" Color="ThemeColor.Primary" Class="w-full">
+                        @(airportCount > 0 ? "Reload" : "Load") Airports
+                    </LumexButton>
                 </div>
-            </ChildContent>
-        </LumexTab>
-
-        @* ────────────────── ASSISTANT TAB ────────────────── *@
-        <LumexTab Id="assistant">
-            <TitleContent>
-                <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                    Assistant
-                </div>
-            </TitleContent>
-            <ChildContent>
-                @* OpenAI Endpoint *@
-                <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
+                <div class="border border-divider rounded-lg p-4">
                     <div class="flex items-center justify-between mb-2">
-                        <div>
-                            <h2 class="text-lg font-semibold text-foreground">OpenAI Compatible Endpoint</h2>
-                            <p class="text-sm text-foreground-400 mt-1">Configure an LLM to extract booking information from email content.</p>
-                        </div>
-                        <LumexSwitch @bind-Value="aiEnabled" />
+                        <span class="font-medium text-foreground">Airlines</span>
+                        <span class="text-xs bg-default-100 text-foreground-500 px-2 py-0.5 rounded-full">@airlineCount records</span>
                     </div>
-                    <LumexAlert Color="ThemeColor.Warning" Variant="AlertVariant.Flat" Class="mb-4">
-                        <strong>AI Usage &amp; Data Privacy:</strong> All email content submitted for analysis is sent to the LLM configured here.
-                    </LumexAlert>
-                    @if (aiEnabled)
-                    {
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                            <div>
-                                <LumexTextbox @bind-Value="aiEndpoint" Label="Endpoint URL" Placeholder="http://ollama:11434/v1" />
-                            </div>
-                            <div>
-                                <LumexTextbox @bind-Value="aiApiKey" Label="API Key" Type="InputType.Password" Placeholder="sk_..." />
-                            </div>
-                            <div>
-                                <LumexTextbox @bind-Value="aiModel" Label="Model" Placeholder="gpt-4o" />
-                            </div>
-                        </div>
-                    }
-                    <div class="mt-4"><LumexButton OnClick="SaveAiConfig" Color="ThemeColor.Primary">Save AI Config</LumexButton></div>
+                    <p class="text-xs text-foreground-400 mb-3">Airline data from dotmarn/Airlines</p>
+                    <LumexButton OnClick="LoadAirlines" Disabled="@datasetLoading" Color="ThemeColor.Primary" Class="w-full">
+                        @(airlineCount > 0 ? "Reload" : "Load") Airlines
+                    </LumexButton>
                 </div>
-
-                @* IMAP Email Sync *@
-                <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
+                <div class="border border-divider rounded-lg p-4">
                     <div class="flex items-center justify-between mb-2">
-                        <div>
-                            <h2 class="text-lg font-semibold text-foreground">Email Import (IMAP)</h2>
-                            <p class="text-sm text-foreground-400 mt-1">Periodically check an email inbox and import booking emails automatically.</p>
-                        </div>
-                        <LumexSwitch @bind-Value="imapEnabled" />
+                        <span class="font-medium text-foreground">Places</span>
+                        <span class="text-xs bg-default-100 text-foreground-500 px-2 py-0.5 rounded-full">@placeCount records</span>
                     </div>
-                    @if (imapEnabled)
+                    <p class="text-xs text-foreground-400 mb-3">World cities / municipalities</p>
+                    <LumexButton OnClick="LoadPlaces" Disabled="@datasetLoading" Color="ThemeColor.Primary" Class="w-full">
+                        @(placeCount > 0 ? "Reload" : "Load") Places
+                    </LumexButton>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</LumexTab>
+
+@* ────────────────── INTEGRATIONS TAB ────────────────── *@
+<LumexTab Id="integrations">
+    <TitleContent>
+        <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            Integrations
+        </div>
+    </TitleContent>
+    <ChildContent>
+        <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <h2 class="text-lg font-semibold text-foreground">Flight Information Integration</h2>
+                    <p class="text-sm text-foreground-400 mt-1">Automatically fetch live flight details when adding transportation.</p>
+                </div>
+                <LumexSwitch @bind-Value="flightEnabled"/>
+            </div>
+            <LumexAlert Color="ThemeColor.Warning" Variant="AlertVariant.Flat" Class="mb-4">
+                <strong>Data Privacy:</strong> These integrations connect to third-party services that have not been vetted for their data privacy practices.
+            </LumexAlert>
+            @if (flightEnabled)
+            {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <LumexSelect TValue="string" @bind-Value="flightProvider" Label="Provider" Placeholder="Select provider...">
+                            <LumexSelectItem Value="@("adsbdb")">adsbdb.com (free, no key required)</LumexSelectItem>
+                            <LumexSelectItem Value="@("flightaware")">FlightAware.com (API key required)</LumexSelectItem>
+                        </LumexSelect>
+                    </div>
+                    @if (flightProvider == "flightaware")
                     {
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <div>
-                                <LumexTextbox @bind-Value="imapHost" Label="IMAP Host" Placeholder="imap.gmail.com" />
-                            </div>
-                            <div>
-                                <LumexNumbox TValue="int" @bind-Value="imapPort" Label="Port" Placeholder="993" />
-                            </div>
-                            <div>
-                                <LumexTextbox @bind-Value="imapUser" Label="Username / Email" Placeholder="user@gmail.com" />
-                            </div>
-                            <div>
-                                <LumexTextbox @bind-Value="imapPassword" Label="Password" Type="InputType.Password" />
-                            </div>
-                            <div class="md:col-span-2">
-                                <LumexTextbox @bind-Value="imapFilterAddress" Label="Filter - Only Import Emails From" Placeholder="bookings@airline.com (leave blank for all)" />
-                            </div>
+                        <div>
+                            <LumexTextbox @bind-Value="flightApiKey" Label="FlightAware API Key" Type="InputType.Password" Placeholder="Your FlightAware API key"/>
                         </div>
                     }
-                    <div class="mt-4"><LumexButton OnClick="SaveImapConfig" Color="ThemeColor.Primary">Save IMAP Config</LumexButton></div>
                 </div>
-            </ChildContent>
-        </LumexTab>
+            }
+            <div class="mt-4"><LumexButton OnClick="SaveFlightConfig" Color="ThemeColor.Primary">Save Integration</LumexButton></div>
+        </div>
+    </ChildContent>
+</LumexTab>
 
-    </LumexTabs>
+@* ────────────────── ASSISTANT TAB ────────────────── *@
+<LumexTab Id="assistant">
+    <TitleContent>
+        <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            Assistant
+        </div>
+    </TitleContent>
+    <ChildContent>
+        @* OpenAI Endpoint *@
+        <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <h2 class="text-lg font-semibold text-foreground">OpenAI Compatible Endpoint</h2>
+                    <p class="text-sm text-foreground-400 mt-1">Configure an LLM to extract booking information from email content.</p>
+                </div>
+                <LumexSwitch @bind-Value="aiEnabled"/>
+            </div>
+            <LumexAlert Color="ThemeColor.Warning" Variant="AlertVariant.Flat" Class="mb-4">
+                <strong>AI Usage &amp; Data Privacy:</strong> All email content submitted for analysis is sent to the LLM configured here.
+            </LumexAlert>
+            @if (aiEnabled)
+            {
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <LumexTextbox @bind-Value="aiEndpoint" Label="Endpoint URL" Placeholder="http://ollama:11434/v1"/>
+                    </div>
+                    <div>
+                        <LumexTextbox @bind-Value="aiApiKey" Label="API Key" Type="InputType.Password" Placeholder="sk_..."/>
+                    </div>
+                    <div>
+                        <LumexTextbox @bind-Value="aiModel" Label="Model" Placeholder="gpt-4o"/>
+                    </div>
+                </div>
+            }
+            <div class="mt-4"><LumexButton OnClick="SaveAiConfig" Color="ThemeColor.Primary">Save AI Config</LumexButton></div>
+        </div>
+
+        @* IMAP Email Sync *@
+        <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <h2 class="text-lg font-semibold text-foreground">Email Import (IMAP)</h2>
+                    <p class="text-sm text-foreground-400 mt-1">Periodically check an email inbox and import booking emails automatically.</p>
+                </div>
+                <LumexSwitch @bind-Value="imapEnabled"/>
+            </div>
+            @if (imapEnabled)
+            {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <LumexTextbox @bind-Value="imapHost" Label="IMAP Host" Placeholder="imap.gmail.com"/>
+                    </div>
+                    <div>
+                        <LumexNumbox TValue="int" @bind-Value="imapPort" Label="Port" Placeholder="993"/>
+                    </div>
+                    <div>
+                        <LumexTextbox @bind-Value="imapUser" Label="Username / Email" Placeholder="user@gmail.com"/>
+                    </div>
+                    <div>
+                        <LumexTextbox @bind-Value="imapPassword" Label="Password" Type="InputType.Password"/>
+                    </div>
+                    <div class="md:col-span-2">
+                        <LumexTextbox @bind-Value="imapFilterAddress" Label="Filter - Only Import Emails From" Placeholder="bookings@airline.com (leave blank for all)"/>
+                    </div>
+                </div>
+            }
+            <div class="mt-4"><LumexButton OnClick="SaveImapConfig" Color="ThemeColor.Primary">Save IMAP Config</LumexButton></div>
+        </div>
+    </ChildContent>
+</LumexTab>
+
+</LumexTabs>
 </div>
 
 @code {
