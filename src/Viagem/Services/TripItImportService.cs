@@ -33,8 +33,8 @@ public class TripItImportService(
             return results;
         }
 
-        var trips = root["Trips"]?.AsArray();
-        if (trips == null || trips.Count == 0)
+        var trips = CoerceArray(root["Trips"]);
+        if (trips.Count == 0)
         {
             results.Add(new ImportResult { Success = false, Error = "No trips found in TripIt file." });
             return results;
@@ -97,7 +97,7 @@ public class TripItImportService(
             var travellerNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             travellerNames.Add(ownerLegalName);
 
-            var objects = tripNode["Objects"]?.AsArray() ?? [];
+            var objects = CoerceArray(tripNode["Objects"]);
             foreach (var obj in objects)
             {
                 if (obj == null) continue;
@@ -143,16 +143,16 @@ public class TripItImportService(
         Dictionary<string, int> profileMap, ImportResult result)
     {
         var displayName = obj["display_name"]?.GetValue<string>() ?? "";
-        var segments = obj["Segment"]?.AsArray();
-        var hasFlightSegments = segments != null && segments.Any(s =>
+        var segments = CoerceArray(obj["Segment"]);
+        var hasFlightSegments = segments.Count > 0 && segments.Any(s =>
             s?["start_airport_code"] != null || s?["end_airport_code"] != null);
-        var hasRailSegments = segments != null && segments.Any(s =>
+        var hasRailSegments = segments.Count > 0 && segments.Any(s =>
             s?["start_station_name"] != null || s?["StartStationAddress"] != null);
 
         // --- Flights ---
         if (hasFlightSegments)
         {
-            foreach (var seg in segments!)
+            foreach (var seg in segments)
             {
                 if (seg == null) continue;
                 await ImportFlightSegmentAsync(db, seg, obj, trip, profileMap, result);
@@ -163,7 +163,7 @@ public class TripItImportService(
         // --- Rail ---
         if (hasRailSegments || displayName.Equals("Rail", StringComparison.OrdinalIgnoreCase))
         {
-            if (segments != null)
+            if (segments.Count > 0)
             {
                 foreach (var seg in segments)
                 {
@@ -425,6 +425,18 @@ public class TripItImportService(
             .Where(n => profileMap.ContainsKey(n))
             .Select(n => new ActivityTraveller { TravellerProfileId = profileMap[n] })
             .ToList();
+    }
+
+    /// <summary>
+    /// TripIt serializes a single item as an object and multiple items as an array.
+    /// This helper always returns a list regardless of which form was used.
+    /// </summary>
+    private static List<JsonNode?> CoerceArray(JsonNode? node)
+    {
+        if (node == null) return [];
+        if (node is JsonArray arr) return [.. arr];
+        // Single object — wrap it
+        return [node];
     }
 
     private static DateTime? ParseDateTime(JsonNode? dtNode)
