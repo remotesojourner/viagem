@@ -32,6 +32,12 @@ public class Expense
     public int TripId { get; set; }
     public Trip? Trip { get; set; }
 
+    /// <summary>"Transportation", "Lodging", "Activity", or null for standalone expenses.</summary>
+    public string? SourceType { get; set; }
+
+    /// <summary>The Id of the owning Transportation/Lodging/Activity record. Null for standalone.</summary>
+    public int? SourceId { get; set; }
+
     public string? CreatedById { get; set; }
     public ApplicationUser? CreatedBy { get; set; }
 

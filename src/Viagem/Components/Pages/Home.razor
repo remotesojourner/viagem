@@ -7,21 +7,56 @@
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>My Trips - Viagem</PageTitle>
+<PageTitle>Trips - Viagem</PageTitle>
 
 <div class="max-w-7xl mx-auto">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-2xl font-bold text-foreground">My Trips</h1>
+            <h1 class="text-2xl font-bold text-foreground">Trips</h1>
             <p class="text-sm text-foreground-400">Manage and organize your travel plans</p>
         </div>
-        <LumexButton OnClick='() => Nav.NavigateTo("/trips/create")' Color="ThemeColor.Primary">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            New Trip
-        </LumexButton>
+        <div class="flex items-center gap-3">
+            <!-- Filter dropdown -->
+            <div class="relative">
+                <button @onclick="() => filterOpen = !filterOpen"
+                        class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-foreground bg-surface1 border border-divider rounded-lg hover:bg-default-100 transition-colors">
+                    <svg class="w-4 h-4 text-foreground-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/>
+                    </svg>
+                    @FilterLabel
+                    <svg class="w-3 h-3 text-foreground-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                @if (filterOpen)
+                {
+                    <div class="fixed inset-0 z-10" @onclick="() => filterOpen = false"></div>
+                    <div class="absolute left-0 mt-1 z-20 w-44 bg-surface1 border border-divider rounded-lg shadow-medium py-1">
+                        @foreach (var opt in FilterOptions)
+                        {
+                            <button @onclick="() => SetFilter(opt.Key)"
+                                    class="w-full text-left px-4 py-2 text-sm hover:bg-default-100 transition-colors @(activeFilter == opt.Key ? "text-primary font-medium" : "text-foreground")">
+                                @opt.Label
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+            <LumexButton OnClick='() => Nav.NavigateTo("/trips/create")' Color="ThemeColor.Primary">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                New Trip
+            </LumexButton>
+            <button @onclick="() => showImportModal = true"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-divider bg-surface1 text-sm font-medium text-foreground hover:bg-default-100 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                Import
+            </button>
+        </div>
     </div>
 
     @if (loading)
@@ -38,7 +73,7 @@
                 <h2 class="text-lg font-semibold text-foreground mb-1">Upcoming Trips</h2>
                 <p class="text-sm text-foreground-400 mb-4">All future trips ordered by start date</p>
 
-                @if (upcomingTrips?.Count == 0)
+                @if (UpcomingPage.Count == 0)
                 {
                     <div class="border-2 border-dashed border-primary-300 rounded-lg p-10 text-center">
                         <svg class="w-12 h-12 text-foreground-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,11 +86,23 @@
                 else
                 {
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        @foreach (var trip in upcomingTrips ?? [])
+                        @foreach (var trip in UpcomingPage)
                         {
                             <TripCard Trip="trip" OnDeleted="LoadTrips" />
                         }
                     </div>
+                    @if (UpcomingTotalPages > 1)
+                    {
+                        <div class="flex items-center justify-between mt-4 pt-4 border-t border-divider">
+                            <span class="text-xs text-foreground-400">
+                                Page @(upcomingPage + 1) of @UpcomingTotalPages
+                            </span>
+                            <div class="flex gap-2">
+                                <LumexButton Disabled="@(upcomingPage == 0)" OnClick="async () => { upcomingPage--; await LoadTrips(); }">Previous</LumexButton>
+                                <LumexButton Disabled="@(upcomingPage >= UpcomingTotalPages - 1)" OnClick="async () => { upcomingPage++; await LoadTrips(); }">Next</LumexButton>
+                            </div>
+                        </div>
+                    }
                 }
             </div>
         </section>
@@ -64,9 +111,9 @@
         <section>
             <div class="bg-surface1 rounded-lg border border-divider p-6">
                 <h2 class="text-lg font-semibold text-foreground mb-1">Past Trips</h2>
-                <p class="text-sm text-foreground-400 mb-4">In the last 12 months</p>
+                <p class="text-sm text-foreground-400 mb-4">All completed trips ordered by most recent</p>
 
-                @if (pastTrips?.Count == 0)
+                @if (PastPage.Count == 0)
                 {
                     <div class="border-2 border-dashed border-divider rounded-lg p-8 text-center">
                         <p class="text-foreground-400">No trips in the past year.</p>
@@ -75,22 +122,61 @@
                 else
                 {
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        @foreach (var trip in pastTrips ?? [])
+                        @foreach (var trip in PastPage)
                         {
                             <TripCard Trip="trip" OnDeleted="LoadTrips" />
                         }
                     </div>
+                    @if (PastTotalPages > 1)
+                    {
+                        <div class="flex items-center justify-between mt-4 pt-4 border-t border-divider">
+                            <span class="text-xs text-foreground-400">
+                                Page @(pastPage + 1) of @PastTotalPages
+                            </span>
+                            <div class="flex gap-2">
+                                <LumexButton Disabled="@(pastPage == 0)" OnClick="async () => { pastPage--; await LoadTrips(); }">Previous</LumexButton>
+                                <LumexButton Disabled="@(pastPage >= PastTotalPages - 1)" OnClick="async () => { pastPage++; await LoadTrips(); }">Next</LumexButton>
+                            </div>
+                        </div>
+                    }
                 }
             </div>
         </section>
     }
 </div>
 
+<ImportTripModal Show="showImportModal" UserId="@userId" OnClose="() => showImportModal = false" />
+
 @code {
-    private List<TripSummaryViewModel>? upcomingTrips;
-    private List<TripSummaryViewModel>? pastTrips;
+    private const int PageSize = 8;
+
+    private List<TripSummaryViewModel> upcomingItems = [];
+    private List<TripSummaryViewModel> pastItems = [];
+    private int upcomingTotal;
+    private int pastTotal;
     private bool loading = true;
     private string? userId;
+    private bool showImportModal = false;
+
+    private string activeFilter = "all";
+    private bool filterOpen = false;
+    private int upcomingPage = 0;
+    private int pastPage = 0;
+
+    private record FilterOption(string Key, string Label);
+    private static readonly FilterOption[] FilterOptions =
+    [
+        new("all",       "All"),
+        new("traveller", "Traveller"),
+        new("organiser", "Organiser Only"),
+    ];
+
+    private string FilterLabel => FilterOptions.FirstOrDefault(o => o.Key == activeFilter)?.Label ?? "All";
+
+    private List<TripSummaryViewModel> UpcomingPage => upcomingItems;
+    private List<TripSummaryViewModel> PastPage     => pastItems;
+    private int UpcomingTotalPages => (int)Math.Ceiling(upcomingTotal / (double)PageSize);
+    private int PastTotalPages     => (int)Math.Ceiling(pastTotal / (double)PageSize);
 
     protected override async Task OnInitializedAsync()
     {
@@ -103,8 +189,21 @@
     {
         if (userId == null) return;
         loading = true;
-        upcomingTrips = await TripService.GetUpcomingTripsAsync(userId);
-        pastTrips = await TripService.GetPastTripsAsync(userId);
+        var upcoming = await TripService.GetUpcomingTripsAsync(userId, upcomingPage, PageSize, activeFilter);
+        var past     = await TripService.GetPastTripsAsync(userId, pastPage, PageSize, activeFilter);
+        upcomingItems = upcoming.Items;
+        upcomingTotal = upcoming.TotalCount;
+        pastItems = past.Items;
+        pastTotal = past.TotalCount;
         loading = false;
+    }
+
+    private async Task SetFilter(string key)
+    {
+        activeFilter = key;
+        filterOpen = false;
+        upcomingPage = 0;
+        pastPage = 0;
+        await LoadTrips();
     }
 }

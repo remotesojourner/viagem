@@ -40,8 +40,8 @@ public class Transportation
     public string? DepartureTimezone { get; set; }
     public string? ArrivalTimezone { get; set; }
 
-    public decimal? CostAmount { get; set; }
-    public string? CostCurrency { get; set; }
+    public decimal? CostAmount => Expense?.Amount;
+    public string? CostCurrency => Expense?.Currency;
 
     // Car rental specific
     public string? RentalCompany { get; set; }

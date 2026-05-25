@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using Viagem.Data;
 using Viagem.Components;
 using Viagem.Components.Account;
 using Viagem.Data;
@@ -34,6 +35,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString,
         o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
               .MigrationsAssembly("Viagem.Data")));
+
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+    options.UseSqlite(connectionString,
+        o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
+              .MigrationsAssembly("Viagem.Data")), ServiceLifetime.Scoped);
 
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -73,6 +79,15 @@ builder.Services.AddScoped<ITravellerProfileService, TravellerProfileService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<DataSeedService>();
+
+// Import / Export
+builder.Services.AddScoped<TripExportService>();
+builder.Services.AddScoped<TripImportService>();
+builder.Services.AddScoped<TripItImportService>();
+
+// Travel stats
+builder.Services.AddScoped<TravelStatsCalculator>();
+builder.Services.AddHostedService<TravelStatsBackgroundService>();
 builder.Services.AddScoped<SiteSettingsService>();
 builder.Services.AddHttpClient("seed", c => c.Timeout = TimeSpan.FromMinutes(5));
 builder.Services.AddHttpClient("adsbdb", c => c.Timeout = TimeSpan.FromSeconds(10));
@@ -98,6 +113,31 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapAdditionalIdentityEndpoints();
+
+// Export endpoints
+app.MapGet("/api/trips/{id:int}/export", async (int id, HttpContext ctx,
+    TripExportService exportSvc, ApplicationDbContext db) =>
+{
+    var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    if (userId == null) return Results.Unauthorized();
+    try
+    {
+        var (stream, fileName) = await exportSvc.ExportTripAsync(id, userId);
+        return Results.File(stream, "application/zip", fileName);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(ex.Message);
+    }
+}).RequireAuthorization();
+
+app.MapGet("/api/trips/export-all", async (HttpContext ctx, TripExportService exportSvc) =>
+{
+    var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    if (userId == null) return Results.Unauthorized();
+    var (stream, fileName) = await exportSvc.ExportAllTripsAsync(userId);
+    return Results.File(stream, "application/zip", fileName);
+}).RequireAuthorization();
 
 using (var scope = app.Services.CreateScope())
 {

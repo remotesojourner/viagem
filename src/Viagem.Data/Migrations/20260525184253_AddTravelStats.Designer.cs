@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Viagem.Data;
 
@@ -10,9 +11,11 @@ using Viagem.Data;
 namespace Viagem.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260525184253_AddTravelStats")]
+    partial class AddTravelStats
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -236,6 +239,12 @@ namespace Viagem.Data.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal?>("CostAmount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CostCurrency")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -422,12 +431,6 @@ namespace Viagem.Data.Migrations
                     b.Property<DateTime?>("OccurredOn")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("SourceId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("SourceType")
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("TripId")
                         .HasColumnType("INTEGER");
 
@@ -498,6 +501,12 @@ namespace Viagem.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ConfirmationCode")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("CostAmount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CostCurrency")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
@@ -694,6 +703,12 @@ namespace Viagem.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ConfirmationCode")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("CostAmount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CostCurrency")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")

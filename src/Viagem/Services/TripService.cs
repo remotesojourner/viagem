@@ -7,16 +7,24 @@ namespace Viagem.Services;
 
 public class TripService(ITripRepository repo) : ITripService
 {
-    public async Task<List<TripSummaryViewModel>> GetUpcomingTripsAsync(string userId)
+    public async Task<PagedResult<TripSummaryViewModel>> GetUpcomingTripsAsync(string userId, int page, int pageSize, string filter = "all")
     {
-        var trips = await repo.GetUpcomingAsync(userId);
-        return trips.Select(t => ToSummaryViewModel(t, userId)).ToList();
+        var result = await repo.GetUpcomingPagedAsync(userId, page, pageSize, filter);
+        return new PagedResult<TripSummaryViewModel>
+        {
+            Items = result.Items.Select(r => ToSummaryViewModel(r, userId)).ToList(),
+            TotalCount = result.TotalCount
+        };
     }
 
-    public async Task<List<TripSummaryViewModel>> GetPastTripsAsync(string userId)
+    public async Task<PagedResult<TripSummaryViewModel>> GetPastTripsAsync(string userId, int page, int pageSize, string filter = "all")
     {
-        var trips = await repo.GetPastAsync(userId);
-        return trips.Select(t => ToSummaryViewModel(t, userId)).ToList();
+        var result = await repo.GetPastPagedAsync(userId, page, pageSize, filter);
+        return new PagedResult<TripSummaryViewModel>
+        {
+            Items = result.Items.Select(r => ToSummaryViewModel(r, userId)).ToList(),
+            TotalCount = result.TotalCount
+        };
     }
 
     public async Task<TripDetailViewModel?> GetTripAsync(int tripId, string userId)
@@ -119,10 +127,17 @@ public class TripService(ITripRepository repo) : ITripService
             tt.TravellerProfile?.Email,
             tt.CanEdit, tt.IsOrganiser);
 
+    private static TripSummaryViewModel ToSummaryViewModel(TripSummaryRow r, string userId)
+        => new(r.Id, r.Name, r.CoverImagePath, r.StartDate.GetValueOrDefault(), r.EndDate.GetValueOrDefault(),
+            r.DestinationNames.Select(n => new TripDestinationViewModel(0, null, n, null, null, null, null, null, null)).ToList(),
+            r.OwnerId == userId,
+            r.CurrentUserIsTraveller);
+
     private static TripSummaryViewModel ToSummaryViewModel(Trip t, string userId)
         => new(t.Id, t.Name, t.CoverImagePath, t.StartDate, t.EndDate,
             t.Destinations.Select(ToDestinationViewModel).ToList(),
-            t.OwnerId == userId);
+            t.OwnerId == userId,
+            t.Travellers.Any(tt => tt.TravellerProfile?.LinkedUserId == userId));
 
     private static TripDetailViewModel ToDetailViewModel(Trip t, string userId)
         => new(t.Id, t.Name, t.Description, t.Notes, t.CoverImagePath,

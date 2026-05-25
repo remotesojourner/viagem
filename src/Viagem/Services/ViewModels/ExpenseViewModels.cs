@@ -18,7 +18,10 @@ public record ExpenseViewModel(
     string? Currency,
     DateTime? OccurredOn,
     string? CreatedByName,
-    IReadOnlyList<ExpenseSplitViewModel> Splits);
+    IReadOnlyList<ExpenseSplitViewModel> Splits,
+    bool IsLinked,
+    string? SourceType,
+    int? SourceId);
 
 public class ExpenseSplitFormItem
 {

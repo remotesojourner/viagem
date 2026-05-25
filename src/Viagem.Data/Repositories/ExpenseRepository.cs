@@ -56,4 +56,53 @@ public class ExpenseRepository(ApplicationDbContext db) : IExpenseRepository
         => await db.Expenses
             .Where(e => e.TripId == tripId && e.Currency == currency)
             .SumAsync(e => e.Amount ?? 0);
+
+    public async Task<int> UpsertLinkedAsync(int tripId, string sourceType, int sourceId,
+        string name, ExpenseCategory category, decimal amount, string currency, DateTime occurredOn,
+        int? existingExpenseId)
+    {
+        if (existingExpenseId.HasValue)
+        {
+            var existing = await db.Expenses.FindAsync(existingExpenseId.Value);
+            if (existing != null)
+            {
+                existing.Name = name;
+                existing.Category = category;
+                existing.Amount = amount;
+                existing.Currency = currency;
+                existing.OccurredOn = occurredOn;
+                existing.UpdatedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+                return existing.Id;
+            }
+        }
+
+        var expense = new Expense
+        {
+            TripId = tripId,
+            Name = name,
+            Category = category,
+            Amount = amount,
+            Currency = currency,
+            OccurredOn = occurredOn,
+            SourceType = sourceType,
+            SourceId = sourceId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        db.Expenses.Add(expense);
+        await db.SaveChangesAsync();
+        return expense.Id;
+    }
+
+    public async Task DeleteLinkedAsync(int? expenseId)
+    {
+        if (expenseId == null) return;
+        var item = await db.Expenses.FindAsync(expenseId.Value);
+        if (item != null)
+        {
+            db.Expenses.Remove(item);
+            await db.SaveChangesAsync();
+        }
+    }
 }

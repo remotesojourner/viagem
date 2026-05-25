@@ -18,8 +18,8 @@ public class Activity
     public DateTime? EndDate { get; set; }
     public string? Timezone { get; set; }
 
-    public decimal? CostAmount { get; set; }
-    public string? CostCurrency { get; set; }
+    public decimal? CostAmount => Expense?.Amount;
+    public string? CostCurrency => Expense?.Currency;
 
     public int TripId { get; set; }
     public Trip? Trip { get; set; }

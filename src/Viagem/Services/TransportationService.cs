@@ -5,7 +5,7 @@ using Viagem.Services.ViewModels;
 
 namespace Viagem.Services;
 
-public class TransportationService(ITransportationRepository repo) : ITransportationService
+public class TransportationService(ITransportationRepository repo, IExpenseRepository expenseRepo) : ITransportationService
 {
     public async Task<List<TransportationViewModel>> GetTripTransportationsAsync(int tripId)
     {
@@ -39,8 +39,6 @@ public class TransportationService(ITransportationRepository repo) : ITransporta
             ArrivalTime = request.ArrivalTime,
             DepartureTimezone = request.DepartureTimezone,
             ArrivalTimezone = request.ArrivalTimezone,
-            CostAmount = request.CostAmount,
-            CostCurrency = request.CostCurrency,
             RentalCompany = request.RentalCompany,
             PickupLocation = request.PickupLocation,
             DropOffLocation = request.DropOffLocation,
@@ -54,6 +52,19 @@ public class TransportationService(ITransportationRepository repo) : ITransporta
         };
 
         var created = await repo.CreateAsync(entity);
+
+        if (request.CostAmount is > 0 && !string.IsNullOrEmpty(request.CostCurrency))
+        {
+            var expenseId = await expenseRepo.UpsertLinkedAsync(
+                created.TripId, "Transportation", created.Id,
+                $"{created.Type} – {created.Origin ?? ""} → {created.Destination ?? ""}",
+                ExpenseCategory.Transport,
+                request.CostAmount.Value, request.CostCurrency,
+                created.DepartureTime, null);
+            created.ExpenseId = expenseId;
+            await repo.UpdateAsync(created);
+        }
+
         var full = await repo.GetByIdAsync(created.Id);
         return ToViewModel(full!);
     }
@@ -82,8 +93,6 @@ public class TransportationService(ITransportationRepository repo) : ITransporta
             ArrivalTime = request.ArrivalTime,
             DepartureTimezone = request.DepartureTimezone,
             ArrivalTimezone = request.ArrivalTimezone,
-            CostAmount = request.CostAmount,
-            CostCurrency = request.CostCurrency,
             RentalCompany = request.RentalCompany,
             PickupLocation = request.PickupLocation,
             DropOffLocation = request.DropOffLocation,
@@ -96,11 +105,40 @@ public class TransportationService(ITransportationRepository repo) : ITransporta
         };
 
         await repo.UpdateAsync(stub);
+
+        // Sync linked expense from request values
+        if (request.CostAmount is > 0 && !string.IsNullOrEmpty(request.CostCurrency))
+        {
+            var expenseId = await expenseRepo.UpsertLinkedAsync(
+                existing.TripId, "Transportation", existing.Id,
+                $"{request.Type} – {request.Origin ?? ""} → {request.Destination ?? ""}",
+                ExpenseCategory.Transport,
+                request.CostAmount.Value, request.CostCurrency,
+                request.DepartureTime, existing.ExpenseId);
+            if (expenseId != existing.ExpenseId)
+            {
+                stub.ExpenseId = expenseId;
+                await repo.UpdateAsync(stub);
+            }
+        }
+        else if (existing.ExpenseId.HasValue)
+        {
+            await expenseRepo.DeleteLinkedAsync(existing.ExpenseId);
+            stub.ExpenseId = null;
+            await repo.UpdateAsync(stub);
+        }
+
         var full = await repo.GetByIdAsync(request.Id);
         return full == null ? null : ToViewModel(full);
     }
 
-    public Task DeleteAsync(int id) => repo.DeleteAsync(id);
+    public async Task DeleteAsync(int id)
+    {
+        var existing = await repo.GetByIdAsync(id);
+        if (existing?.ExpenseId.HasValue == true)
+            await expenseRepo.DeleteLinkedAsync(existing.ExpenseId);
+        await repo.DeleteAsync(id);
+    }
 
     // ── Mapping ───────────────────────────────────────────────────────────────
 

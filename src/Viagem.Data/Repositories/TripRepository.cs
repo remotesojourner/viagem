@@ -6,31 +6,82 @@ namespace Viagem.Data.Repositories;
 
 public class TripRepository(ApplicationDbContext db) : ITripRepository
 {
-    public async Task<List<Trip>> GetUpcomingAsync(string userId)
+    public async Task<PagedResult<TripSummaryRow>> GetUpcomingPagedAsync(string userId, int page, int pageSize, string filter = "all")
     {
         var now = DateTime.UtcNow.Date;
-        return await db.Trips
-            .Include(t => t.Destinations).ThenInclude(d => d.Place)
-            .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile)
+        var query = db.Trips
             .Where(t => t.OwnerId == userId ||
                 t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId))
-            .Where(t => t.EndDate >= now)
+            .Where(t => t.EndDate >= now);
+
+        query = filter switch
+        {
+            "traveller" => query.Where(t => t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId)),
+            "organiser" => query.Where(t => t.OwnerId == userId && !t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId)),
+            _ => query
+        };
+
+        var total = await query.CountAsync();
+        var items = await query
             .OrderBy(t => t.StartDate)
+            .Skip(page * pageSize)
+            .Take(pageSize)
+            .Select(t => new TripSummaryRow
+            {
+                Id = t.Id,
+                Name = t.Name,
+                CoverImagePath = t.CoverImagePath,
+                StartDate = t.StartDate,
+                EndDate = t.EndDate,
+                OwnerId = t.OwnerId,
+                CurrentUserIsTraveller = t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId),
+                DestinationNames = t.Destinations
+                    .Select(d => d.CustomName != null ? d.CustomName : d.Place != null ? d.Place.Name : "")
+                    .Where(n => n != "")
+                    .ToList()
+            })
             .ToListAsync();
+
+        return new PagedResult<TripSummaryRow> { Items = items, TotalCount = total };
     }
 
-    public async Task<List<Trip>> GetPastAsync(string userId)
+    public async Task<PagedResult<TripSummaryRow>> GetPastPagedAsync(string userId, int page, int pageSize, string filter = "all")
     {
-        var cutoff = DateTime.UtcNow.AddYears(-1).Date;
         var now = DateTime.UtcNow.Date;
-        return await db.Trips
-            .Include(t => t.Destinations).ThenInclude(d => d.Place)
-            .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile)
+        var query = db.Trips
             .Where(t => t.OwnerId == userId ||
                 t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId))
-            .Where(t => t.EndDate < now && t.EndDate >= cutoff)
+            .Where(t => t.EndDate < now);
+
+        query = filter switch
+        {
+            "traveller" => query.Where(t => t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId)),
+            "organiser" => query.Where(t => t.OwnerId == userId && !t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId)),
+            _ => query
+        };
+
+        var total = await query.CountAsync();
+        var items = await query
             .OrderByDescending(t => t.StartDate)
+            .Skip(page * pageSize)
+            .Take(pageSize)
+            .Select(t => new TripSummaryRow
+            {
+                Id = t.Id,
+                Name = t.Name,
+                CoverImagePath = t.CoverImagePath,
+                StartDate = t.StartDate,
+                EndDate = t.EndDate,
+                OwnerId = t.OwnerId,
+                CurrentUserIsTraveller = t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId),
+                DestinationNames = t.Destinations
+                    .Select(d => d.CustomName != null ? d.CustomName : d.Place != null ? d.Place.Name : "")
+                    .Where(n => n != "")
+                    .ToList()
+            })
             .ToListAsync();
+
+        return new PagedResult<TripSummaryRow> { Items = items, TotalCount = total };
     }
 
     public async Task<Trip?> GetByIdAsync(int tripId, string userId)

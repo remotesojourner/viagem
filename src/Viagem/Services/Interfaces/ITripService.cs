@@ -1,11 +1,12 @@
+using Viagem.Data.Models;
 using Viagem.Services.ViewModels;
 
 namespace Viagem.Services.Interfaces;
 
 public interface ITripService
 {
-    Task<List<TripSummaryViewModel>> GetUpcomingTripsAsync(string userId);
-    Task<List<TripSummaryViewModel>> GetPastTripsAsync(string userId);
+    Task<PagedResult<TripSummaryViewModel>> GetUpcomingTripsAsync(string userId, int page, int pageSize, string filter = "all");
+    Task<PagedResult<TripSummaryViewModel>> GetPastTripsAsync(string userId, int page, int pageSize, string filter = "all");
     Task<TripDetailViewModel?> GetTripAsync(int tripId, string userId);
     Task<TripDetailViewModel> CreateTripAsync(CreateTripRequest request);
     Task<TripDetailViewModel?> UpdateTripAsync(string userId, UpdateTripRequest request);

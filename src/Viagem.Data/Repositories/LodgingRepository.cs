@@ -10,6 +10,7 @@ public class LodgingRepository(ApplicationDbContext db) : ILodgingRepository
         => await db.Lodgings
             .Include(l => l.Place)
             .Include(l => l.Travellers).ThenInclude(lt => lt.TravellerProfile)
+            .Include(l => l.Expense)
             .Where(l => l.TripId == tripId)
             .OrderBy(l => l.StartDate)
             .ToListAsync();
@@ -19,6 +20,7 @@ public class LodgingRepository(ApplicationDbContext db) : ILodgingRepository
             .Include(l => l.Place)
             .Include(l => l.Travellers).ThenInclude(lt => lt.TravellerProfile)
             .Include(l => l.Attachments).ThenInclude(a => a.Attachment)
+            .Include(l => l.Expense)
             .FirstOrDefaultAsync(l => l.Id == id);
 
     public async Task<Lodging> CreateAsync(Lodging lodging)

@@ -27,7 +27,6 @@
 
 	<ItemGroup>
 		<Folder Include="Data\" />
-		<Folder Include="wwwroot\js\" />
 	</ItemGroup>
 	<PropertyGroup>
 		<TailwindVersion>v4.3.0</TailwindVersion>
@@ -69,8 +68,7 @@
 			<_LumexThemeSrc Include="$(_LumexThemeDir)/**/*" />
 		</ItemGroup>
 		<MakeDir Directories="$(MSBuildThisFileDirectory)bin/lumexui" />
-		<Copy SourceFiles="@(_LumexThemeSrc)"
-			  DestinationFiles="@(_LumexThemeSrc->'$(MSBuildThisFileDirectory)bin/lumexui/%(RecursiveDir)%(Filename)%(Extension)')" />
+		<Copy SourceFiles="@(_LumexThemeSrc)" DestinationFiles="@(_LumexThemeSrc->'$(MSBuildThisFileDirectory)bin/lumexui/%(RecursiveDir)%(Filename)%(Extension)')" />
 	</Target>
 	<Target Name="BuildTailwindCSS" BeforeTargets="Build;Publish">
 		<Exec Command="&quot;$(TailwindExe)&quot; -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css --minify" Condition="'$(Configuration)' == 'Release'" />

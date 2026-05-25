@@ -10,6 +10,7 @@ public class ActivityRepository(ApplicationDbContext db) : IActivityRepository
         => await db.Activities
             .Include(a => a.Place)
             .Include(a => a.Travellers).ThenInclude(at => at.TravellerProfile)
+            .Include(a => a.Expense)
             .Where(a => a.TripId == tripId)
             .OrderBy(a => a.StartDate)
             .ToListAsync();
@@ -19,6 +20,7 @@ public class ActivityRepository(ApplicationDbContext db) : IActivityRepository
             .Include(a => a.Place)
             .Include(a => a.Travellers).ThenInclude(at => at.TravellerProfile)
             .Include(a => a.Attachments).ThenInclude(aa => aa.Attachment)
+            .Include(a => a.Expense)
             .FirstOrDefaultAsync(a => a.Id == id);
 
     public async Task<Activity> CreateAsync(Activity activity)

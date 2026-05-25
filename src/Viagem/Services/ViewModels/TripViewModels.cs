@@ -29,7 +29,8 @@ public record TripSummaryViewModel(
     DateTime StartDate,
     DateTime EndDate,
     IReadOnlyList<TripDestinationViewModel> Destinations,
-    bool CurrentUserIsOwner);
+    bool CurrentUserIsOwner,
+    bool CurrentUserIsTraveller);
 
 public record TripDetailViewModel(
     int Id,

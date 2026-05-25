@@ -32,6 +32,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Place> Places => Set<Place>();
     public DbSet<Airport> Airports => Set<Airport>();
     public DbSet<Airline> Airlines => Set<Airline>();
+    public DbSet<UserTravelStats> UserTravelStats => Set<UserTravelStats>();
+    public DbSet<UserTravelDestination> UserTravelDestinations => Set<UserTravelDestination>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -100,5 +102,24 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         builder.Entity<ApplicationUser>()
             .Ignore(u => u.PhoneNumber)
             .Ignore(u => u.PhoneNumberConfirmed);
+
+        builder.Entity<UserTravelStats>()
+            .HasOne(s => s.User)
+            .WithMany()
+            .HasForeignKey(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<UserTravelStats>()
+            .HasIndex(s => new { s.UserId, s.Year })
+            .IsUnique();
+
+        builder.Entity<UserTravelDestination>()
+            .HasOne(d => d.Place)
+            .WithMany()
+            .HasForeignKey(d => d.PlaceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<UserTravelDestination>()
+            .HasIndex(d => new { d.UserId, d.PlaceId });
     }
 }

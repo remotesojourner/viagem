@@ -4,8 +4,8 @@ namespace Viagem.Data.Repositories.Interfaces;
 
 public interface ITripRepository
 {
-    Task<List<Trip>> GetUpcomingAsync(string userId);
-    Task<List<Trip>> GetPastAsync(string userId);
+    Task<PagedResult<TripSummaryRow>> GetUpcomingPagedAsync(string userId, int page, int pageSize, string filter = "all");
+    Task<PagedResult<TripSummaryRow>> GetPastPagedAsync(string userId, int page, int pageSize, string filter = "all");
     Task<Trip?> GetByIdAsync(int tripId, string userId);
     Task<Trip> CreateAsync(Trip trip);
     Task<Trip> UpdateAsync(Trip trip);

@@ -79,5 +79,8 @@ public class ExpenseService(IExpenseRepository repo) : IExpenseService
         => new(e.Id, e.TripId, e.Name, e.Category, e.Notes,
             e.Amount, e.Currency, e.OccurredOn,
             e.CreatedBy?.UserName,
-            e.Splits.Select(ToSplitViewModel).ToList());
+            e.Splits.Select(ToSplitViewModel).ToList(),
+            e.SourceType != null,
+            e.SourceType,
+            e.SourceId);
 }
