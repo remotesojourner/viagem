@@ -8,5 +8,6 @@ public interface ILodgingRepository
     Task<Lodging?> GetByIdAsync(int id);
     Task<Lodging> CreateAsync(Lodging lodging);
     Task<Lodging> UpdateAsync(Lodging lodging);
+    Task UpdateTravellersAsync(int lodgingId, IEnumerable<int> travellerProfileIds);
     Task DeleteAsync(int id);
 }

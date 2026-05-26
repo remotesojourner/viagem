@@ -163,6 +163,15 @@
             {
                 <p class="text-xs text-foreground-400 mt-1 italic">@Item.Notes</p>
             }
+            @if (Item.Travellers.Count > 0)
+            {
+                <div class="flex flex-wrap gap-1 mt-1">
+                    @foreach (var t in Item.Travellers)
+                    {
+                        <span class="text-xs bg-default-200 text-foreground-500 px-2 py-0.5 rounded-full">@t.LegalName</span>
+                    }
+                </div>
+            }
         </div>
     </div>
     @if (CanEdit)

@@ -80,6 +80,7 @@ public class ActivityService(IActivityRepository repo, IExpenseRepository expens
         };
 
         await repo.UpdateAsync(stub);
+        await repo.UpdateTravellersAsync(stub.Id, request.TravellerProfileIds);
 
         // Sync linked expense from request values
         if (request.CostAmount is > 0 && !string.IsNullOrEmpty(request.CostCurrency))

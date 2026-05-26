@@ -75,7 +75,7 @@ else
                                 </div>
                             </StartContent>
                             <ChildContent>
-                                <TransportationSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" />
+                                <TransportationSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" TripTravellers="@(trip?.Travellers ?? [])" />
                             </ChildContent>
                         </LumexAccordionItem>
 
@@ -88,7 +88,7 @@ else
                                 </div>
                             </StartContent>
                             <ChildContent>
-                                <LodgingSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" />
+                                <LodgingSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" TripTravellers="@(trip?.Travellers ?? [])" />
                             </ChildContent>
                         </LumexAccordionItem>
 
@@ -101,7 +101,7 @@ else
                                 </div>
                             </StartContent>
                             <ChildContent>
-                                <ActivitiesSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" />
+                                <ActivitiesSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" TripTravellers="@(trip?.Travellers ?? [])" />
                             </ChildContent>
                         </LumexAccordionItem>
                     </LumexAccordion>

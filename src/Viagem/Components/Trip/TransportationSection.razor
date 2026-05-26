@@ -229,6 +229,23 @@
                     <div class="col-span-2">
                         <LumexTextbox @bind-Value="formNotes" Label="Notes" Multiline="@true" Rows="2" />
                     </div>
+                    @if (TripTravellers.Count > 0)
+                    {
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-foreground mb-1">Travellers</label>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach (var t in TripTravellers)
+                                {
+                                    var isSelected = formTravellerIds.Contains(t.TravellerProfileId);
+                                    <button type="button"
+                                               @onclick="() => ToggleTraveller(t.TravellerProfileId)"
+                                               class="@(isSelected ? "px-3 py-1 rounded-full text-sm border transition-colors bg-primary text-primary-foreground border-primary" : "px-3 py-1 rounded-full text-sm border transition-colors border-divider text-foreground hover:bg-default-100")">
+                                           @t.LegalName
+                                       </button>
+                                }
+                            </div>
+                        </div>
+                    }
                 </div>
             </div>
         </LumexModalBody>
@@ -308,6 +325,7 @@ else
     [Parameter] public int TripId { get; set; }
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public string? DefaultTimezone { get; set; }
+    [Parameter] public IReadOnlyList<TripTravellerViewModel> TripTravellers { get; set; } = [];
 
     private List<TransportationViewModel> items = [];
     private List<TransportationViewModel> tickets => items.Where(i => i.Type != TransportationType.CarRental && i.Type != TransportationType.Parking).OrderBy(i => i.DepartureTime).ToList();
@@ -342,6 +360,7 @@ else
     private string? formDropOffLocation;
     private string? formSpotNumber;
     private string? formParkingAddress;
+    private List<int> formTravellerIds = [];
 
     // Airport autocomplete state
     private string originSearch = "";
@@ -406,6 +425,7 @@ else
         formDepartureTimezone = DefaultTimezone; formArrivalTimezone = DefaultTimezone;
         formRentalCompany = null; formPickupLocation = null; formDropOffLocation = null;
         formSpotNumber = null; formParkingAddress = null;
+        formTravellerIds = [];
         formCostAmount = null;
         formCostCurrency = await GetUserCurrencyAsync();
         originSearch = ""; destinationSearch = "";
@@ -428,7 +448,8 @@ else
         formRentalCompany = item.RentalCompany; formPickupLocation = item.PickupLocation;
         formDropOffLocation = item.DropOffLocation; formSpotNumber = item.SpotNumber;
         formParkingAddress = item.ParkingAddress;
-        originSearch = item.Origin ?? ""; destinationSearch = item.Destination ?? "";
+        formTravellerIds = item.Travellers.Select(t => t.Id).ToList();
+        originSearch = item.Origin ?? "";
         originResults = []; destinationResults = [];
         showModal = true;
     }
@@ -438,6 +459,14 @@ else
         showModal = false;
         showOriginDropdown = false;
         showDestinationDropdown = false;
+    }
+
+    private void ToggleTraveller(int profileId)
+    {
+        if (formTravellerIds.Contains(profileId))
+            formTravellerIds.Remove(profileId);
+        else
+            formTravellerIds.Add(profileId);
     }
 
     // Airport autocomplete handlers
@@ -575,9 +604,9 @@ else
     {
         saving = true;
         if (editItem != null)
-            await TransportationService.UpdateAsync(new UpdateTransportationRequest(editItem.Id, formType, formOrigin, formOriginCity, formDestination, formDestinationCity, formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats, formNotes, formLink, formDepartureTime, formArrivalTime, string.IsNullOrEmpty(formDepartureTimezone) ? null : formDepartureTimezone, string.IsNullOrEmpty(formArrivalTimezone) ? null : formArrivalTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, formRentalCompany, formPickupLocation, formDropOffLocation, formSpotNumber, formParkingAddress, null, null, []));
+            await TransportationService.UpdateAsync(new UpdateTransportationRequest(editItem.Id, formType, formOrigin, formOriginCity, formDestination, formDestinationCity, formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats, formNotes, formLink, formDepartureTime, formArrivalTime, string.IsNullOrEmpty(formDepartureTimezone) ? null : formDepartureTimezone, string.IsNullOrEmpty(formArrivalTimezone) ? null : formArrivalTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, formRentalCompany, formPickupLocation, formDropOffLocation, formSpotNumber, formParkingAddress, null, null, formTravellerIds));
         else
-            await TransportationService.CreateAsync(new CreateTransportationRequest(TripId, formType, formOrigin, formOriginCity, formDestination, formDestinationCity, formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats, formNotes, formLink, formDepartureTime, formArrivalTime, string.IsNullOrEmpty(formDepartureTimezone) ? null : formDepartureTimezone, string.IsNullOrEmpty(formArrivalTimezone) ? null : formArrivalTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, formRentalCompany, formPickupLocation, formDropOffLocation, formSpotNumber, formParkingAddress, null, null, []));
+            await TransportationService.CreateAsync(new CreateTransportationRequest(TripId, formType, formOrigin, formOriginCity, formDestination, formDestinationCity, formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats, formNotes, formLink, formDepartureTime, formArrivalTime, string.IsNullOrEmpty(formDepartureTimezone) ? null : formDepartureTimezone, string.IsNullOrEmpty(formArrivalTimezone) ? null : formArrivalTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, formRentalCompany, formPickupLocation, formDropOffLocation, formSpotNumber, formParkingAddress, null, null, formTravellerIds));
         saving = false;
         showModal = false;
         await LoadItems();

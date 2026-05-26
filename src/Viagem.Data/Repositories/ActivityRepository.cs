@@ -53,4 +53,16 @@ public class ActivityRepository(ApplicationDbContext db) : IActivityRepository
             await db.SaveChangesAsync();
         }
     }
+
+    public async Task UpdateTravellersAsync(int activityId, IEnumerable<int> travellerProfileIds)
+    {
+        var existing = await db.ActivityTravellers
+            .Where(t => t.ActivityId == activityId)
+            .ToListAsync();
+        db.ActivityTravellers.RemoveRange(existing);
+        var ids = travellerProfileIds.Distinct().ToList();
+        db.ActivityTravellers.AddRange(
+            ids.Select(id => new ActivityTraveller { ActivityId = activityId, TravellerProfileId = id }));
+        await db.SaveChangesAsync();
+    }
 }

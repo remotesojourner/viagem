@@ -53,4 +53,16 @@ public class LodgingRepository(ApplicationDbContext db) : ILodgingRepository
             await db.SaveChangesAsync();
         }
     }
+
+    public async Task UpdateTravellersAsync(int lodgingId, IEnumerable<int> travellerProfileIds)
+    {
+        var existing = await db.LodgingTravellers
+            .Where(t => t.LodgingId == lodgingId)
+            .ToListAsync();
+        db.LodgingTravellers.RemoveRange(existing);
+        var ids = travellerProfileIds.Distinct().ToList();
+        db.LodgingTravellers.AddRange(
+            ids.Select(id => new LodgingTraveller { LodgingId = lodgingId, TravellerProfileId = id }));
+        await db.SaveChangesAsync();
+    }
 }

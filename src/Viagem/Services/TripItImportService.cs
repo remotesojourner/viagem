@@ -41,8 +41,8 @@ public class TripItImportService(
         }
 
         // Profile of the TripIt account owner
-        var ownerFirstName = root["first_name"]?.GetValue<string>() ?? "";
-        var ownerLastName = root["last_name"]?.GetValue<string>() ?? "";
+        var ownerFirstName = ToTitleCase(root["first_name"]?.GetValue<string>() ?? "");
+        var ownerLastName = ToTitleCase(root["last_name"]?.GetValue<string>() ?? "");
         var ownerLegalName = $"{ownerFirstName} {ownerLastName}".Trim();
 
         await using var db = await dbFactory.CreateDbContextAsync();
@@ -103,6 +103,9 @@ public class TripItImportService(
                 if (obj == null) continue;
                 CollectTravellerNames(obj, travellerNames);
             }
+
+            // Remove partial-name fragments that are subsumed by a fuller name
+            DeduplicateTravellerNames(travellerNames);
 
             // Resolve / create traveller profiles
             var profileMap = await ResolveTravellerProfilesAsync(db, travellerNames, ownerId, ownerLegalName, result);
@@ -364,15 +367,63 @@ public class TripItImportService(
 
     // ── static helpers ───────────────────────────────────────────────────────
 
+    // Words that indicate a TripIt ancillary-service object rather than a real person name.
+    private static readonly HashSet<string> NonPersonWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "baggage", "bag", "luggage", "allowance", "allowances", "booking",
+        "hand", "cabin", "checked", "excess", "fee", "charge", "seat",
+        "meal", "service", "services", "upgrade", "lounge", "insurance",
+        "transfer", "shuttle", "visa", "note", "notes", "misc", "other"
+    };
+
+    private static string ToTitleCase(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        var info = System.Globalization.CultureInfo.InvariantCulture.TextInfo;
+        return info.ToTitleCase(s.ToLowerInvariant());
+    }
+
+    private static bool IsPersonName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        // Must be at least 2 chars and contain only letters, spaces, hyphens, apostrophes
+        if (!System.Text.RegularExpressions.Regex.IsMatch(name, @"^[\p{L}\s'\-]+$")) return false;
+        // Reject if any word matches a known non-person keyword
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return words.Length > 0 && !words.Any(w => NonPersonWords.Contains(w));
+    }
+
+    /// <summary>
+    /// After collecting all candidate names, remove any entry whose words are all
+    /// contained within a longer name in the set (e.g. drop "Vinod" when "Vinod Mishra" exists).
+    /// </summary>
+    private static void DeduplicateTravellerNames(HashSet<string> names)
+    {
+        var list = names.ToList();
+        var toRemove = new List<string>();
+        foreach (var candidate in list)
+        {
+            var candidateWords = candidate.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            // Check if every word in this candidate also appears in a *different*, longer name
+            bool subsumed = list.Any(other =>
+                !string.Equals(other, candidate, StringComparison.OrdinalIgnoreCase) &&
+                other.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > candidateWords.Length &&
+                candidateWords.All(w => other.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Any(ow => string.Equals(ow, w, StringComparison.OrdinalIgnoreCase))));
+            if (subsumed) toRemove.Add(candidate);
+        }
+        foreach (var name in toRemove) names.Remove(name);
+    }
+
     private static void CollectTravellerNames(JsonNode obj, HashSet<string> names)
     {
         void AddName(JsonNode? node)
         {
             if (node == null) return;
-            var first = node["first_name"]?.GetValue<string>() ?? "";
-            var last = node["last_name"]?.GetValue<string>() ?? "";
+            var first = ToTitleCase(node["first_name"]?.GetValue<string>() ?? "");
+            var last = ToTitleCase(node["last_name"]?.GetValue<string>() ?? "");
             var full = $"{first} {last}".Trim();
-            if (!string.IsNullOrEmpty(full)) names.Add(full);
+            if (IsPersonName(full)) names.Add(full);
         }
 
         var traveler = obj["Traveler"];
@@ -495,7 +546,7 @@ public class TripItImportService(
 
             var profile = new TravellerProfile
             {
-                LegalName = name,
+                LegalName = ToTitleCase(name),
                 OwnerId = ownerId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow

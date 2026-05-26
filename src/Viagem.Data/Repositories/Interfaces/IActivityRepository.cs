@@ -8,5 +8,6 @@ public interface IActivityRepository
     Task<Activity?> GetByIdAsync(int id);
     Task<Activity> CreateAsync(Activity activity);
     Task<Activity> UpdateAsync(Activity activity);
+    Task UpdateTravellersAsync(int activityId, IEnumerable<int> travellerProfileIds);
     Task DeleteAsync(int id);
 }

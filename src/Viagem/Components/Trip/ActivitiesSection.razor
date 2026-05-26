@@ -58,6 +58,23 @@
             <div>
                 <LumexTextbox @bind-Value="formNotes" Label="Notes" Multiline="@true" Rows="2" />
             </div>
+            @if (TripTravellers.Count > 0)
+            {
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-foreground mb-1">Travellers</label>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var t in TripTravellers)
+                        {
+                            var isSelected = formTravellerIds.Contains(t.TravellerProfileId);
+                            <button type="button"
+                                    @onclick="() => ToggleTraveller(t.TravellerProfileId)"
+                                    class="@(isSelected ? "px-3 py-1 rounded-full text-sm border transition-colors bg-primary text-primary-foreground border-primary" : "px-3 py-1 rounded-full text-sm border transition-colors border-divider text-foreground hover:bg-default-100")">
+                                @t.LegalName
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
         </div>
         </LumexModalBody>
         <LumexModalFooter>
@@ -145,6 +162,15 @@ else
                                     {
                                         <p class="text-xs text-foreground-400 mt-0.5 italic">@item.Notes</p>
                                     }
+                                    @if (item.Travellers.Count > 0)
+                                    {
+                                        <div class="flex flex-wrap gap-1 mt-1">
+                                            @foreach (var tv in item.Travellers)
+                                            {
+                                                <span class="text-xs bg-default-200 text-foreground-500 px-2 py-0.5 rounded-full">@tv.LegalName</span>
+                                            }
+                                        </div>
+                                    }
                                 </div>
                             </div>
                             @if (CanEdit)
@@ -186,6 +212,7 @@ else
     [Parameter] public int TripId { get; set; }
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public string? DefaultTimezone { get; set; }
+    [Parameter] public IReadOnlyList<TripTravellerViewModel> TripTravellers { get; set; } = [];
 
     private List<ActivityViewModel> items = [];
     private bool loading = true;
@@ -205,6 +232,7 @@ else
     private string? formLink;
     private decimal? formCostAmount;
     private string formCostCurrency = "USD";
+    private List<int> formTravellerIds = [];
 
 
     private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
@@ -255,6 +283,7 @@ else
         formLink = null;
         formCostAmount = null;
         formCostCurrency = await GetUserCurrencyAsync();
+        formTravellerIds = [];
         showModal = true;
     }
 
@@ -271,19 +300,28 @@ else
         formLink = item.Link;
         formCostAmount = item.CostAmount;
         formCostCurrency = item.CostCurrency ?? "USD";
+        formTravellerIds = item.Travellers.Select(t => t.Id).ToList();
         showModal = true;
     }
 
     private void CloseModal() => showModal = false;
+
+    private void ToggleTraveller(int profileId)
+    {
+        if (formTravellerIds.Contains(profileId))
+            formTravellerIds.Remove(profileId);
+        else
+            formTravellerIds.Add(profileId);
+    }
 
     private async Task SaveItem()
     {
         if (string.IsNullOrWhiteSpace(formName)) return;
         saving = true;
         if (editItem != null)
-            await ActivityService.UpdateAsync(new UpdateActivityRequest(editItem.Id, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, []));
+            await ActivityService.UpdateAsync(new UpdateActivityRequest(editItem.Id, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds));
         else
-            await ActivityService.CreateAsync(new CreateActivityRequest(TripId, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, []));
+            await ActivityService.CreateAsync(new CreateActivityRequest(TripId, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds));
         saving = false;
         showModal = false;
         await LoadItems();

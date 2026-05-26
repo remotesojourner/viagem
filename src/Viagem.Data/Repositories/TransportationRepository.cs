@@ -55,4 +55,16 @@ public class TransportationRepository(ApplicationDbContext db) : ITransportation
             await db.SaveChangesAsync();
         }
     }
+
+    public async Task UpdateTravellersAsync(int transportationId, IEnumerable<int> travellerProfileIds)
+    {
+        var existing = await db.TransportationTravellers
+            .Where(t => t.TransportationId == transportationId)
+            .ToListAsync();
+        db.TransportationTravellers.RemoveRange(existing);
+        var ids = travellerProfileIds.Distinct().ToList();
+        db.TransportationTravellers.AddRange(
+            ids.Select(id => new TransportationTraveller { TransportationId = transportationId, TravellerProfileId = id }));
+        await db.SaveChangesAsync();
+    }
 }
