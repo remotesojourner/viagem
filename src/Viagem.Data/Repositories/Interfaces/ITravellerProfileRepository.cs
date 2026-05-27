@@ -13,4 +13,5 @@ public interface ITravellerProfileRepository
     Task AddAliasAsync(int profileId, string alias);
     Task RemoveAliasAsync(int aliasId);
     Task EnsureExistsAsync(string userId, string email, string? name);
+    Task MergeAsync(int targetId, IReadOnlyList<int> sourceIds, string userId);
 }

@@ -13,4 +13,5 @@ public interface ITravellerProfileService
     Task RemoveAliasAsync(int aliasId);
     Task EnsureProfileExistsForUserAsync(string userId, string email, string? name);
     Task LinkUserAsync(int profileId, string linkedUserId, string? ownerId = null);
+    Task MergeAsync(int targetId, IReadOnlyList<int> sourceIds, string userId);
 }

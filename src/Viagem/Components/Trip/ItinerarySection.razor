@@ -1,7 +1,4 @@
-﻿@using Viagem.Services.Interfaces
-@inject ITransportationService TransportationService
-@inject ILodgingService LodgingService
-@inject IActivityService ActivityService
+@using Viagem.Services.ViewModels
 
 @if (loading)
 {
@@ -60,20 +57,20 @@ else
 }
 
 @code {
-    [Parameter] public int TripId { get; set; }
+    [Parameter] public List<TransportationViewModel>? InitialTransportations { get; set; }
+    [Parameter] public List<LodgingViewModel>? InitialLodgings { get; set; }
+    [Parameter] public List<ActivityViewModel>? InitialActivities { get; set; }
 
     private bool loading = true;
     private Dictionary<DateTime, List<ItineraryEvent>> days = [];
 
     private record ItineraryEvent(DateTime Time, string Icon, string Title, string? Subtitle);
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnParametersSet()
     {
-        loading = true;
-        var transportTask = TransportationService.GetTripTransportationsAsync(TripId);
-        var lodgingTask = LodgingService.GetTripLodgingsAsync(TripId);
-        var activityTask = ActivityService.GetTripActivitiesAsync(TripId);
-        await Task.WhenAll(transportTask, lodgingTask, activityTask);
+        var transports = InitialTransportations ?? [];
+        var lodgings = InitialLodgings ?? [];
+        var activities = InitialActivities ?? [];
 
         var result = new Dictionary<DateTime, List<ItineraryEvent>>();
 
@@ -84,7 +81,7 @@ else
             result[key].Add(ev);
         }
 
-        foreach (var t in transportTask.Result)
+        foreach (var t in transports)
         {
             var icon = t.Type switch
             {
@@ -111,14 +108,14 @@ else
                 Add(t.ArrivalTime, new(t.ArrivalTime, icon, $"{title} (arrival)", subtitle));
         }
 
-        foreach (var l in lodgingTask.Result)
+        foreach (var l in lodgings)
         {
             var icon = l.Type switch { LodgingType.Hotel => "🏨", LodgingType.Hostel => "🛏️", LodgingType.CampSite => "⛺", LodgingType.VacationRental => "🏡", _ => "🏠" };
             Add(l.StartDate, new(l.StartDate, icon, $"Check-in: {l.Name}", l.Address));
             Add(l.EndDate, new(l.EndDate, icon, $"Check-out: {l.Name}", null));
         }
 
-        foreach (var a in activityTask.Result)
+        foreach (var a in activities)
             Add(a.StartDate, new(a.StartDate, "🎯", a.Name, a.Address));
 
         days = result;

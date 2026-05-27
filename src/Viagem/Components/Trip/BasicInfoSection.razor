@@ -304,7 +304,7 @@
     private async Task HandleDestInput(string? value)
     {
         destSearch = value ?? "";
-        if (destSearch.Length < 2) { destResults = []; return; }
+        if (destSearch.Length < 3) { destResults = []; return; }
         destResults = await PlaceService.SearchAsync(destSearch);
     }
 

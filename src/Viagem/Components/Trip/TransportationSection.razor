@@ -1,9 +1,7 @@
-﻿@inject ITransportationService TransportationService
+@inject ITransportationService TransportationService
 @inject IAirportService AirportService
 @inject IAirlineService AirlineService
 @inject IFlightRouteService FlightRouteService
-@inject AuthenticationStateProvider AuthStateProvider
-@inject UserManager<ApplicationUser> UserManager
 @using GeoTimeZone
 @using Viagem.Services.Interfaces
 @using Viagem.Services.ViewModels
@@ -17,6 +15,8 @@
             </h3>
         </LumexModalHeader>
         <LumexModalBody>
+        @if (showModal)
+        {
         <div class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
@@ -248,7 +248,8 @@
                     }
                 </div>
             </div>
-        </LumexModalBody>
+            }
+            </LumexModalBody>
         <LumexModalFooter>
             <div class="flex justify-end gap-3 w-full">
                 <LumexButton OnClick="CloseModal">Cancel</LumexButton>
@@ -326,6 +327,12 @@ else
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public string? DefaultTimezone { get; set; }
     [Parameter] public IReadOnlyList<TripTravellerViewModel> TripTravellers { get; set; } = [];
+    [Parameter] public string? UserTimezone { get; set; }
+    [Parameter] public List<TransportationViewModel>? InitialItems { get; set; }
+    [Parameter] public string UserCurrency { get; set; } = "USD";
+    [Parameter] public EventCallback<TransportationViewModel> OnItemCreated { get; set; }
+    [Parameter] public EventCallback<TransportationViewModel> OnItemUpdated { get; set; }
+    [Parameter] public EventCallback<int> OnItemDeleted { get; set; }
 
     private List<TransportationViewModel> items = [];
     private List<TransportationViewModel> tickets => items.Where(i => i.Type != TransportationType.CarRental && i.Type != TransportationType.Parking).OrderBy(i => i.DepartureTime).ToList();
@@ -380,37 +387,35 @@ else
 
 
 
-    protected override async Task OnInitializedAsync()
+    private List<TransportationViewModel>? _lastInitialItems;
+
+    protected override void OnInitialized()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (userId != null)
-        {
-            var user = await UserManager.FindByIdAsync(userId);
-            userTimezone = user?.Timezone;
-        }
-        await LoadItems();
+        userTimezone = UserTimezone;
+        items = InitialItems ?? [];
+        _lastInitialItems = InitialItems;
+        loading = false;
+        _needsRender = true;
     }
 
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_lastInitialItems, InitialItems))
+        {
+            items = InitialItems ?? [];
+            _lastInitialItems = InitialItems;
+            _needsRender = true;
+        }
+    }
+
+    private bool _needsRender = true;
     private string? userTimezone;
 
-    private async Task LoadItems()
+    protected override bool ShouldRender()
     {
-        loading = true;
-        items = await TransportationService.GetTripTransportationsAsync(TripId);
-        loading = false;
-    }
-
-    private async Task<string> GetUserCurrencyAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (userId != null)
-        {
-            var user = await UserManager.FindByIdAsync(userId);
-            if (!string.IsNullOrEmpty(user?.CurrencyCode)) return user.CurrencyCode;
-        }
-        return "USD";
+        if (!_needsRender) return false;
+        _needsRender = false;
+        return true;
     }
 
     private async Task OpenAddModal()
@@ -427,10 +432,11 @@ else
         formSpotNumber = null; formParkingAddress = null;
         formTravellerIds = [];
         formCostAmount = null;
-        formCostCurrency = await GetUserCurrencyAsync();
+        formCostCurrency = UserCurrency;
         originSearch = ""; destinationSearch = "";
         originResults = []; destinationResults = [];
         showModal = true;
+        _needsRender = true;
     }
 
     private void OpenEditModal(TransportationViewModel item)
@@ -452,6 +458,7 @@ else
         originSearch = item.Origin ?? "";
         originResults = []; destinationResults = [];
         showModal = true;
+        _needsRender = true;
     }
 
     private void CloseModal()
@@ -459,6 +466,7 @@ else
         showModal = false;
         showOriginDropdown = false;
         showDestinationDropdown = false;
+        _needsRender = true;
     }
 
     private void ToggleTraveller(int profileId)
@@ -467,6 +475,7 @@ else
             formTravellerIds.Remove(profileId);
         else
             formTravellerIds.Add(profileId);
+        _needsRender = true;
     }
 
     // Airport autocomplete handlers
@@ -582,6 +591,7 @@ else
                 }
             }
 
+            _needsRender = true;
             StateHasChanged();
         }
         else
@@ -594,6 +604,7 @@ else
                 if (airline != null)
                 {
                     formProvider = airline.Name;
+                    _needsRender = true;
                     StateHasChanged();
                 }
             }
@@ -604,18 +615,32 @@ else
     {
         saving = true;
         if (editItem != null)
-            await TransportationService.UpdateAsync(new UpdateTransportationRequest(editItem.Id, formType, formOrigin, formOriginCity, formDestination, formDestinationCity, formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats, formNotes, formLink, formDepartureTime, formArrivalTime, string.IsNullOrEmpty(formDepartureTimezone) ? null : formDepartureTimezone, string.IsNullOrEmpty(formArrivalTimezone) ? null : formArrivalTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, formRentalCompany, formPickupLocation, formDropOffLocation, formSpotNumber, formParkingAddress, null, null, formTravellerIds));
+        {
+            var updated = await TransportationService.UpdateAsync(new UpdateTransportationRequest(editItem.Id, formType, formOrigin, formOriginCity, formDestination, formDestinationCity, formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats, formNotes, formLink, formDepartureTime, formArrivalTime, string.IsNullOrEmpty(formDepartureTimezone) ? null : formDepartureTimezone, string.IsNullOrEmpty(formArrivalTimezone) ? null : formArrivalTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, formRentalCompany, formPickupLocation, formDropOffLocation, formSpotNumber, formParkingAddress, null, null, formTravellerIds));
+            if (updated != null)
+            {
+                var idx = items.FindIndex(i => i.Id == updated.Id);
+                if (idx >= 0) items[idx] = updated; else items.Add(updated);
+                if (OnItemUpdated.HasDelegate) await OnItemUpdated.InvokeAsync(updated);
+            }
+        }
         else
-            await TransportationService.CreateAsync(new CreateTransportationRequest(TripId, formType, formOrigin, formOriginCity, formDestination, formDestinationCity, formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats, formNotes, formLink, formDepartureTime, formArrivalTime, string.IsNullOrEmpty(formDepartureTimezone) ? null : formDepartureTimezone, string.IsNullOrEmpty(formArrivalTimezone) ? null : formArrivalTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, formRentalCompany, formPickupLocation, formDropOffLocation, formSpotNumber, formParkingAddress, null, null, formTravellerIds));
+        {
+            var created = await TransportationService.CreateAsync(new CreateTransportationRequest(TripId, formType, formOrigin, formOriginCity, formDestination, formDestinationCity, formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats, formNotes, formLink, formDepartureTime, formArrivalTime, string.IsNullOrEmpty(formDepartureTimezone) ? null : formDepartureTimezone, string.IsNullOrEmpty(formArrivalTimezone) ? null : formArrivalTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, formRentalCompany, formPickupLocation, formDropOffLocation, formSpotNumber, formParkingAddress, null, null, formTravellerIds));
+            items.Add(created);
+            if (OnItemCreated.HasDelegate) await OnItemCreated.InvokeAsync(created);
+        }
         saving = false;
         showModal = false;
-        await LoadItems();
+        _needsRender = true;
     }
 
     private async Task DeleteItem(int id)
     {
         await TransportationService.DeleteAsync(id);
-        await LoadItems();
+        items.RemoveAll(i => i.Id == id);
+        _needsRender = true;
+        if (OnItemDeleted.HasDelegate) await OnItemDeleted.InvokeAsync(id);
     }
 
     private static string GetTypeLabel(TransportationType type) => type switch

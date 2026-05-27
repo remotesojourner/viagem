@@ -6,7 +6,6 @@ using Microsoft.Extensions.FileProviders;
 using Viagem.Data;
 using Viagem.Components;
 using Viagem.Components.Account;
-using Viagem.Data;
 using Viagem.Data.Repositories;
 using Viagem.Data.Repositories.Interfaces;
 using Viagem.Services;

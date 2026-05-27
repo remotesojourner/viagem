@@ -329,7 +329,7 @@ public class TripItImportService(
         await db.SaveChangesAsync();
     }
 
-    private async Task ImportActivityAsync(
+    private static async Task ImportActivityAsync(
         ApplicationDbContext db, JsonNode obj, Trip trip,
         Dictionary<string, int> profileMap, ImportResult result)
     {

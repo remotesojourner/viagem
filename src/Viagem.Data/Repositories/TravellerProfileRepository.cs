@@ -105,4 +105,165 @@ public class TravellerProfileRepository(ApplicationDbContext db) : ITravellerPro
         });
         await db.SaveChangesAsync();
     }
+
+    public async Task MergeAsync(int targetId, IReadOnlyList<int> sourceIds, string userId)
+    {
+        // Verify ownership of target and all sources
+        var allIds = sourceIds.Append(targetId).ToList();
+        var profiles = await db.TravellerProfiles
+            .Include(tp => tp.Aliases)
+            .Where(tp => allIds.Contains(tp.Id) && (tp.OwnerId == userId || tp.Managers.Any(m => m.ManagerUserId == userId)))
+            .ToListAsync();
+
+        var target = profiles.FirstOrDefault(p => p.Id == targetId)
+            ?? throw new InvalidOperationException("Target profile not found or not accessible.");
+
+        var sources = profiles.Where(p => sourceIds.Contains(p.Id)).ToList();
+        if (sources.Count == 0) return;
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        try
+        {
+            // 1. Add source names and their aliases as aliases on the target
+            var existingAliases = target.Aliases.Select(a => a.Alias).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var src in sources)
+            {
+                // Add the source's legal name as an alias
+                if (!existingAliases.Contains(src.LegalName) &&
+                    !string.Equals(src.LegalName, target.LegalName, StringComparison.OrdinalIgnoreCase))
+                {
+                    db.TravellerProfileAliases.Add(new TravellerProfileAlias
+                    {
+                        TravellerProfileId = targetId,
+                        Alias = src.LegalName
+                    });
+                    existingAliases.Add(src.LegalName);
+                }
+
+                // Add each source alias
+                foreach (var alias in src.Aliases)
+                {
+                    if (!existingAliases.Contains(alias.Alias) &&
+                        !string.Equals(alias.Alias, target.LegalName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        db.TravellerProfileAliases.Add(new TravellerProfileAlias
+                        {
+                            TravellerProfileId = targetId,
+                            Alias = alias.Alias
+                        });
+                        existingAliases.Add(alias.Alias);
+                    }
+                }
+            }
+
+            // 2. Re-point join table rows, removing duplicates
+            // TripTraveller
+            var tripRows = await db.TripTravellers
+                .Where(r => sourceIds.Contains(r.TravellerProfileId))
+                .ToListAsync();
+            var existingTripTargetIds = await db.TripTravellers
+                .Where(r => r.TravellerProfileId == targetId)
+                .Select(r => r.TripId)
+                .ToHashSetAsync();
+            foreach (var row in tripRows)
+            {
+                if (existingTripTargetIds.Contains(row.TripId))
+                    db.TripTravellers.Remove(row);
+                else
+                {
+                    row.TravellerProfileId = targetId;
+                    existingTripTargetIds.Add(row.TripId);
+                }
+            }
+
+            // TransportationTraveller
+            var transportRows = await db.TransportationTravellers
+                .Where(r => sourceIds.Contains(r.TravellerProfileId))
+                .ToListAsync();
+            var existingTransportTargetIds = await db.TransportationTravellers
+                .Where(r => r.TravellerProfileId == targetId)
+                .Select(r => r.TransportationId)
+                .ToHashSetAsync();
+            foreach (var row in transportRows)
+            {
+                if (existingTransportTargetIds.Contains(row.TransportationId))
+                    db.TransportationTravellers.Remove(row);
+                else
+                {
+                    row.TravellerProfileId = targetId;
+                    existingTransportTargetIds.Add(row.TransportationId);
+                }
+            }
+
+            // LodgingTraveller
+            var lodgingRows = await db.LodgingTravellers
+                .Where(r => sourceIds.Contains(r.TravellerProfileId))
+                .ToListAsync();
+            var existingLodgingTargetIds = await db.LodgingTravellers
+                .Where(r => r.TravellerProfileId == targetId)
+                .Select(r => r.LodgingId)
+                .ToHashSetAsync();
+            foreach (var row in lodgingRows)
+            {
+                if (existingLodgingTargetIds.Contains(row.LodgingId))
+                    db.LodgingTravellers.Remove(row);
+                else
+                {
+                    row.TravellerProfileId = targetId;
+                    existingLodgingTargetIds.Add(row.LodgingId);
+                }
+            }
+
+            // ActivityTraveller
+            var activityRows = await db.ActivityTravellers
+                .Where(r => sourceIds.Contains(r.TravellerProfileId))
+                .ToListAsync();
+            var existingActivityTargetIds = await db.ActivityTravellers
+                .Where(r => r.TravellerProfileId == targetId)
+                .Select(r => r.ActivityId)
+                .ToHashSetAsync();
+            foreach (var row in activityRows)
+            {
+                if (existingActivityTargetIds.Contains(row.ActivityId))
+                    db.ActivityTravellers.Remove(row);
+                else
+                {
+                    row.TravellerProfileId = targetId;
+                    existingActivityTargetIds.Add(row.ActivityId);
+                }
+            }
+
+            // ExpenseSplit
+            var splitRows = await db.ExpenseSplits
+                .Where(r => sourceIds.Contains(r.TravellerProfileId))
+                .ToListAsync();
+            var existingExpenseTargetIds = await db.ExpenseSplits
+                .Where(r => r.TravellerProfileId == targetId)
+                .Select(r => r.ExpenseId)
+                .ToHashSetAsync();
+            foreach (var row in splitRows)
+            {
+                if (existingExpenseTargetIds.Contains(row.ExpenseId))
+                    db.ExpenseSplits.Remove(row);
+                else
+                {
+                    row.TravellerProfileId = targetId;
+                    existingExpenseTargetIds.Add(row.ExpenseId);
+                }
+            }
+
+            await db.SaveChangesAsync();
+
+            // 3. Delete source profiles
+            db.TravellerProfiles.RemoveRange(sources);
+            await db.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
 }

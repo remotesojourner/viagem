@@ -89,15 +89,6 @@ public class TripRepository(ApplicationDbContext db) : ITripRepository
         return await db.Trips
             .Include(t => t.Destinations).ThenInclude(d => d.Place)
             .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile)
-            .Include(t => t.Transportations).ThenInclude(tr => tr.OriginPlace)
-            .Include(t => t.Transportations).ThenInclude(tr => tr.DestinationPlace)
-            .Include(t => t.Transportations).ThenInclude(tr => tr.Travellers).ThenInclude(tt => tt.TravellerProfile)
-            .Include(t => t.Lodgings).ThenInclude(l => l.Place)
-            .Include(t => t.Lodgings).ThenInclude(l => l.Travellers).ThenInclude(lt => lt.TravellerProfile)
-            .Include(t => t.Activities).ThenInclude(a => a.Place)
-            .Include(t => t.Activities).ThenInclude(a => a.Travellers).ThenInclude(at => at.TravellerProfile)
-            .Include(t => t.Expenses)
-            .Include(t => t.Attachments)
             .Where(t => t.OwnerId == userId ||
                 t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId))
             .FirstOrDefaultAsync(t => t.Id == tripId);

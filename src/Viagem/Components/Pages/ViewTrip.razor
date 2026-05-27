@@ -3,8 +3,12 @@
 @attribute [Authorize]
 @inject ITripService TripService
 @inject IExpenseService ExpenseService
+@inject ITransportationService TransportationService
+@inject ILodgingService LodgingService
+@inject IActivityService ActivityService
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
 @using Viagem.Services.Interfaces
 @using Viagem.Services.ViewModels
 @using GeoTimeZone
@@ -75,7 +79,7 @@ else
                                 </div>
                             </StartContent>
                             <ChildContent>
-                                <TransportationSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" TripTravellers="@(trip?.Travellers ?? [])" />
+                                <TransportationSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" TripTravellers="@(trip?.Travellers ?? [])" UserTimezone="@userTimezone" UserCurrency="@userCurrency" InitialItems="@transportations" OnItemCreated="OnTransportCreated" OnItemUpdated="OnTransportUpdated" OnItemDeleted="OnTransportDeleted" />
                             </ChildContent>
                         </LumexAccordionItem>
 
@@ -88,7 +92,7 @@ else
                                 </div>
                             </StartContent>
                             <ChildContent>
-                                <LodgingSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" TripTravellers="@(trip?.Travellers ?? [])" />
+                                <LodgingSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" TripTravellers="@(trip?.Travellers ?? [])" UserTimezone="@userTimezone" UserCurrency="@userCurrency" InitialItems="@lodgings" OnItemCreated="OnLodgingCreated" OnItemUpdated="OnLodgingUpdated" OnItemDeleted="OnLodgingDeleted" />
                             </ChildContent>
                         </LumexAccordionItem>
 
@@ -101,14 +105,14 @@ else
                                 </div>
                             </StartContent>
                             <ChildContent>
-                                <ActivitiesSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" TripTravellers="@(trip?.Travellers ?? [])" />
+                                <ActivitiesSection TripId="Id" CanEdit="canEdit" DefaultTimezone="@defaultTimezone" TripTravellers="@(trip?.Travellers ?? [])" UserTimezone="@userTimezone" UserCurrency="@userCurrency" InitialItems="@activities" OnItemCreated="OnActivityCreated" OnItemUpdated="OnActivityUpdated" OnItemDeleted="OnActivityDeleted" />
                             </ChildContent>
                         </LumexAccordionItem>
                     </LumexAccordion>
                 </LumexTab>
 
                 <LumexTab Id="itinerary" Title="Itinerary">
-                    <ItinerarySection TripId="Id" />
+                    <ItinerarySection InitialTransportations="@transportations" InitialLodgings="@lodgings" InitialActivities="@activities" />
                 </LumexTab>
 
                 <LumexTab Id="expenses" Title="Expenses">
@@ -135,14 +139,25 @@ else
     private bool loading = true;
     private bool canEdit = false;
     private string? userId;
+    private string? userTimezone;
+    private string userCurrency = "USD";
     private string activeTab = "organization";
     private string? defaultTimezone;
     private decimal tripTotalExpenses = 0;
+    private List<TransportationViewModel> transportations = [];
+    private List<LodgingViewModel> lodgings = [];
+    private List<ActivityViewModel> activities = [];
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+        {
+            var user = await UserManager.FindByIdAsync(userId);
+            userTimezone = user?.Timezone;
+            userCurrency = user?.CurrencyCode ?? "USD";
+        }
         await ReloadTrip();
     }
 
@@ -151,8 +166,17 @@ else
         loading = true;
         if (Id > 0 && userId != null)
         {
-            trip = await TripService.GetTripAsync(Id, userId);
-            canEdit = trip != null && await TripService.CanUserEditTripAsync(Id, userId);
+            var tripTask = TripService.GetTripAsync(Id, userId);
+            var canEditTask = TripService.CanUserEditTripAsync(Id, userId);
+            var transportTask = TransportationService.GetTripTransportationsAsync(Id);
+            var lodgingTask = LodgingService.GetTripLodgingsAsync(Id);
+            var activityTask = ActivityService.GetTripActivitiesAsync(Id);
+            await Task.WhenAll(tripTask, canEditTask, transportTask, lodgingTask, activityTask);
+            trip = tripTask.Result;
+            canEdit = trip != null && canEditTask.Result;
+            transportations = transportTask.Result;
+            lodgings = lodgingTask.Result;
+            activities = activityTask.Result;
             // Compute most common timezone among trip destinations
             defaultTimezone = trip?.Destinations
                 .Select(d =>
@@ -175,4 +199,15 @@ else
         }
         loading = false;
     }
+
+    // ── In-memory mutation callbacks ─────────────────────────────────────
+    private void OnTransportCreated(TransportationViewModel vm) { transportations.Add(vm); }
+    private void OnTransportUpdated(TransportationViewModel vm) { var i = transportations.FindIndex(x => x.Id == vm.Id); if (i >= 0) transportations[i] = vm; else transportations.Add(vm); }
+    private void OnTransportDeleted(int id) { transportations.RemoveAll(x => x.Id == id); }
+    private void OnLodgingCreated(LodgingViewModel vm) { lodgings.Add(vm); }
+    private void OnLodgingUpdated(LodgingViewModel vm) { var i = lodgings.FindIndex(x => x.Id == vm.Id); if (i >= 0) lodgings[i] = vm; else lodgings.Add(vm); }
+    private void OnLodgingDeleted(int id) { lodgings.RemoveAll(x => x.Id == id); }
+    private void OnActivityCreated(ActivityViewModel vm) { activities.Add(vm); }
+    private void OnActivityUpdated(ActivityViewModel vm) { var i = activities.FindIndex(x => x.Id == vm.Id); if (i >= 0) activities[i] = vm; else activities.Add(vm); }
+    private void OnActivityDeleted(int id) { activities.RemoveAll(x => x.Id == id); }
 }

@@ -480,7 +480,7 @@
     private async Task HandleDestInput(string? value)
     {
         destSearch = value ?? "";
-        if (destSearch.Length < 2) { destResults = []; return; }
+        if (destSearch.Length < 3) { destResults = []; return; }
         destResults = await PlaceService.SearchAsync(destSearch);
     }
 
@@ -517,7 +517,7 @@
     private void HandleTravellerSearch(string? value)
     {
         travellerSearch = value ?? "";
-        if (travellerSearch.Length < 1) { travellerSearchResults = []; return; }
+        if (travellerSearch.Length < 3) { travellerSearchResults = []; return; }
         var lower = travellerSearch.ToLowerInvariant();
         travellerSearchResults = availableTravellers
             .Where(p => p.LegalName.ToLowerInvariant().Contains(lower) && !editTravellers.ContainsKey(p.Id))

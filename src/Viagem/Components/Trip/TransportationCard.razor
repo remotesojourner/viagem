@@ -226,16 +226,24 @@
     {
         if (Item.Type == TransportationType.Flight)
         {
-            foreach (var code in new[] { Item.Origin, Item.Destination })
+            var codesToFetch = new[] { Item.Origin, Item.Destination }
+                .Where(c => !string.IsNullOrEmpty(c) && !airportData.ContainsKey(c!))
+                .Distinct()
+                .ToList();
+
+            if (codesToFetch.Count > 0)
             {
-                if (!string.IsNullOrEmpty(code) && !airportData.ContainsKey(code))
+                var tasks = codesToFetch.Select(code => AirportService.GetByCodeAsync(code!));
+                var results = await Task.WhenAll(tasks);
+                for (int i = 0; i < codesToFetch.Count; i++)
                 {
-                    var airport = await AirportService.GetByCodeAsync(code);
+                    var code = codesToFetch[i];
+                    var airport = results[i];
                     if (airport != null)
                     {
-                        airportNames[code] = airport.Name +
+                        airportNames[code!] = airport.Name +
                             (string.IsNullOrEmpty(airport.IsoCountry) ? "" : $" ({airport.IsoCountry})");
-                        airportData[code] = airport;
+                        airportData[code!] = airport;
                     }
                 }
             }
