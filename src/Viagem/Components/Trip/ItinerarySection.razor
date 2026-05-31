@@ -1,3 +1,4 @@
+@using Viagem.Common
 @using Viagem.Services.ViewModels
 
 @if (loading)
@@ -28,7 +29,7 @@ else
                         <p class="text-xs text-foreground-400">@events.Count event(s)</p>
                     </div>
                 </div>
-                <div class="ml-6 pl-6 border-l-2 border-primary-100 space-y-2">
+                <div class="ml-6 pl-6 border-l-2 border-default-200 space-y-2">
                     @foreach (var ev in events.OrderBy(e => e.Time))
                     {
                         <div class="relative flex gap-3">
@@ -83,17 +84,7 @@ else
 
         foreach (var t in transports)
         {
-            var icon = t.Type switch
-            {
-                TransportationType.Flight => "✈️",
-                TransportationType.Train => "🚂",
-                TransportationType.CarRental => "🚙",
-                TransportationType.Parking => "🅿️",
-                TransportationType.Bus => "🚌",
-                TransportationType.Taxi => "🚕",
-                TransportationType.Ferry => "⛴️",
-                _ => "🚗"
-            };
+            var icon = t.Type.GetIcon();
             var title = t.Type == TransportationType.CarRental
                 ? $"Car Rental – {t.RentalCompany ?? "Rental"} pickup"
                 : t.Type == TransportationType.Parking
@@ -110,7 +101,7 @@ else
 
         foreach (var l in lodgings)
         {
-            var icon = l.Type switch { LodgingType.Hotel => "🏨", LodgingType.Hostel => "🛏️", LodgingType.CampSite => "⛺", LodgingType.VacationRental => "🏡", _ => "🏠" };
+            var icon = l.Type.GetIcon();
             Add(l.StartDate, new(l.StartDate, icon, $"Check-in: {l.Name}", l.Address));
             Add(l.EndDate, new(l.EndDate, icon, $"Check-out: {l.Name}", null));
         }

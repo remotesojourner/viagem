@@ -16,7 +16,7 @@ public class TripExportService(IDbContextFactory<ApplicationDbContext> dbFactory
     {
         await using var db = await dbFactory.CreateDbContextAsync();
 
-        var trip = await LoadFullTripAsync(db, tripId, userId)
+        var trip = await GetTripWithDetailsAsync(db, tripId, userId)
             ?? throw new InvalidOperationException("Trip not found or access denied.");
 
         var dto = BuildDto(trip);
@@ -87,7 +87,7 @@ public class TripExportService(IDbContextFactory<ApplicationDbContext> dbFactory
         {
             foreach (var tripId in tripIds)
             {
-                var trip = await LoadFullTripAsync(db, tripId, userId);
+                var trip = await GetTripWithDetailsAsync(db, tripId, userId);
                 if (trip == null) continue;
 
                 var dto = BuildDto(trip);
@@ -140,20 +140,10 @@ public class TripExportService(IDbContextFactory<ApplicationDbContext> dbFactory
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private static async Task<Trip?> LoadFullTripAsync(ApplicationDbContext db, int tripId, string userId)
+    private static async Task<Trip?> GetTripWithDetailsAsync(ApplicationDbContext db, int tripId, string userId)
     {
         return await db.Trips
-            .Include(t => t.Destinations).ThenInclude(d => d.Place)
-            .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile)
-                .ThenInclude(p => p!.Aliases)
-            .Include(t => t.Transportations).ThenInclude(tr => tr.Expense)
-            .Include(t => t.Transportations).ThenInclude(tr => tr.Travellers).ThenInclude(tt => tt.TravellerProfile)
-            .Include(t => t.Lodgings).ThenInclude(l => l.Expense)
-            .Include(t => t.Lodgings).ThenInclude(l => l.Travellers).ThenInclude(lt => lt.TravellerProfile)
-            .Include(t => t.Activities).ThenInclude(a => a.Expense)
-            .Include(t => t.Activities).ThenInclude(a => a.Travellers).ThenInclude(at => at.TravellerProfile)
-            .Include(t => t.Expenses).ThenInclude(e => e.Splits).ThenInclude(s => s.TravellerProfile)
-            .Include(t => t.Attachments)
+            .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile).ThenInclude(tp => tp.Aliases)
             .Where(t => t.OwnerId == userId ||
                 t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId))
             .FirstOrDefaultAsync(t => t.Id == tripId);
@@ -171,6 +161,10 @@ public class TripExportService(IDbContextFactory<ApplicationDbContext> dbFactory
             BudgetAmount = trip.BudgetAmount,
             BudgetCurrency = trip.BudgetCurrency
         };
+
+        var profileMap = trip.Travellers
+            .Where(tt => tt.TravellerProfile != null)
+            .ToDictionary(tt => tt.TravellerProfileId, tt => tt.TravellerProfile!.LegalName);
 
         foreach (var dest in trip.Destinations)
             dto.Destinations.Add(new TripDestinationExportDto { PlaceId = dest.PlaceId, CustomName = dest.CustomName });
@@ -211,11 +205,11 @@ public class TripExportService(IDbContextFactory<ApplicationDbContext> dbFactory
                 DropOffLocation = tr.DropOffLocation,
                 SpotNumber = tr.SpotNumber,
                 ParkingAddress = tr.ParkingAddress,
-                CostAmount = tr.CostAmount,
-                CostCurrency = tr.CostCurrency,
-                TravellerLegalNames = tr.Travellers
-                    .Where(t => t.TravellerProfile != null)
-                    .Select(t => t.TravellerProfile!.LegalName)
+                CostAmount = trip.Expenses.FirstOrDefault(e => e.Id == tr.ExpenseId)?.Amount,
+                CostCurrency = trip.Expenses.FirstOrDefault(e => e.Id == tr.ExpenseId)?.Currency,
+                TravellerLegalNames = tr.TravellerProfileIds
+                    .Where(id => profileMap.ContainsKey(id))
+                    .Select(id => profileMap[id])
                     .ToList()
             });
 
@@ -231,11 +225,11 @@ public class TripExportService(IDbContextFactory<ApplicationDbContext> dbFactory
                 StartDate = l.StartDate,
                 EndDate = l.EndDate,
                 Timezone = l.Timezone,
-                CostAmount = l.CostAmount,
-                CostCurrency = l.CostCurrency,
-                TravellerLegalNames = l.Travellers
-                    .Where(t => t.TravellerProfile != null)
-                    .Select(t => t.TravellerProfile!.LegalName)
+                CostAmount = trip.Expenses.FirstOrDefault(e => e.Id == l.ExpenseId)?.Amount,
+                CostCurrency = trip.Expenses.FirstOrDefault(e => e.Id == l.ExpenseId)?.Currency,
+                TravellerLegalNames = l.TravellerProfileIds
+                    .Where(id => profileMap.ContainsKey(id))
+                    .Select(id => profileMap[id])
                     .ToList()
             });
 
@@ -250,16 +244,21 @@ public class TripExportService(IDbContextFactory<ApplicationDbContext> dbFactory
                 StartDate = a.StartDate,
                 EndDate = a.EndDate,
                 Timezone = a.Timezone,
-                CostAmount = a.CostAmount,
-                CostCurrency = a.CostCurrency,
-                TravellerLegalNames = a.Travellers
-                    .Where(t => t.TravellerProfile != null)
-                    .Select(t => t.TravellerProfile!.LegalName)
+                CostAmount = trip.Expenses.FirstOrDefault(e => e.Id == a.ExpenseId)?.Amount,
+                CostCurrency = trip.Expenses.FirstOrDefault(e => e.Id == a.ExpenseId)?.Currency,
+                TravellerLegalNames = a.TravellerProfileIds
+                    .Where(id => profileMap.ContainsKey(id))
+                    .Select(id => profileMap[id])
                     .ToList()
             });
 
-        // Only standalone expenses (linked ones are recreated when transport/lodging/activity is created)
-        foreach (var e in trip.Expenses.Where(e => e.SourceType == null))
+        // Only standalone expenses (linked ones are exported with their parents)
+        var linkedExpenseIds = trip.Transportations.Where(t => t.ExpenseId != null).Select(t => t.ExpenseId!.Value)
+            .Concat(trip.Lodgings.Where(l => l.ExpenseId != null).Select(l => l.ExpenseId!.Value))
+            .Concat(trip.Activities.Where(a => a.ExpenseId != null).Select(a => a.ExpenseId!.Value))
+            .ToHashSet();
+
+        foreach (var e in trip.Expenses.Where(e => !linkedExpenseIds.Contains(e.Id)))
             dto.Expenses.Add(new ExpenseExportDto
             {
                 Name = e.Name,
@@ -269,8 +268,8 @@ public class TripExportService(IDbContextFactory<ApplicationDbContext> dbFactory
                 Currency = e.Currency,
                 OccurredOn = e.OccurredOn,
                 Splits = e.Splits
-                    .Where(s => s.TravellerProfile != null)
-                    .ToDictionary(s => s.TravellerProfile!.LegalName, s => s.Amount)
+                    .Where(s => profileMap.ContainsKey(s.TravellerProfileId))
+                    .ToDictionary(s => profileMap[s.TravellerProfileId], s => s.Amount)
             });
 
         return dto;

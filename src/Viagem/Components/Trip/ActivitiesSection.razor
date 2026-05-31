@@ -1,9 +1,10 @@
 @using Viagem.Services.Interfaces
+@using Viagem.Common
 @using Viagem.Services.ViewModels
-@inject IActivityService ActivityService
+@inject ITripService TripService
 
 <!-- Add / Edit Modal -->
-<LumexModal @bind-Open="showModal" OnClose="CloseModal">
+<LumexModal @bind-Open="showModal" OnClose="CloseModal" Size="ModalSize.Large">
     <LumexModalContent Context="modal">
         <LumexModalHeader>
             <h3 class="text-lg font-semibold text-foreground">
@@ -26,12 +27,11 @@
                 </div>
             </div>
             <div>
-                <LumexSelect TValue="string" @bind-Value="formTimezone" Label="Timezone" Placeholder="— select timezone —">
-                    @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
-                    {
-                        <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
-                    }
-                </LumexSelect>
+                <SearchableDropdown TItem="string"
+                                    @bind-Value="formTimezone"
+                                    Items="AppConstants.Timezones"
+                                    Label="Timezone"
+                                    Placeholder="— select timezone —" />
             </div>
             <div>
                 <LumexTextbox @bind-Value="formAddress" Label="Address / Location" Placeholder="Where is this?" />
@@ -45,9 +45,15 @@
                 </div>
                 <div>
                     <LumexSelect TValue="string" @bind-Value="formCostCurrency" Label="Currency">
-                        @foreach (var c in Currencies)
+                        @foreach (var c in Common.AppConstants.Currencies)
                         {
-                            <LumexSelectItem Value="@c">@c</LumexSelectItem>
+                            <LumexSelectItem Value="@c.Code">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-base">@c.Flag</span>
+                                    <span class="font-medium">@c.Code</span>
+                                    <span class="text-foreground-400 text-xs">@c.Name</span>
+                                </div>
+                            </LumexSelectItem>
                         }
                     </LumexSelect>
                 </div>
@@ -116,16 +122,17 @@ else
     }
     else
     {
-        @foreach (var group in items.OrderBy(i => i.StartDate).GroupBy(i => i.StartDate.Date))
-        {
-            <div class="mb-5">
-                <h5 class="text-sm font-semibold text-foreground-400 uppercase tracking-wide mb-2">
-                    @group.Key.ToString("dddd, MMMM d")
+        <Virtualize Items="GetFlattenedItems()" Context="listItem" OverscanCount="10">
+            @if (listItem.GroupDate.HasValue)
+            {
+                <h5 class="text-sm font-semibold text-foreground-400 uppercase tracking-wide mb-2 mt-5 first:mt-0">
+                    @listItem.GroupDate.Value.ToString("dddd, MMMM d")
                 </h5>
-                <div class="space-y-2">
-                    @foreach (var item in group.OrderBy(i => i.StartDate))
-                    {
-                        <div class="flex items-start justify-between p-3 bg-default-50 rounded-xl border border-divider hover:border-foreground-300 transition-colors">
+            }
+            else if (listItem.Activity != null)
+            {
+                var item = listItem.Activity;
+                <div class="mb-2 flex items-start justify-between p-3 bg-default-50 rounded-xl border border-divider hover:border-foreground-300 transition-colors">
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl mt-0.5">🎯</span>
                                 <div>
@@ -201,11 +208,9 @@ else
                             {
                                 <a href="@item.Link" target="_blank" rel="noopener" class="text-xs text-primary hover:underline ml-2 shrink-0">Link</a>
                             }
-                        </div>
-                    }
                 </div>
-            </div>
-        }
+            }
+        </Virtualize>
     }
 }
 
@@ -219,11 +224,12 @@ else
     [Parameter] public string UserCurrency { get; set; } = "USD";
     [Parameter] public EventCallback<ActivityViewModel> OnItemCreated { get; set; }
     [Parameter] public EventCallback<ActivityViewModel> OnItemUpdated { get; set; }
-    [Parameter] public EventCallback<int> OnItemDeleted { get; set; }
+    [Parameter] public EventCallback<Guid> OnItemDeleted { get; set; }
+    [Parameter] public string UserId { get; set; } = "";
 
     private List<ActivityViewModel> items = [];
     private bool loading = true;
-    private int? menuOpenId;
+    private Guid? menuOpenId;
     private bool saving = false;
     private bool showModal = false;
     private ActivityViewModel? editItem;
@@ -241,11 +247,27 @@ else
     private string formCostCurrency = "USD";
     private List<int> formTravellerIds = [];
 
+    private record ActivityListItem(DateTime? GroupDate, ActivityViewModel? Activity);
 
-    private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
+    private List<ActivityListItem> GetFlattenedItems()
+    {
+        var list = new List<ActivityListItem>();
+        foreach (var group in items.OrderBy(i => i.StartDate).GroupBy(i => i.StartDate.Date))
+        {
+            list.Add(new ActivityListItem(group.Key, null));
+            foreach (var item in group.OrderBy(i => i.StartDate))
+            {
+                list.Add(new ActivityListItem(null, item));
+            }
+        }
+        return list;
+    }
+
+
+
 
     private string? userTimezone;
-    private Dictionary<int, string> tzTooltipCache = [];
+    private Dictionary<Guid, string> tzTooltipCache = [];
     private bool _needsRender = true;
 
     protected override bool ShouldRender()
@@ -330,7 +352,8 @@ else
         saving = true;
         if (editItem != null)
         {
-            var updated = await ActivityService.UpdateAsync(new UpdateActivityRequest(editItem.Id, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds));
+            var req = new UpdateActivityRequest(TripId, editItem.Id, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds);
+            var updated = await TripService.UpdateActivityAsync(UserId, req);
             if (updated != null)
             {
                 var idx = items.FindIndex(i => i.Id == updated.Id);
@@ -340,7 +363,8 @@ else
         }
         else
         {
-            var created = await ActivityService.CreateAsync(new CreateActivityRequest(TripId, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds));
+            var req = new CreateActivityRequest(TripId, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds);
+            var created = await TripService.AddActivityAsync(UserId, req);
             items.Add(created);
             if (OnItemCreated.HasDelegate) await OnItemCreated.InvokeAsync(created);
         }
@@ -349,9 +373,9 @@ else
         _needsRender = true;
     }
 
-    private async Task DeleteItem(int id)
+    private async Task DeleteItem(Guid id)
     {
-        await ActivityService.DeleteAsync(id);
+        await TripService.RemoveActivityAsync(UserId, TripId, id);
         items.RemoveAll(i => i.Id == id);
         _needsRender = true;
         if (OnItemDeleted.HasDelegate) await OnItemDeleted.InvokeAsync(id);

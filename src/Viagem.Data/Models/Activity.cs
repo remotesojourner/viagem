@@ -4,7 +4,7 @@ namespace Viagem.Data.Models;
 
 public class Activity
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     [Required, MaxLength(200)]
     public string Name { get; set; } = "";
@@ -18,39 +18,15 @@ public class Activity
     public DateTime? EndDate { get; set; }
     public string? Timezone { get; set; }
 
-    public decimal? CostAmount => Expense?.Amount;
-    public string? CostCurrency => Expense?.Currency;
-
-    public int TripId { get; set; }
-    public Trip? Trip { get; set; }
+    // Cost properties removed (UI concern bleeding into model)
 
     public int? PlaceId { get; set; }
-    public Place? Place { get; set; }
 
-    public int? ExpenseId { get; set; }
-    public Expense? Expense { get; set; }
+    public Guid? ExpenseId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    public ICollection<ActivityAttachment> Attachments { get; set; } = [];
-    public ICollection<ActivityTraveller> Travellers { get; set; } = [];
-}
-
-public class ActivityTraveller
-{
-    public int Id { get; set; }
-    public int ActivityId { get; set; }
-    public Activity? Activity { get; set; }
-    public int TravellerProfileId { get; set; }
-    public TravellerProfile? TravellerProfile { get; set; }
-}
-
-public class ActivityAttachment
-{
-    public int Id { get; set; }
-    public int ActivityId { get; set; }
-    public Activity? Activity { get; set; }
-    public int AttachmentId { get; set; }
-    public TripAttachment? Attachment { get; set; }
+    public List<Guid> AttachmentIds { get; set; } = [];
+    public List<int> TravellerProfileIds { get; set; } = [];
 }

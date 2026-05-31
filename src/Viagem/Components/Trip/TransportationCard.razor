@@ -1,10 +1,11 @@
-﻿@inject IAirportService AirportService
+@inject IAirportService AirportService
 @using GeoTimeZone
 @using Viagem.Services.Interfaces
 @using Viagem.Services.ViewModels
+@using Viagem.Common
 <div class="flex items-start justify-between p-3 bg-default-50 rounded-xl border border-divider hover:border-foreground-300 transition-colors">
     <div class="flex items-start gap-3">
-        <span class="text-2xl mt-0.5">@GetIcon(Item.Type)</span>
+        <span class="text-2xl mt-0.5">@Item.Type.GetIcon()</span>
         <div class="min-w-0">
             <div class="flex flex-wrap items-baseline gap-2">
                 <span class="font-semibold text-foreground text-sm">
@@ -299,19 +300,6 @@
         TransportationType.Parking => "Parking",
         _ => $"{Item.Provider ?? Item.Type.ToString()}"
     };
-
-    private static string GetIcon(TransportationType type) => type switch
-    {
-        TransportationType.Flight => "✈️",
-        TransportationType.Train => "🚂",
-        TransportationType.Bus => "🚌",
-        TransportationType.Car => "🚗",
-        TransportationType.CarRental => "🚙",
-        TransportationType.Taxi => "🚕",
-        TransportationType.Ferry => "⛴️",
-        TransportationType.Bike => "🚲",
-        TransportationType.Walk => "🚶",
-        TransportationType.Parking => "🅿️",
-        _ => "🚀"
-    };
 }
+
+

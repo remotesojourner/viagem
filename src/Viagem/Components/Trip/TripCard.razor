@@ -1,4 +1,4 @@
-﻿@using Viagem.Services.Interfaces
+@using Viagem.Services.Interfaces
 @using Viagem.Services.ViewModels
 @inject ITripService TripService
 @inject AuthenticationStateProvider AuthStateProvider
@@ -9,14 +9,14 @@
     <a href="/trips/@Trip.Id" class="absolute inset-0 z-0" aria-label="View @Trip.Name"></a>
 
 
-    <div class="h-36 relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 pointer-events-none">
+    <div class="h-36 relative overflow-hidden bg-default-100 pointer-events-none">
         @if (!string.IsNullOrEmpty(Trip.CoverImagePath))
         {
             <img src="@Trip.CoverImagePath" alt="@Trip.Name" class="absolute inset-0 w-full h-full object-cover" />
         }
         else
         {
-            <svg class="absolute inset-0 m-auto w-12 h-12 text-white opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="absolute inset-0 m-auto w-12 h-12 text-default-400 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
             </svg>
         }

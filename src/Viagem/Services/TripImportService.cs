@@ -3,7 +3,6 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Viagem.Data;
 using Viagem.Data.Models;
-using Viagem.Data.Repositories.Interfaces;
 using Viagem.Services.ImportExport;
 
 namespace Viagem.Services;
@@ -19,7 +18,6 @@ public class ImportResult
 
 public class TripImportService(
     IDbContextFactory<ApplicationDbContext> dbFactory,
-    IExpenseRepository expenseRepo,
     IWebHostEnvironment env)
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
@@ -99,7 +97,7 @@ public class TripImportService(
             {
                 var transport = new Transportation
                 {
-                    TripId = trip.Id,
+                    Id = Guid.NewGuid(),
                     Type = tr.Type,
                     Origin = tr.Origin,
                     OriginCity = tr.OriginCity,
@@ -120,25 +118,31 @@ public class TripImportService(
                     DropOffLocation = tr.DropOffLocation,
                     SpotNumber = tr.SpotNumber,
                     ParkingAddress = tr.ParkingAddress,
-                    Travellers = tr.TravellerLegalNames
+                    TravellerProfileIds = tr.TravellerLegalNames
                         .Where(n => profileMap.ContainsKey(n))
-                        .Select(n => new TransportationTraveller { TravellerProfileId = profileMap[n] })
+                        .Select(n => profileMap[n])
                         .ToList()
                 };
-                db.Transportations.Add(transport);
-                await db.SaveChangesAsync();
 
                 if (tr.CostAmount is > 0 && !string.IsNullOrEmpty(tr.CostCurrency))
                 {
-                    var expenseId = await expenseRepo.UpsertLinkedAsync(
-                        trip.Id, "Transportation", transport.Id,
-                        $"{transport.Type} – {transport.Origin ?? ""} → {transport.Destination ?? ""}",
-                        ExpenseCategory.Transport, tr.CostAmount.Value, tr.CostCurrency,
-                        transport.DepartureTime, null);
-                    transport.ExpenseId = expenseId;
-                    db.Transportations.Update(transport);
-                    await db.SaveChangesAsync();
+                    var expId = Guid.NewGuid();
+                    var expense = new Expense
+                    {
+                        Id = expId,
+                        Name = $"{transport.Type} – {transport.Origin ?? ""} → {transport.Destination ?? ""}",
+                        Category = ExpenseCategory.Transport,
+                        Amount = tr.CostAmount.Value,
+                        Currency = tr.CostCurrency,
+                        OccurredOn = transport.DepartureTime,
+                        CreatedById = ownerId,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    trip.Expenses.Add(expense);
+                    transport.ExpenseId = expId;
                 }
+                trip.Transportations.Add(transport);
             }
 
             // Lodgings
@@ -146,7 +150,7 @@ public class TripImportService(
             {
                 var lodging = new Lodging
                 {
-                    TripId = trip.Id,
+                    Id = Guid.NewGuid(),
                     Type = l.Type,
                     Name = l.Name,
                     Address = l.Address,
@@ -156,25 +160,31 @@ public class TripImportService(
                     StartDate = l.StartDate,
                     EndDate = l.EndDate,
                     Timezone = l.Timezone,
-                    Travellers = l.TravellerLegalNames
+                    TravellerProfileIds = l.TravellerLegalNames
                         .Where(n => profileMap.ContainsKey(n))
-                        .Select(n => new LodgingTraveller { TravellerProfileId = profileMap[n] })
+                        .Select(n => profileMap[n])
                         .ToList()
                 };
-                db.Lodgings.Add(lodging);
-                await db.SaveChangesAsync();
 
                 if (l.CostAmount is > 0 && !string.IsNullOrEmpty(l.CostCurrency))
                 {
-                    var expenseId = await expenseRepo.UpsertLinkedAsync(
-                        trip.Id, "Lodging", lodging.Id,
-                        $"{l.Type} – {l.Name}",
-                        ExpenseCategory.Accommodation, l.CostAmount.Value, l.CostCurrency,
-                        l.StartDate, null);
-                    lodging.ExpenseId = expenseId;
-                    db.Lodgings.Update(lodging);
-                    await db.SaveChangesAsync();
+                    var expId = Guid.NewGuid();
+                    var expense = new Expense
+                    {
+                        Id = expId,
+                        Name = $"{l.Type} – {l.Name}",
+                        Category = ExpenseCategory.Accommodation,
+                        Amount = l.CostAmount.Value,
+                        Currency = l.CostCurrency,
+                        OccurredOn = l.StartDate,
+                        CreatedById = ownerId,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    trip.Expenses.Add(expense);
+                    lodging.ExpenseId = expId;
                 }
+                trip.Lodgings.Add(lodging);
             }
 
             // Activities
@@ -182,7 +192,7 @@ public class TripImportService(
             {
                 var activity = new Activity
                 {
-                    TripId = trip.Id,
+                    Id = Guid.NewGuid(),
                     Name = a.Name,
                     Description = a.Description,
                     Address = a.Address,
@@ -191,25 +201,31 @@ public class TripImportService(
                     StartDate = a.StartDate,
                     EndDate = a.EndDate,
                     Timezone = a.Timezone,
-                    Travellers = a.TravellerLegalNames
+                    TravellerProfileIds = a.TravellerLegalNames
                         .Where(n => profileMap.ContainsKey(n))
-                        .Select(n => new ActivityTraveller { TravellerProfileId = profileMap[n] })
+                        .Select(n => profileMap[n])
                         .ToList()
                 };
-                db.Activities.Add(activity);
-                await db.SaveChangesAsync();
 
                 if (a.CostAmount is > 0 && !string.IsNullOrEmpty(a.CostCurrency))
                 {
-                    var expenseId = await expenseRepo.UpsertLinkedAsync(
-                        trip.Id, "Activity", activity.Id,
-                        a.Name, ExpenseCategory.Activities,
-                        a.CostAmount.Value, a.CostCurrency,
-                        a.StartDate, null);
-                    activity.ExpenseId = expenseId;
-                    db.Activities.Update(activity);
-                    await db.SaveChangesAsync();
+                    var expId = Guid.NewGuid();
+                    var expense = new Expense
+                    {
+                        Id = expId,
+                        Name = a.Name,
+                        Category = ExpenseCategory.Activities,
+                        Amount = a.CostAmount.Value,
+                        Currency = a.CostCurrency,
+                        OccurredOn = a.StartDate,
+                        CreatedById = ownerId,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    trip.Expenses.Add(expense);
+                    activity.ExpenseId = expId;
                 }
+                trip.Activities.Add(activity);
             }
 
             // Standalone expenses
@@ -217,7 +233,7 @@ public class TripImportService(
             {
                 var expense = new Expense
                 {
-                    TripId = trip.Id,
+                    Id = Guid.NewGuid(),
                     Name = e.Name,
                     Category = e.Category,
                     Notes = e.Notes,
@@ -233,8 +249,9 @@ public class TripImportService(
                     if (profileMap.TryGetValue(name, out var pid))
                         expense.Splits.Add(new ExpenseSplit { TravellerProfileId = pid, Amount = amount });
                 }
-                db.Expenses.Add(expense);
+                trip.Expenses.Add(expense);
             }
+            db.Trips.Update(trip);
             await db.SaveChangesAsync();
 
             // Cover image
@@ -271,9 +288,9 @@ public class TripImportService(
                 await using var fs = File.Create(fullPath);
                 await entryStream.CopyToAsync(fs);
 
-                db.TripAttachments.Add(new TripAttachment
+                trip.Attachments.Add(new TripAttachment
                 {
-                    TripId = trip.Id,
+                    Id = Guid.NewGuid(),
                     FileName = att.FileName,
                     FilePath = $"/trips/{trip.Id}/attachments/{safeFileName}",
                     ContentType = att.ContentType,
@@ -282,6 +299,7 @@ public class TripImportService(
                     UploadedAt = DateTime.UtcNow
                 });
             }
+            db.Trips.Update(trip);
             await db.SaveChangesAsync();
 
             result.Success = true;

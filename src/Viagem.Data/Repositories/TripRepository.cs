@@ -6,7 +6,7 @@ namespace Viagem.Data.Repositories;
 
 public class TripRepository(ApplicationDbContext db) : ITripRepository
 {
-    public async Task<PagedResult<TripSummaryRow>> GetUpcomingPagedAsync(string userId, int page, int pageSize, string filter = "all")
+    public async Task<PagedResult<Trip>> GetUpcomingPagedAsync(string userId, int page, int pageSize, string filter = "all")
     {
         var now = DateTime.UtcNow.Date;
         var query = db.Trips
@@ -23,29 +23,17 @@ public class TripRepository(ApplicationDbContext db) : ITripRepository
 
         var total = await query.CountAsync();
         var items = await query
+            .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile)
             .OrderBy(t => t.StartDate)
             .Skip(page * pageSize)
             .Take(pageSize)
-            .Select(t => new TripSummaryRow
-            {
-                Id = t.Id,
-                Name = t.Name,
-                CoverImagePath = t.CoverImagePath,
-                StartDate = t.StartDate,
-                EndDate = t.EndDate,
-                OwnerId = t.OwnerId,
-                CurrentUserIsTraveller = t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId),
-                DestinationNames = t.Destinations
-                    .Select(d => d.CustomName != null ? d.CustomName : d.Place != null ? d.Place.Name : "")
-                    .Where(n => n != "")
-                    .ToList()
-            })
+            .AsSplitQuery()
             .ToListAsync();
 
-        return new PagedResult<TripSummaryRow> { Items = items, TotalCount = total };
+        return new PagedResult<Trip> { Items = items, TotalCount = total };
     }
 
-    public async Task<PagedResult<TripSummaryRow>> GetPastPagedAsync(string userId, int page, int pageSize, string filter = "all")
+    public async Task<PagedResult<Trip>> GetPastPagedAsync(string userId, int page, int pageSize, string filter = "all")
     {
         var now = DateTime.UtcNow.Date;
         var query = db.Trips
@@ -62,35 +50,23 @@ public class TripRepository(ApplicationDbContext db) : ITripRepository
 
         var total = await query.CountAsync();
         var items = await query
+            .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile)
             .OrderByDescending(t => t.StartDate)
             .Skip(page * pageSize)
             .Take(pageSize)
-            .Select(t => new TripSummaryRow
-            {
-                Id = t.Id,
-                Name = t.Name,
-                CoverImagePath = t.CoverImagePath,
-                StartDate = t.StartDate,
-                EndDate = t.EndDate,
-                OwnerId = t.OwnerId,
-                CurrentUserIsTraveller = t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId),
-                DestinationNames = t.Destinations
-                    .Select(d => d.CustomName != null ? d.CustomName : d.Place != null ? d.Place.Name : "")
-                    .Where(n => n != "")
-                    .ToList()
-            })
+            .AsSplitQuery()
             .ToListAsync();
 
-        return new PagedResult<TripSummaryRow> { Items = items, TotalCount = total };
+        return new PagedResult<Trip> { Items = items, TotalCount = total };
     }
 
     public async Task<Trip?> GetByIdAsync(int tripId, string userId)
     {
         return await db.Trips
-            .Include(t => t.Destinations).ThenInclude(d => d.Place)
             .Include(t => t.Travellers).ThenInclude(tt => tt.TravellerProfile)
             .Where(t => t.OwnerId == userId ||
                 t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId))
+            .AsSplitQuery()
             .FirstOrDefaultAsync(t => t.Id == tripId);
     }
 
@@ -119,6 +95,24 @@ public class TripRepository(ApplicationDbContext db) : ITripRepository
         return trip;
     }
 
+    public async Task<Trip> UpdateWithRelationsAsync(Trip trip, IEnumerable<TripDestination> destinations, IEnumerable<TripTraveller> travellers)
+    {
+        trip.UpdatedAt = DateTime.UtcNow;
+
+        // Clear and refill owned JSON collection
+        trip.Destinations.Clear();
+        foreach (var d in destinations) trip.Destinations.Add(d);
+
+        db.Trips.Update(trip);
+
+        var existingTravellers = await db.TripTravellers.Where(t => t.TripId == trip.Id).ToListAsync();
+        db.TripTravellers.RemoveRange(existingTravellers);
+        db.TripTravellers.AddRange(travellers.Select(t => { t.TripId = trip.Id; return t; }));
+
+        await db.SaveChangesAsync();
+        return trip;
+    }
+
     public async Task DeleteAsync(int tripId, string userId)
     {
         var trip = await db.Trips.FirstOrDefaultAsync(t => t.Id == tripId && t.OwnerId == userId);
@@ -139,27 +133,33 @@ public class TripRepository(ApplicationDbContext db) : ITripRepository
 
     public async Task<TripDestination> AddDestinationAsync(int tripId, int placeId)
     {
-        var dest = new TripDestination { TripId = tripId, PlaceId = placeId };
-        db.TripDestinations.Add(dest);
+        var trip = await db.Trips.FindAsync(tripId);
+        if (trip == null) throw new InvalidOperationException("Trip not found");
+        var dest = new TripDestination { PlaceId = placeId };
+        trip.Destinations.Add(dest);
         await db.SaveChangesAsync();
-        await db.Entry(dest).Reference(d => d.Place).LoadAsync();
         return dest;
     }
 
     public async Task<TripDestination> AddDestinationCustomAsync(int tripId, string customName)
     {
-        var dest = new TripDestination { TripId = tripId, CustomName = customName.Trim() };
-        db.TripDestinations.Add(dest);
+        var trip = await db.Trips.FindAsync(tripId);
+        if (trip == null) throw new InvalidOperationException("Trip not found");
+        var dest = new TripDestination { CustomName = customName.Trim() };
+        trip.Destinations.Add(dest);
         await db.SaveChangesAsync();
         return dest;
     }
 
-    public async Task RemoveDestinationAsync(int destinationId)
+    public async Task RemoveDestinationAsync(int tripId, Guid destinationId)
     {
-        var dest = await db.TripDestinations.FindAsync(destinationId);
+        var trip = await db.Trips.FindAsync(tripId);
+        if (trip == null) return;
+
+        var dest = trip.Destinations.FirstOrDefault(d => d.Id == destinationId);
         if (dest != null)
         {
-            db.TripDestinations.Remove(dest);
+            trip.Destinations.Remove(dest);
             await db.SaveChangesAsync();
         }
     }

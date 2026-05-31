@@ -7,5 +7,5 @@ public interface IAttachmentService
 {
     Task<List<AttachmentViewModel>> GetTripAttachmentsAsync(int tripId);
     Task<AttachmentViewModel> UploadAsync(int tripId, string userId, IBrowserFile file);
-    Task DeleteAsync(int id);
+    Task DeleteAsync(Guid id);
 }

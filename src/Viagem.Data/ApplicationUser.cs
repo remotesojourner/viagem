@@ -8,7 +8,7 @@ public class ApplicationUser : IdentityUser
     public string? CurrencyCode { get; set; }
     public string? Timezone { get; set; }
     public string? MapsProvider { get; set; }
-    public string? WebsiteAppearance { get; set; } = "system";
+    public string? ThemeColor { get; set; } = "blue";
     public string? AvatarPath { get; set; }
     public bool IsAdmin { get; set; }
     public bool RequirePasswordChange { get; set; } = false;

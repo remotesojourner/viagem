@@ -14,7 +14,7 @@ public enum LodgingType
 
 public class Lodging
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     [Required]
     public LodgingType Type { get; set; }
@@ -31,39 +31,15 @@ public class Lodging
     public DateTime EndDate { get; set; }
     public string? Timezone { get; set; }
 
-    public decimal? CostAmount => Expense?.Amount;
-    public string? CostCurrency => Expense?.Currency;
-
-    public int TripId { get; set; }
-    public Trip? Trip { get; set; }
+    // Cost properties removed (UI concern bleeding into model)
 
     public int? PlaceId { get; set; }
-    public Place? Place { get; set; }
 
-    public int? ExpenseId { get; set; }
-    public Expense? Expense { get; set; }
+    public Guid? ExpenseId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    public ICollection<LodgingAttachment> Attachments { get; set; } = [];
-    public ICollection<LodgingTraveller> Travellers { get; set; } = [];
-}
-
-public class LodgingTraveller
-{
-    public int Id { get; set; }
-    public int LodgingId { get; set; }
-    public Lodging? Lodging { get; set; }
-    public int TravellerProfileId { get; set; }
-    public TravellerProfile? TravellerProfile { get; set; }
-}
-
-public class LodgingAttachment
-{
-    public int Id { get; set; }
-    public int LodgingId { get; set; }
-    public Lodging? Lodging { get; set; }
-    public int AttachmentId { get; set; }
-    public TripAttachment? Attachment { get; set; }
+    public List<Guid> AttachmentIds { get; set; } = [];
+    public List<int> TravellerProfileIds { get; set; } = [];
 }

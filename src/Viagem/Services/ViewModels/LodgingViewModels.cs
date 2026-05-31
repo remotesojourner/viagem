@@ -3,7 +3,7 @@ using Viagem.Data.Models;
 namespace Viagem.Services.ViewModels;
 
 public record LodgingViewModel(
-    int Id,
+    Guid Id,
     int TripId,
     LodgingType Type,
     string Name,

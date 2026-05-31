@@ -55,25 +55,18 @@ builder.Services.AddScoped<ITripRepository, TripRepository>();
 builder.Services.AddScoped<IPlaceRepository, PlaceRepository>();
 builder.Services.AddScoped<IAirportRepository, AirportRepository>();
 builder.Services.AddScoped<IAirlineRepository, AirlineRepository>();
-builder.Services.AddScoped<ITransportationRepository, TransportationRepository>();
-builder.Services.AddScoped<ILodgingRepository, LodgingRepository>();
-builder.Services.AddScoped<IActivityRepository, ActivityRepository>();
-builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
 builder.Services.AddScoped<ITravellerProfileRepository, TravellerProfileRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
-builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
 builder.Services.AddScoped<ISiteSettingsRepository, SiteSettingsRepository>();
 
 // Domain services
+builder.Services.AddSingleton<IReferenceDataCache, ReferenceDataCache>();
 builder.Services.AddScoped<ITripService, TripService>();
 builder.Services.AddScoped<IPlaceService, PlaceService>();
 builder.Services.AddScoped<IAirportService, AirportService>();
 builder.Services.AddScoped<IAirlineService, AirlineService>();
-builder.Services.AddScoped<ITransportationService, TransportationService>();
 builder.Services.AddScoped<IFlightRouteService, FlightRouteService>();
-builder.Services.AddScoped<ILodgingService, LodgingService>();
-builder.Services.AddScoped<IActivityService, ActivityService>();
-builder.Services.AddScoped<IExpenseService, ExpenseService>();
+builder.Services.AddScoped<TripStateContainer>();
 builder.Services.AddScoped<ITravellerProfileService, TravellerProfileService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
@@ -102,10 +95,14 @@ if (!app.Environment.IsDevelopment())
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+var uploadsDir = Path.Combine(builder.Environment.WebRootPath, "uploads");
+if (!Directory.Exists(uploadsDir))
+{
+    Directory.CreateDirectory(uploadsDir);
+}
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(builder.Environment.WebRootPath, "uploads")),
+    FileProvider = new PhysicalFileProvider(uploadsDir),
     RequestPath = "/uploads"
 });
 app.MapRazorComponents<App>()
@@ -142,6 +139,10 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await db.Database.MigrateAsync();
+    
+    var cache = scope.ServiceProvider.GetRequiredService<IReferenceDataCache>();
+    await cache.InitializeAsync();
+
     var seeder = scope.ServiceProvider.GetRequiredService<DataSeedService>();
     await seeder.SeedAsync();
 

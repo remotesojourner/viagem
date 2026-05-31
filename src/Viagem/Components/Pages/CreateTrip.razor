@@ -1,8 +1,9 @@
-﻿@page "/trips/create"
+@page "/trips/create"
 @rendermode InteractiveServer
 @attribute [Authorize]
 @using Viagem.Services.Interfaces
 @using Viagem.Services.ViewModels
+@using Viagem.Common
 @inject ITripService TripService
 @inject IPlaceService PlaceService
 @inject ITravellerProfileService TravellerService
@@ -48,12 +49,13 @@
         <!-- Budget -->
         <div class="grid grid-cols-2 gap-4">
             <LumexNumbox TValue="decimal?" @bind-Value="budgetAmount" Label="Budget Amount" Placeholder="0.00" />
-            <LumexSelect TValue="string" @bind-Value="budgetCurrency" Label="Currency" Placeholder="Select currency...">
-                @foreach (var c in Currencies)
-                {
-                    <LumexSelectItem Value="@c.Code">@(c.Code + " - " + c.Name)</LumexSelectItem>
-                }
-            </LumexSelect>
+            <SearchableDropdown TItem="CurrencyItem"
+                                Value="@AppConstants.Currencies.FirstOrDefault(c => c.Code == budgetCurrency)"
+                                ValueChanged="@(c => budgetCurrency = c?.Code ?? "USD")"
+                                Items="AppConstants.Currencies"
+                                ItemText='c => $"{c.Flag} {c.Code} - {c.Name}"'
+                                Label="Currency"
+                                Placeholder="Select currency..." />
         </div>
 
         <!-- Destinations -->
@@ -68,31 +70,34 @@
                     }
                 </div>
             }
-            <div class="flex gap-2">
-                <div class="flex-1 relative">
-                    <LumexTextbox Value="@destSearch" ValueChanged="@(async v => await HandleDestInput(v))" Label="" Placeholder="Search city or type custom name..." />
-                    @if (destResults.Count > 0)
-                    {
-                        <ul class="absolute z-10 mt-1 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-44 overflow-y-auto">
-                            @foreach (var place in destResults)
+            <div class="flex-1 relative">
+                <SearchableDropdown TItem="PlaceViewModel"
+                                    @bind-SearchText="destSearch"
+                                    SearchProvider="@(async s => await PlaceService.SearchAsync(s))"
+                                    ValueChanged="OnPlaceSelected"
+                                    ClearOnSelect="true"
+                                    Placeholder="Search city or type custom name..."
+                                    MinSearchLength="2">
+                    <ItemTemplate Context="place">
+                        <div class="flex flex-col">
+                            <span class="font-semibold text-sm text-foreground">@place.Name</span>
+                            @if (!string.IsNullOrEmpty(place.StateName) || !string.IsNullOrEmpty(place.CountryName))
                             {
-                                <li>
-                                    <button type="button" @onclick="() => AddDestFromPlace(place)"
-                                            class="w-full text-left px-3 py-2 hover:bg-default-100">
-                                        <span class="font-semibold text-sm text-foreground">@place.Name</span>
-                                        @if (!string.IsNullOrEmpty(place.StateName) || !string.IsNullOrEmpty(place.CountryName))
-                                        {
-                                            <span class="text-xs text-foreground-400 ml-1">
-                                                @(!string.IsNullOrEmpty(place.StateName) ? place.StateName + (!string.IsNullOrEmpty(place.CountryName) ? ", " : "") : "")@(place.CountryName ?? "")
-                                            </span>
-                                        }
-                                    </button>
-                                </li>
+                                <span class="text-xs text-foreground-400">
+                                    @(!string.IsNullOrEmpty(place.StateName) ? place.StateName + (!string.IsNullOrEmpty(place.CountryName) ? ", " : "") : "")@(place.CountryName ?? "")
+                                </span>
                             }
-                        </ul>
-                    }
-                </div>
-                <LumexButton OnClick="AddDestCustom" Color="@ThemeColor.Default">Add custom</LumexButton>
+                        </div>
+                    </ItemTemplate>
+                    <ActionContent Context="searchTxt">
+                        @if (!string.IsNullOrWhiteSpace(searchTxt))
+                        {
+                            <button type="button" @onmousedown="AddDestCustom" class="w-full text-left px-3 py-2 text-sm text-primary hover:bg-default-100 font-medium border-t border-divider">
+                                + Add "@searchTxt" as custom destination
+                            </button>
+                        }
+                    </ActionContent>
+                </SearchableDropdown>
             </div>
         </div>
 
@@ -152,26 +157,24 @@
             }
 
             <!-- Search to add travellers -->
-            <div class="relative">
-                <LumexTextbox Value="@travellerSearch" ValueChanged="@(v => HandleTravellerSearch(v))" Label="" Placeholder="Search to add traveller..." />
-                @if (travellerSearchResults.Count > 0)
-                {
-                    <ul class="absolute z-10 mt-1 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-44 overflow-y-auto">
-                        @foreach (var tp in travellerSearchResults)
-                        {
-                            <li>
-                                <button type="button" @onclick="() => AddTraveller(tp)"
-                                        class="w-full text-left px-3 py-2 text-sm hover:bg-default-100 text-foreground flex items-center gap-2">
-                                    <span>@tp.LegalName</span>
-                                    @if (!string.IsNullOrEmpty(tp.LinkedUserId))
-                                    {
-                                        <LumexChip Color="ThemeColor.Success" Size="Size.Small">User</LumexChip>
-                                    }
-                                </button>
-                            </li>
-                        }
-                    </ul>
-                }
+            <div class="flex-1 relative">
+                <SearchableDropdown TItem="TravellerProfileViewModel"
+                                    @bind-SearchText="travellerSearch"
+                                    SearchProvider="SearchTravellersAsync"
+                                    ValueChanged="OnTravellerSelected"
+                                    ClearOnSelect="true"
+                                    Placeholder="Search to add traveller..."
+                                    MinSearchLength="1">
+                    <ItemTemplate Context="tp">
+                        <div class="flex items-center gap-2">
+                            <span>@tp.LegalName</span>
+                            @if (!string.IsNullOrEmpty(tp.LinkedUserId))
+                            {
+                                <LumexChip Color="ThemeColor.Success" Size="Size.Small">User</LumexChip>
+                            }
+                        </div>
+                    </ItemTemplate>
+                </SearchableDropdown>
             </div>
         </div>
 
@@ -194,13 +197,11 @@
     private string budgetCurrency = "USD";
 
     private string destSearch = "";
-    private List<PlaceViewModel> destResults = [];
     private List<DestItem> destinations = [];
 
     private List<TravellerProfileViewModel> myProfiles = [];
     private Dictionary<int, TravellerEditState> selectedTravellers = [];
     private string travellerSearch = "";
-    private List<TravellerProfileViewModel> travellerSearchResults = [];
     private int? currentUserProfileId;
 
     private bool saving = false;
@@ -227,11 +228,15 @@
         }
     }
 
-    private async Task HandleDestInput(string? value)
+    private void OnPlaceSelected(PlaceViewModel? place) { if (place != null) AddDestFromPlace(place); }
+    private void OnTravellerSelected(TravellerProfileViewModel? profile) { if (profile != null) AddTraveller(profile); }
+
+    private Task<IEnumerable<TravellerProfileViewModel>> SearchTravellersAsync(string query)
     {
-        destSearch = value ?? "";
-        if (destSearch.Length < 2) { destResults = []; return; }
-        destResults = await PlaceService.SearchAsync(destSearch);
+        var lower = query.ToLowerInvariant();
+        return Task.FromResult(myProfiles
+            .Where(p => p.LegalName.ToLowerInvariant().Contains(lower) && !selectedTravellers.ContainsKey(p.Id))
+            .Take(8));
     }
 
     private void AddDestFromPlace(PlaceViewModel place)
@@ -239,7 +244,6 @@
         if (!destinations.Any(d => d.PlaceId == place.Id))
             destinations.Add(new DestItem { PlaceId = place.Id, DisplayName = place.Name + (!string.IsNullOrEmpty(place.CountryName) ? $", {place.CountryName}" : "") });
         destSearch = "";
-        destResults = [];
     }
 
     private void AddDestCustom()
@@ -249,26 +253,13 @@
         if (!destinations.Any(d => d.CustomName == name && d.PlaceId == null))
             destinations.Add(new DestItem { CustomName = name, DisplayName = name });
         destSearch = "";
-        destResults = [];
-    }
-
-    private void HandleTravellerSearch(string? value)
-    {
-        travellerSearch = value ?? "";
-        if (travellerSearch.Length < 1) { travellerSearchResults = []; return; }
-        var lower = travellerSearch.ToLowerInvariant();
-        travellerSearchResults = myProfiles
-            .Where(p => p.LegalName.ToLowerInvariant().Contains(lower) && !selectedTravellers.ContainsKey(p.Id))
-            .Take(8)
-            .ToList();
     }
 
     private void AddTraveller(TravellerProfileViewModel profile)
     {
         if (!selectedTravellers.ContainsKey(profile.Id))
-            selectedTravellers[profile.Id] = new TravellerEditState();
+            selectedTravellers[profile.Id] = new TravellerEditState { CanEdit = false };
         travellerSearch = "";
-        travellerSearchResults = [];
     }
 
     private void SetOrganiserFlag(int profileId, bool isOrganiser)
@@ -333,21 +324,5 @@
         public bool EffectiveCanEdit => IsOrganiser || CanEdit;
     }
 
-    private record CurrencyItem(string Code, string Name);
 
-    private static readonly IReadOnlyList<CurrencyItem> Currencies =
-    [
-        new("AED","UAE Dirham"), new("AUD","Australian Dollar"), new("BRL","Brazilian Real"),
-        new("CAD","Canadian Dollar"), new("CHF","Swiss Franc"), new("CNY","Chinese Yuan"),
-        new("CZK","Czech Koruna"), new("DKK","Danish Krone"), new("EUR","Euro"),
-        new("GBP","British Pound"), new("HKD","Hong Kong Dollar"), new("HUF","Hungarian Forint"),
-        new("IDR","Indonesian Rupiah"), new("ILS","Israeli Shekel"), new("INR","Indian Rupee"),
-        new("JPY","Japanese Yen"), new("KRW","South Korean Won"), new("MXN","Mexican Peso"),
-        new("MYR","Malaysian Ringgit"), new("NOK","Norwegian Krone"), new("NZD","New Zealand Dollar"),
-        new("PHP","Philippine Peso"), new("PLN","Polish Zloty"), new("RON","Romanian Leu"),
-        new("SAR","Saudi Riyal"), new("SEK","Swedish Krona"), new("SGD","Singapore Dollar"),
-        new("THB","Thai Baht"), new("TRY","Turkish Lira"), new("TWD","New Taiwan Dollar"),
-        new("UAH","Ukrainian Hryvnia"), new("USD","US Dollar"), new("VND","Vietnamese Dong"),
-        new("ZAR","South African Rand")
-    ];
 }

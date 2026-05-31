@@ -42,14 +42,11 @@ public class Trip
 
 public class TripDestination
 {
-    public int Id { get; set; }
-    public int TripId { get; set; }
-    public Trip? Trip { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     public int? PlaceId { get; set; }
-    public Place? Place { get; set; }
     public string? CustomName { get; set; }
 
-    public string DisplayName => Place?.Name ?? CustomName ?? "Unknown";
+    // DisplayName removed (UI concern bleeding into model)
 }
 
 public class TripTraveller

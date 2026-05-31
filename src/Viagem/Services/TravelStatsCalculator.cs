@@ -38,7 +38,7 @@ public class TravelStatsCalculator(IDbContextFactory<ApplicationDbContext> dbFac
             .Where(t => t.EndDate < now && (
                 t.OwnerId == userId ||
                 t.Travellers.Any(tt => tt.TravellerProfile != null && tt.TravellerProfile.LinkedUserId == userId)))
-            .Include(t => t.Destinations).ThenInclude(d => d.Place)
+            .Include(t => t.Destinations)
             .Include(t => t.Transportations)
             .Include(t => t.Lodgings)
             .Include(t => t.Activities)
@@ -47,6 +47,9 @@ public class TravelStatsCalculator(IDbContextFactory<ApplicationDbContext> dbFac
             .ToListAsync(ct);
 
         if (trips.Count == 0) return;
+
+        var placeIds = trips.SelectMany(t => t.Destinations).Where(d => d.PlaceId.HasValue).Select(d => d.PlaceId!.Value).Distinct().ToList();
+        var places = await db.Places.Where(p => placeIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, ct);
 
         var years = trips
             .Select(t => t.StartDate.Year)
@@ -58,26 +61,26 @@ public class TravelStatsCalculator(IDbContextFactory<ApplicationDbContext> dbFac
         foreach (var year in years.Prepend(0))
         {
             var subset = year == 0 ? trips : trips.Where(t => t.StartDate.Year == year).ToList();
-            var stats = BuildStats(userId, year, subset);
+            var stats = BuildStats(userId, year, subset, places);
             await UpsertStatsAsync(db, stats, ct);
         }
 
         // Rebuild destination pins for user (lifetime)
-        await RebuildDestinationsAsync(db, userId, trips, ct);
+        await RebuildDestinationsAsync(db, userId, trips, places, ct);
 
         await db.SaveChangesAsync(ct);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private static UserTravelStats BuildStats(string userId, int year, List<Trip> trips)
+    private static UserTravelStats BuildStats(string userId, int year, List<Trip> trips, Dictionary<int, Place> places)
     {
         var tripCount = trips.Count;
         var totalDays = trips.Sum(t => (t.EndDate - t.StartDate).Days);
 
         var destNames = trips
             .SelectMany(t => t.Destinations)
-            .Select(d => d.Place?.Name ?? d.CustomName ?? "")
+            .Select(d => d.PlaceId.HasValue && places.TryGetValue(d.PlaceId.Value, out var p) ? p.Name : d.CustomName ?? "")
             .Where(n => n.Length > 0)
             .Distinct()
             .Count();
@@ -172,7 +175,7 @@ public class TravelStatsCalculator(IDbContextFactory<ApplicationDbContext> dbFac
     }
 
     private static async Task RebuildDestinationsAsync(
-        ApplicationDbContext db, string userId, List<Trip> trips, CancellationToken ct)
+        ApplicationDbContext db, string userId, List<Trip> trips, Dictionary<int, Place> places, CancellationToken ct)
     {
         // Remove old pins for user
         var old = await db.UserTravelDestinations.Where(d => d.UserId == userId).ToListAsync(ct);
@@ -183,17 +186,17 @@ public class TravelStatsCalculator(IDbContextFactory<ApplicationDbContext> dbFac
 
         foreach (var dest in trips.SelectMany(t => t.Destinations))
         {
-            if (dest.Place != null &&
-                dest.Place.Latitude != null && dest.Place.Longitude != null &&
-                seen.Add(dest.Place.Id))
+            if (dest.PlaceId.HasValue && places.TryGetValue(dest.PlaceId.Value, out var place) &&
+                place.Latitude != null && place.Longitude != null &&
+                seen.Add(place.Id))
             {
                 pins.Add(new UserTravelDestination
                 {
                     UserId = userId,
-                    PlaceId = dest.Place.Id,
-                    PlaceName = dest.Place.Name,
-                    Latitude = dest.Place.Latitude,
-                    Longitude = dest.Place.Longitude
+                    PlaceId = place.Id,
+                    PlaceName = place.Name,
+                    Latitude = place.Latitude,
+                    Longitude = place.Longitude
                 });
             }
         }

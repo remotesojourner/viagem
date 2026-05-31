@@ -1,8 +1,6 @@
-﻿@page "/travel-board"
+@page "/travel-board"
 @using System.Text.Json
 @using Microsoft.EntityFrameworkCore
-@using Viagem.Data
-@using Viagem.Data.Models
 @rendermode InteractiveServer
 @attribute [Authorize]
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
@@ -32,7 +30,7 @@
     else
     {
         <!-- Year carousel -->
-        <div class="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
+        <div class="flex flex-wrap items-center gap-2 mb-6">
             @foreach (var y in availableYears)
             {
                 var label = y == 0 ? "Lifetime" : y.ToString();
@@ -54,30 +52,30 @@
             </div>
             <div class="bg-surface1 rounded-xl border border-divider p-5">
                 <p class="text-sm text-foreground-400 mb-1">Destinations</p>
-                <p class="text-3xl font-bold text-secondary">@stats.DestinationCount</p>
+                <p class="text-3xl font-bold text-primary">@stats.DestinationCount</p>
                 <p class="text-xs text-foreground-400 mt-1">places visited</p>
             </div>
             <div class="bg-surface1 rounded-xl border border-divider p-5">
                 <p class="text-sm text-foreground-400 mb-1">Days</p>
-                <p class="text-3xl font-bold text-success-600">@stats.TotalDays</p>
+                <p class="text-3xl font-bold text-primary">@stats.TotalDays</p>
                 <p class="text-xs text-foreground-400 mt-1">total travel days</p>
             </div>
             <div class="bg-surface1 rounded-xl border border-divider p-5">
                 <p class="text-sm text-foreground-400 mb-1">Cost</p>
                 @if (expenseStats.Count == 0)
                 {
-                    <p class="text-xl font-bold text-warning">—</p>
+                    <p class="text-xl font-bold text-primary">—</p>
                 }
                 else if (expenseStats.Count == 1)
                 {
-                    <p class="text-xl font-bold text-warning">@expenseStats[0].Total.ToString("N0") @expenseStats[0].Currency</p>
+                    <p class="text-xl font-bold text-primary">@expenseStats[0].Total.ToString("N0") @expenseStats[0].Currency</p>
                 }
                 else
                 {
                     <div class="space-y-0.5 mt-1">
                         @foreach (var c in expenseStats.Take(3))
                         {
-                            <p class="text-sm font-semibold text-warning">@c.Total.ToString("N0") <span class="font-normal text-foreground-400">@c.Currency</span></p>
+                            <p class="text-sm font-semibold text-primary">@c.Total.ToString("N0") <span class="font-normal text-foreground-400">@c.Currency</span></p>
                         }
                         @if (expenseStats.Count > 3)
                         {
@@ -173,11 +171,11 @@
                 <h3 class="font-semibold text-foreground mb-3">Activities</h3>
                 <div class="flex gap-8">
                     <div>
-                        <p class="text-3xl font-bold text-info">@stats.ActivityTotalCount</p>
+                        <p class="text-3xl font-bold text-primary">@stats.ActivityTotalCount</p>
                         <p class="text-xs text-foreground-400 mt-1">total activities</p>
                     </div>
                     <div>
-                        <p class="text-3xl font-bold text-info">@stats.ActivityAvgPerTrip</p>
+                        <p class="text-3xl font-bold text-primary">@stats.ActivityAvgPerTrip</p>
                         <p class="text-xs text-foreground-400 mt-1">avg per trip</p>
                     </div>
                 </div>

@@ -3,13 +3,12 @@ using Viagem.Data.Models;
 namespace Viagem.Services.ViewModels;
 
 public record ExpenseSplitViewModel(
-    int Id,
     int TravellerProfileId,
     string TravellerName,
     decimal Amount);
 
 public record ExpenseViewModel(
-    int Id,
+    Guid Id,
     int TripId,
     string Name,
     ExpenseCategory? Category,
@@ -21,7 +20,7 @@ public record ExpenseViewModel(
     IReadOnlyList<ExpenseSplitViewModel> Splits,
     bool IsLinked,
     string? SourceType,
-    int? SourceId);
+    Guid? SourceId);
 
 public class ExpenseSplitFormItem
 {

@@ -3,7 +3,6 @@ using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Viagem.Data;
 using Viagem.Data.Models;
-using Viagem.Data.Repositories.Interfaces;
 
 namespace Viagem.Services;
 
@@ -12,8 +11,7 @@ namespace Viagem.Services;
 /// all trips into Viagem, creating missing traveller profiles as needed.
 /// </summary>
 public class TripItImportService(
-    IDbContextFactory<ApplicationDbContext> dbFactory,
-    IExpenseRepository expenseRepo)
+    IDbContextFactory<ApplicationDbContext> dbFactory)
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -120,14 +118,15 @@ public class TripItImportService(
                 });
 
             db.Trips.Add(trip);
-            await db.SaveChangesAsync();
 
             // Process each object
             foreach (var obj in objects)
             {
                 if (obj == null) continue;
-                await ProcessObjectAsync(db, obj, trip, profileMap, result);
+                await ProcessObjectAsync(obj, trip, profileMap, result);
             }
+
+            await db.SaveChangesAsync();
 
             result.Success = true;
             result.TripId = trip.Id;
@@ -142,7 +141,7 @@ public class TripItImportService(
     }
 
     private async Task ProcessObjectAsync(
-        ApplicationDbContext db, JsonNode obj, Trip trip,
+        JsonNode obj, Trip trip,
         Dictionary<string, int> profileMap, ImportResult result)
     {
         var displayName = obj["display_name"]?.GetValue<string>() ?? "";
@@ -158,7 +157,7 @@ public class TripItImportService(
             foreach (var seg in segments)
             {
                 if (seg == null) continue;
-                await ImportFlightSegmentAsync(db, seg, obj, trip, profileMap, result);
+                ImportFlightSegment(seg, obj, trip, profileMap, result);
             }
             return;
         }
@@ -171,7 +170,7 @@ public class TripItImportService(
                 foreach (var seg in segments)
                 {
                     if (seg == null) continue;
-                    await ImportRailSegmentAsync(db, seg, obj, trip, profileMap, result);
+                    ImportRailSegment(seg, obj, trip, profileMap, result);
                 }
             }
             return;
@@ -183,19 +182,19 @@ public class TripItImportService(
                                (obj["StartDateTime"] != null && obj["EndDateTime"] != null && obj["Address"] != null);
         if (hasLodgingFields)
         {
-            await ImportLodgingAsync(db, obj, trip, profileMap, result);
+            ImportLodging(obj, trip, profileMap, result);
             return;
         }
 
         // --- Activity / other (has DateTime + Address but no segments) ---
         if (obj["DateTime"] != null || (obj["StartDateTime"] != null && obj["Address"] != null))
         {
-            await ImportActivityAsync(db, obj, trip, profileMap, result);
+            ImportActivity(obj, trip, profileMap, result);
         }
     }
 
-    private async Task ImportFlightSegmentAsync(
-        ApplicationDbContext db, JsonNode seg, JsonNode parentObj,
+    private void ImportFlightSegment(
+        JsonNode seg, JsonNode parentObj,
         Trip trip, Dictionary<string, int> profileMap, ImportResult result)
     {
         var startDt = ParseDateTime(seg["StartDateTime"]);
@@ -223,7 +222,7 @@ public class TripItImportService(
 
         var transport = new Transportation
         {
-            TripId = trip.Id,
+            Id = Guid.NewGuid(),
             Type = TransportationType.Flight,
             Origin = origin,
             OriginCity = originCity,
@@ -238,14 +237,13 @@ public class TripItImportService(
             ArrivalTime = endDt.Value,
             DepartureTimezone = seg["StartDateTime"]?["timezone"]?.GetValue<string>(),
             ArrivalTimezone = seg["EndDateTime"]?["timezone"]?.GetValue<string>(),
-            Travellers = travellers
+            TravellerProfileIds = travellers
         };
-        db.Transportations.Add(transport);
-        await db.SaveChangesAsync();
+        trip.Transportations.Add(transport);
     }
 
-    private async Task ImportRailSegmentAsync(
-        ApplicationDbContext db, JsonNode seg, JsonNode parentObj,
+    private void ImportRailSegment(
+        JsonNode seg, JsonNode parentObj,
         Trip trip, Dictionary<string, int> profileMap, ImportResult result)
     {
         var startDt = ParseDateTime(seg["StartDateTime"]);
@@ -274,7 +272,7 @@ public class TripItImportService(
 
         var transport = new Transportation
         {
-            TripId = trip.Id,
+            Id = Guid.NewGuid(),
             Type = TransportationType.Train,
             Origin = origin,
             OriginCity = originCity,
@@ -288,14 +286,13 @@ public class TripItImportService(
             ArrivalTime = endDt.Value,
             DepartureTimezone = seg["StartDateTime"]?["timezone"]?.GetValue<string>(),
             ArrivalTimezone = seg["EndDateTime"]?["timezone"]?.GetValue<string>(),
-            Travellers = travellers
+            TravellerProfileIds = travellers
         };
-        db.Transportations.Add(transport);
-        await db.SaveChangesAsync();
+        trip.Transportations.Add(transport);
     }
 
-    private async Task ImportLodgingAsync(
-        ApplicationDbContext db, JsonNode obj, Trip trip,
+    private void ImportLodging(
+        JsonNode obj, Trip trip,
         Dictionary<string, int> profileMap, ImportResult result)
     {
         var startDt = ParseDateTime(obj["StartDateTime"]) ?? ParseDateTime(obj["EstimatedStartDateTime"]);
@@ -315,7 +312,7 @@ public class TripItImportService(
 
         var lodging = new Lodging
         {
-            TripId = trip.Id,
+            Id = Guid.NewGuid(),
             Type = LodgingType.Hotel,
             Name = name,
             Address = address,
@@ -323,14 +320,13 @@ public class TripItImportService(
             StartDate = startDt.Value,
             EndDate = endDt.Value,
             Timezone = timezone,
-            Travellers = travellers
+            TravellerProfileIds = travellers
         };
-        db.Lodgings.Add(lodging);
-        await db.SaveChangesAsync();
+        trip.Lodgings.Add(lodging);
     }
 
-    private static async Task ImportActivityAsync(
-        ApplicationDbContext db, JsonNode obj, Trip trip,
+    private static void ImportActivity(
+        JsonNode obj, Trip trip,
         Dictionary<string, int> profileMap, ImportResult result)
     {
         var startDt = ParseDateTime(obj["DateTime"]) ?? ParseDateTime(obj["StartDateTime"]);
@@ -352,17 +348,16 @@ public class TripItImportService(
 
         var activity = new Activity
         {
-            TripId = trip.Id,
+            Id = Guid.NewGuid(),
             Name = name,
             Address = address,
             Notes = notes,
             StartDate = startDt.Value,
             EndDate = endDt,
             Timezone = timezone,
-            Travellers = travellers
+            TravellerProfileIds = travellers
         };
-        db.Activities.Add(activity);
-        await db.SaveChangesAsync();
+        trip.Activities.Add(activity);
     }
 
     // ── static helpers ───────────────────────────────────────────────────────
@@ -445,36 +440,36 @@ public class TripItImportService(
         }
     }
 
-    private static List<TransportationTraveller> GetTravellerIdsFromObject(
+    private static List<int> GetTravellerIdsFromObject(
         JsonNode obj, Dictionary<string, int> profileMap)
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         CollectTravellerNames(obj, names);
         return names
             .Where(n => profileMap.ContainsKey(n))
-            .Select(n => new TransportationTraveller { TravellerProfileId = profileMap[n] })
+            .Select(n => profileMap[n])
             .ToList();
     }
 
-    private static List<LodgingTraveller> GetLodgingTravellersFromObject(
+    private static List<int> GetLodgingTravellersFromObject(
         JsonNode obj, Dictionary<string, int> profileMap)
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         CollectTravellerNames(obj, names);
         return names
             .Where(n => profileMap.ContainsKey(n))
-            .Select(n => new LodgingTraveller { TravellerProfileId = profileMap[n] })
+            .Select(n => profileMap[n])
             .ToList();
     }
 
-    private static List<ActivityTraveller> GetActivityTravellersFromObject(
+    private static List<int> GetActivityTravellersFromObject(
         JsonNode obj, Dictionary<string, int> profileMap)
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         CollectTravellerNames(obj, names);
         return names
             .Where(n => profileMap.ContainsKey(n))
-            .Select(n => new ActivityTraveller { TravellerProfileId = profileMap[n] })
+            .Select(n => profileMap[n])
             .ToList();
     }
 

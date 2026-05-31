@@ -1,0 +1,531 @@
+@using GeoTimeZone
+@using Viagem.Common
+@using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
+@inject ITripService TripService
+@inject IAirportService AirportService
+@inject IAirlineService AirlineService
+@inject IFlightRouteService FlightRouteService
+
+<LumexModal Open="IsOpen" OpenChanged="OnOpenChanged" OnClose="CloseModal" Size="ModalSize.Large">
+    <LumexModalContent Context="modal">
+        <LumexModalHeader>
+            <h3 class="text-lg font-semibold text-foreground">
+                @(EditItem != null ? "Edit Transportation" : "Add Transportation")
+            </h3>
+        </LumexModalHeader>
+        <LumexModalBody>
+        @if (IsOpen)
+        {
+        <div class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="col-span-1 sm:col-span-2">
+                        <LumexSelect TValue="string" @bind-Value="transportTypeString" Label="Type">
+                            @foreach (var t in Enum.GetValues<TransportationType>())
+                            {
+                                <LumexSelectItem Value="@t.ToString()">@t.GetIcon() @t.GetLabel()</LumexSelectItem>
+                            }
+                        </LumexSelect>
+                    </div>
+
+                    @if (formType == TransportationType.CarRental)
+                    {
+                        <div>
+                            <LumexTextbox @bind-Value="formRentalCompany" Label="Rental Company" Placeholder="Hertz, Enterprise..." />
+                        </div>
+                        <div>
+                            <LumexTextbox @bind-Value="formConfirmationCode" Label="Confirmation Code" />
+                        </div>
+                        <div>
+                            <LumexTextbox @bind-Value="formPickupLocation" Label="Pick-up Location" />
+                        </div>
+                        <div>
+                            <LumexTextbox @bind-Value="formDropOffLocation" Label="Drop-off Location" />
+                        </div>
+                    }
+                    else if (formType == TransportationType.Parking)
+                    {
+                        <div>
+                            <LumexTextbox @bind-Value="formParkingAddress" Label="Parking Address" />
+                        </div>
+                        <div>
+                            <LumexTextbox @bind-Value="formSpotNumber" Label="Spot / Level" />
+                        </div>
+                        <div>
+                            <LumexTextbox @bind-Value="formConfirmationCode" Label="Confirmation Code" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div>
+                            <LumexTextbox @bind-Value="formProvider" Label="@(formType == TransportationType.Flight ? "Airline" : "Operator / Provider")" Placeholder="@(formType == TransportationType.Flight ? "Auto-filled from flight number" : "Provider name")" />
+                        </div>
+                        <div>
+                            <LumexTextbox @bind-Value="formFlightNumber"
+                                          Behavior="InputBehavior.OnInput"
+                                          Label="@(formType == TransportationType.Flight ? "Flight Number" : "Reference / Ticket No.")"
+                                          Placeholder="@(formType == TransportationType.Flight ? "BA123" : "Optional")"
+                                          OnBlur="LookupFlightRoute" />
+                        </div>
+                        @if (formType == TransportationType.Flight)
+                        {
+                            @* Flight: separate city + airport for origin *@
+                            <div>
+                                <LumexTextbox @bind-Value="formOriginCity" Label="Origin City" Placeholder="e.g. London" />
+                            </div>
+                            <SearchableDropdown TItem="AirportViewModel"
+                                                Value="@(formOrigin != null ? new AirportViewModel(0, formOrigin, originSearch, null, null, null, null) : null)"
+                                                ValueChanged="SelectOriginAsync"
+                                                SearchProvider="async q => await AirportService.SearchAsync(q, 50)"
+                                                ItemText='a => $"{a.IataCode} — {a.Name}"'
+                                                Label="Origin Airport"
+                                                Placeholder="IATA code or airport name">
+                                <ItemTemplate Context="a">
+                                    <span class="font-mono font-semibold text-primary">@a.IataCode</span>
+                                    — @a.Name
+                                    @if (!string.IsNullOrEmpty(a.Municipality))
+                                    {
+                                        <span class="text-foreground-400 ml-1">(@a.Municipality, @a.IsoCountry)</span>
+                                    }
+                                </ItemTemplate>
+                            </SearchableDropdown>
+                            @* Flight: separate city + airport for destination *@
+                            <div>
+                                <LumexTextbox @bind-Value="formDestinationCity" Label="Destination City" Placeholder="e.g. Paris" />
+                            </div>
+                            <SearchableDropdown TItem="AirportViewModel"
+                                                Value="@(formDestination != null ? new AirportViewModel(0, formDestination, destinationSearch, null, null, null, null) : null)"
+                                                ValueChanged="SelectDestinationAsync"
+                                                SearchProvider="async q => await AirportService.SearchAsync(q, 50)"
+                                                ItemText='a => $"{a.IataCode} — {a.Name}"'
+                                                Label="Destination Airport"
+                                                Placeholder="IATA code or airport name">
+                                <ItemTemplate Context="a">
+                                    <span class="font-mono font-semibold text-primary">@a.IataCode</span>
+                                    — @a.Name
+                                    @if (!string.IsNullOrEmpty(a.Municipality))
+                                    {
+                                        <span class="text-foreground-400 ml-1">(@a.Municipality, @a.IsoCountry)</span>
+                                    }
+                                </ItemTemplate>
+                            </SearchableDropdown>
+                            <div>
+                                <LumexTextbox @bind-Value="formAssignedSeats" Label="Seat(s)" Placeholder="12A, 12B" />
+                            </div>
+                            <div>
+                                <LumexTextbox @bind-Value="formConfirmationCode" Label="Confirmation Code" />
+                            </div>
+                        }
+                        else
+                        {
+                            @* Non-flight: plain text From / To *@
+                            <div>
+                                <LumexTextbox @bind-Value="formOrigin" Label="From" Placeholder="City, station or address" />
+                            </div>
+                            <div>
+                                <LumexTextbox @bind-Value="formDestination" Label="To" Placeholder="City, station or address" />
+                            </div>
+                        }
+                    }
+
+                    @if (formType == TransportationType.Parking || formType == TransportationType.CarRental)
+                    {
+                        @* Single-timezone for location-based types *@
+                        <div class="col-span-1 sm:col-span-2">
+                            <LumexSelect TValue="string" @bind-Value="formDepartureTimezone" Label="Timezone" Placeholder="— select timezone —">
+                                @foreach (var tz in Viagem.Common.AppConstants.Timezones)
+                                {
+                                    <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
+                                }
+                            </LumexSelect>
+                        </div>
+                        <div>
+                            <LumexDatebox TValue="DateTime" @bind-Value="formDepartureTime" Label="Start Date/Time" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                        </div>
+                        <div>
+                            <LumexDatebox TValue="DateTime" @bind-Value="formArrivalTime" Label="End Date/Time" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                        </div>
+                    }
+                    else if (formType == TransportationType.Flight)
+                    {
+                        @* Flight timezones auto-filled from airport selection *@
+                        <div>
+                            <LumexDatebox TValue="DateTime" @bind-Value="formDepartureTime" Label="Departure" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                            @if (!string.IsNullOrEmpty(formDepartureTimezone))
+                            {
+                                <p class="mt-1 text-xs text-foreground-400">⏱ @formDepartureTimezone</p>
+                            }
+                        </div>
+                        <div>
+                            <LumexDatebox TValue="DateTime" @bind-Value="formArrivalTime" Label="Arrival" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                            @if (!string.IsNullOrEmpty(formArrivalTimezone))
+                            {
+                                <p class="mt-1 text-xs text-foreground-400">⏱ @formArrivalTimezone</p>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        @* Other transport: departure + arrival each with own timezone *@
+                        <div>
+                            <LumexDatebox TValue="DateTime" @bind-Value="formDepartureTime" Label="Departure" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                        </div>
+                        <div>
+                            <LumexSelect TValue="string" @bind-Value="formDepartureTimezone" Label="Departure Timezone" Placeholder="— select timezone —">
+                                @foreach (var tz in Viagem.Common.AppConstants.Timezones)
+                                {
+                                    <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
+                                }
+                            </LumexSelect>
+                        </div>
+                        <div>
+                            <LumexDatebox TValue="DateTime" @bind-Value="formArrivalTime" Label="Arrival" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
+                        </div>
+                        <div>
+                            <LumexSelect TValue="string" @bind-Value="formArrivalTimezone" Label="Arrival Timezone" Placeholder="— select timezone —">
+                                @foreach (var tz in Viagem.Common.AppConstants.Timezones)
+                                {
+                                    <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
+                                }
+                            </LumexSelect>
+                        </div>
+                    }
+
+                    <div>
+                        <LumexNumbox TValue="decimal?" @bind-Value="formCostAmount" Label="Cost" Placeholder="0.00" />
+                    </div>
+                    <div>
+                        <LumexSelect TValue="string" @bind-Value="formCostCurrency" Label="Currency">
+                            @foreach (var c in Currencies)
+                            {
+                                <LumexSelectItem Value="@c">@c</LumexSelectItem>
+                            }
+                        </LumexSelect>
+                    </div>
+
+                    <div class="col-span-1 sm:col-span-2">
+                        <LumexTextbox @bind-Value="formLink" Label="Booking Link" Placeholder="https://..." />
+                    </div>
+                    <div class="col-span-1 sm:col-span-2">
+                        <LumexTextbox @bind-Value="formNotes" Label="Notes" Multiline="@true" Rows="2" />
+                    </div>
+                    @if (TripTravellers.Count > 0)
+                    {
+                        <div class="col-span-1 sm:col-span-2">
+                            <label class="block text-sm font-medium text-foreground mb-1">Travellers</label>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach (var t in TripTravellers)
+                                {
+                                    var isSelected = formTravellerIds.Contains(t.TravellerProfileId);
+                                    <button type="button"
+                                               @onclick="() => ToggleTraveller(t.TravellerProfileId)"
+                                               class="@(isSelected ? "px-3 py-1 rounded-full text-sm border transition-colors bg-primary text-primary-foreground border-primary" : "px-3 py-1 rounded-full text-sm border transition-colors border-divider text-foreground hover:bg-default-100")">
+                                           @t.LegalName
+                                       </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+            }
+            </LumexModalBody>
+        <LumexModalFooter>
+            <div class="flex justify-end gap-3 w-full">
+                <LumexButton OnClick="CloseModal">Cancel</LumexButton>
+                <LumexButton OnClick="SaveItem" Disabled="@saving" Color="@ThemeColor.Primary">
+                    @(saving ? "Saving..." : (EditItem != null ? "Save Changes" : "Add"))
+                </LumexButton>
+            </div>
+        </LumexModalFooter>
+    </LumexModalContent>
+</LumexModal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public TransportationViewModel? EditItem { get; set; }
+    [Parameter] public int TripId { get; set; }
+    [Parameter] public string? DefaultTimezone { get; set; }
+    [Parameter] public string UserCurrency { get; set; } = "USD";
+    [Parameter] public IReadOnlyList<TripTravellerViewModel> TripTravellers { get; set; } = [];
+    [Parameter] public EventCallback<TransportationViewModel> OnItemSaved { get; set; }
+    [Parameter] public string UserId { get; set; } = "";
+
+    private bool saving = false;
+    private bool initialized = false;
+    private TransportationViewModel? currentEditItem;
+
+    // Form state
+    private TransportationType formType = TransportationType.Flight;
+    private string? formOrigin;
+    private string? formOriginCity;
+    private string? formDestination;
+    private string? formDestinationCity;
+    private string? formProvider;
+    private string? formConfirmationCode;
+    private string? formFlightNumber;
+    private string? formAssignedSeats;
+    private string? formNotes;
+    private string? formLink;
+    private DateTime formDepartureTime = DateTime.Today;
+    private DateTime formArrivalTime = DateTime.Today;
+    private string? formDepartureTimezone;
+    private string? formArrivalTimezone;
+    private decimal? formCostAmount;
+    private string formCostCurrency = "USD";
+    private string? formRentalCompany;
+    private string? formPickupLocation;
+    private string? formDropOffLocation;
+    private string? formSpotNumber;
+    private string? formParkingAddress;
+    private int? formOriginPlaceId;
+    private int? formDestinationPlaceId;
+    private List<int> formTravellerIds = [];
+
+    // Airport autocomplete state
+    private string originSearch = "";
+    private string destinationSearch = "";
+    private List<AirportViewModel> originResults = [];
+    private List<AirportViewModel> destinationResults = [];
+
+    private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
+
+    private string transportTypeString
+    {
+        get => formType.ToString();
+        set { if (Enum.TryParse<TransportationType>(value, out var t)) formType = t; }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !initialized)
+        {
+            initialized = true;
+            InitForm();
+        }
+        else if (!IsOpen)
+        {
+            initialized = false;
+        }
+
+        if (IsOpen && EditItem != currentEditItem)
+        {
+            currentEditItem = EditItem;
+            InitForm();
+        }
+    }
+
+    private void InitForm()
+    {
+        if (EditItem != null)
+        {
+            formType = EditItem.Type;
+            formOrigin = EditItem.Origin; formOriginCity = EditItem.OriginCity;
+            formDestination = EditItem.Destination; formDestinationCity = EditItem.DestinationCity;
+            formProvider = EditItem.Provider; formFlightNumber = EditItem.FlightNumber;
+            formAssignedSeats = EditItem.AssignedSeats; formConfirmationCode = EditItem.ConfirmationCode;
+            formNotes = EditItem.Notes; formLink = EditItem.Link;
+            formDepartureTime = EditItem.DepartureTime; formArrivalTime = EditItem.ArrivalTime;
+            formDepartureTimezone = EditItem.DepartureTimezone; formArrivalTimezone = EditItem.ArrivalTimezone;
+            formCostAmount = EditItem.CostAmount; formCostCurrency = EditItem.CostCurrency ?? UserCurrency;
+            formRentalCompany = EditItem.RentalCompany; formPickupLocation = EditItem.PickupLocation;
+            formDropOffLocation = EditItem.DropOffLocation; formSpotNumber = EditItem.SpotNumber;
+            formParkingAddress = EditItem.ParkingAddress;
+            formOriginPlaceId = EditItem.OriginPlaceId;
+            formDestinationPlaceId = EditItem.DestinationPlaceId;
+            formTravellerIds = EditItem.Travellers.Select(t => t.Id).ToList();
+            originSearch = EditItem.Origin ?? "";
+        }
+        else
+        {
+            formType = TransportationType.Flight;
+            formOrigin = null; formOriginCity = null;
+            formDestination = null; formDestinationCity = null;
+            formProvider = null; formFlightNumber = null; formAssignedSeats = null;
+            formConfirmationCode = null; formNotes = null; formLink = null;
+            formDepartureTime = DateTime.Today; formArrivalTime = DateTime.Today;
+            formDepartureTimezone = DefaultTimezone; formArrivalTimezone = DefaultTimezone;
+            formRentalCompany = null; formPickupLocation = null; formDropOffLocation = null;
+            formSpotNumber = null; formParkingAddress = null;
+            formOriginPlaceId = null; formDestinationPlaceId = null;
+            formTravellerIds = [];
+            formCostAmount = null;
+            formCostCurrency = UserCurrency;
+            originSearch = ""; destinationSearch = "";
+        }
+        
+        originResults = []; destinationResults = [];
+        StateHasChanged();
+    }
+
+    private async Task OnOpenChanged(bool value)
+    {
+        IsOpen = value;
+        await IsOpenChanged.InvokeAsync(value);
+    }
+
+    private async Task CloseModal()
+    {
+        await OnOpenChanged(false);
+    }
+
+    private void ToggleTraveller(int profileId)
+    {
+        if (formTravellerIds.Contains(profileId))
+            formTravellerIds.Remove(profileId);
+        else
+            formTravellerIds.Add(profileId);
+    }
+
+
+
+    private void SelectOriginAsync(AirportViewModel? a)
+    {
+        if (a == null) { formOrigin = null; originSearch = ""; return; }
+        originSearch = $"{a.IataCode} — {a.Name}";
+        formOrigin = a.IataCode;
+        if (!string.IsNullOrEmpty(a.Municipality))
+            formOriginCity = a.Municipality;
+        if (formType == TransportationType.Flight && a.Latitude.HasValue && a.Longitude.HasValue)
+        {
+            var tz = TimeZoneLookup.GetTimeZone(a.Latitude.Value, a.Longitude.Value).Result;
+            if (!string.IsNullOrEmpty(tz)) formDepartureTimezone = tz;
+        }
+    }
+
+    private void SelectDestinationAsync(AirportViewModel? a)
+    {
+        if (a == null) { formDestination = null; destinationSearch = ""; return; }
+        destinationSearch = $"{a.IataCode} — {a.Name}";
+        formDestination = a.IataCode;
+        if (!string.IsNullOrEmpty(a.Municipality))
+            formDestinationCity = a.Municipality;
+        if (formType == TransportationType.Flight && a.Latitude.HasValue && a.Longitude.HasValue)
+        {
+            var tz = TimeZoneLookup.GetTimeZone(a.Latitude.Value, a.Longitude.Value).Result;
+            if (!string.IsNullOrEmpty(tz)) formArrivalTimezone = tz;
+        }
+    }
+
+    // Flight number blur → look up route and populate airline, origin, destination
+    private async Task LookupFlightRoute()
+    {
+        if (formType != TransportationType.Flight) return;
+        var value = formFlightNumber?.Trim() ?? "";
+        if (value.Length < 3) return;
+
+        var route = await FlightRouteService.GetRouteAsync(value);
+        if (route != null)
+        {
+            formProvider = route.AirlineName ?? formProvider;
+
+            if (!string.IsNullOrEmpty(route.OriginIataCode))
+            {
+                formOrigin = route.OriginIataCode;
+                originSearch = string.IsNullOrEmpty(route.OriginName)
+                    ? route.OriginIataCode
+                    : $"{route.OriginIataCode} — {route.OriginName}";
+            }
+            if (!string.IsNullOrEmpty(route.OriginCity))
+                formOriginCity = route.OriginCity;
+            if (!string.IsNullOrEmpty(route.OriginIataCode))
+            {
+                var originAirport = await AirportService.GetByCodeAsync(route.OriginIataCode);
+                if (originAirport?.Latitude.HasValue == true && originAirport.Longitude.HasValue)
+                {
+                    var tz = TimeZoneLookup.GetTimeZone(originAirport.Latitude.Value, originAirport.Longitude.Value).Result;
+                    if (!string.IsNullOrEmpty(tz)) formDepartureTimezone = tz;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(route.DestinationIataCode))
+            {
+                formDestination = route.DestinationIataCode;
+                destinationSearch = string.IsNullOrEmpty(route.DestinationName)
+                    ? route.DestinationIataCode
+                    : $"{route.DestinationIataCode} — {route.DestinationName}";
+            }
+            if (!string.IsNullOrEmpty(route.DestinationCity))
+                formDestinationCity = route.DestinationCity;
+            if (!string.IsNullOrEmpty(route.DestinationIataCode))
+            {
+                var destAirport = await AirportService.GetByCodeAsync(route.DestinationIataCode);
+                if (destAirport?.Latitude.HasValue == true && destAirport.Longitude.HasValue)
+                {
+                    var tz = TimeZoneLookup.GetTimeZone(destAirport.Latitude.Value, destAirport.Longitude.Value).Result;
+                    if (!string.IsNullOrEmpty(tz)) formArrivalTimezone = tz;
+                }
+            }
+            
+            StateHasChanged();
+        }
+        else
+        {
+            // Fall back to local airline lookup by IATA prefix
+            var match = System.Text.RegularExpressions.Regex.Match(value, @"^([A-Z]{2,3})", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                var airline = await AirlineService.GetByCodeAsync(match.Groups[1].Value);
+                if (airline != null)
+                {
+                    formProvider = airline.Name;
+                    StateHasChanged();
+                }
+            }
+        }
+    }
+
+    private async Task SaveItem()
+    {
+        saving = true;
+        if (EditItem != null)
+        {
+            var req = new UpdateTransportationRequest(
+                TripId,
+                EditItem.Id,
+                formType,
+                formOrigin, formOriginCity, formDestination, formDestinationCity,
+                formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats,
+                formNotes, formLink,
+                formDepartureTime, formArrivalTime,
+                formDepartureTimezone, formArrivalTimezone,
+                formCostAmount, formCostCurrency,
+                formRentalCompany, formPickupLocation, formDropOffLocation,
+                formSpotNumber, formParkingAddress,
+                formOriginPlaceId, formDestinationPlaceId,
+                formTravellerIds
+            );
+            var updated = await TripService.UpdateTransportationAsync(UserId, req);
+            if (updated != null && OnItemSaved.HasDelegate)
+            {
+                await OnItemSaved.InvokeAsync(updated);
+            }
+        }
+        else
+        {
+            var req = new CreateTransportationRequest(
+                TripId,
+                formType,
+                formOrigin, formOriginCity, formDestination, formDestinationCity,
+                formProvider, formConfirmationCode, formFlightNumber, formAssignedSeats,
+                formNotes, formLink,
+                formDepartureTime, formArrivalTime,
+                formDepartureTimezone, formArrivalTimezone,
+                formCostAmount, formCostCurrency,
+                formRentalCompany, formPickupLocation, formDropOffLocation,
+                formSpotNumber, formParkingAddress,
+                formOriginPlaceId, formDestinationPlaceId,
+                formTravellerIds
+            );
+            var created = await TripService.AddTransportationAsync(UserId, req);
+            if (OnItemSaved.HasDelegate)
+            {
+                await OnItemSaved.InvokeAsync(created);
+            }
+        }
+        saving = false;
+        await CloseModal();
+    }
+}
+

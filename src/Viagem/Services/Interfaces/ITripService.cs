@@ -16,13 +16,33 @@ public interface ITripService
     // Destinations
     Task<TripDestinationViewModel> AddDestinationAsync(int tripId, int placeId);
     Task<TripDestinationViewModel> AddDestinationCustomAsync(int tripId, string customName);
-    Task RemoveDestinationAsync(int destinationId);
+    Task RemoveDestinationAsync(int tripId, Guid destinationId);
 
     // Travellers
     Task AddTravellerAsync(int tripId, int travellerProfileId, bool canEdit = false, bool isOrganiser = false);
     Task RemoveTravellerAsync(int tripTravellerId);
     Task SetTravellerEditAsync(int tripTravellerId, bool canEdit);
     Task SetTravellerOrganiserAsync(int tripTravellerId, bool isOrganiser);
+
+    // Transportations
+    Task<TransportationViewModel> AddTransportationAsync(string userId, CreateTransportationRequest request);
+    Task<TransportationViewModel?> UpdateTransportationAsync(string userId, UpdateTransportationRequest request);
+    Task RemoveTransportationAsync(string userId, int tripId, Guid id);
+
+    // Lodgings
+    Task<LodgingViewModel> AddLodgingAsync(string userId, CreateLodgingRequest request);
+    Task<LodgingViewModel?> UpdateLodgingAsync(string userId, UpdateLodgingRequest request);
+    Task RemoveLodgingAsync(string userId, int tripId, Guid id);
+
+    // Activities
+    Task<ActivityViewModel> AddActivityAsync(string userId, CreateActivityRequest request);
+    Task<ActivityViewModel?> UpdateActivityAsync(string userId, UpdateActivityRequest request);
+    Task RemoveActivityAsync(string userId, int tripId, Guid id);
+
+    // Expenses
+    Task<ExpenseViewModel> AddExpenseAsync(string userId, CreateExpenseRequest request);
+    Task<ExpenseViewModel?> UpdateExpenseAsync(string userId, UpdateExpenseRequest request);
+    Task RemoveExpenseAsync(string userId, int tripId, Guid id);
 
     // Notes
     Task UpdateNotesAsync(int tripId, string? notes);

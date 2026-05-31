@@ -1,5 +1,5 @@
-﻿<!DOCTYPE html>
-<html lang="en" class="@ResolvedTheme">
+<!DOCTYPE html>
+<html lang="en" class="@(HttpContext.Request.Cookies.TryGetValue("theme-resolved", out var c) && (c == "dark" || c == "light") ? c : "light")">
 
 <head>
     <meta charset="utf-8" />
@@ -14,55 +14,128 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <HeadOutlet />
-    <!--
-        Theme script.
-        For "light"/"dark" the class is already server-rendered on <html> (via the
-        theme-resolved cookie), so Blazor's enhanced-navigation DOM morph preserves it.
-        For "system" JS resolves the OS preference, writes it to the cookie so the
-        *next* SSR request (including every enhanced-nav fetch) renders the right class,
-        and immediately applies it to the current document.
-    -->
-    <script data-initial-theme="@DbTheme">(function(){
-        var key = "lumexui.theme";
-        var cookieName = "theme-resolved";
-        var el = document.currentScript;
-        var dbTheme = (el ? el.getAttribute("data-initial-theme") : null) || "system";
-        localStorage.setItem(key, dbTheme);
+    <script>
+        (function() {
+            var key = "lumexui.theme";
+            var cookieName = "theme-resolved";
+            
+            function setResolvedCookie(val) {
+                document.cookie = cookieName + "=" + val + ";path=/;samesite=strict;max-age=31536000";
+            }
 
-        function setResolvedCookie(val) {
-            document.cookie = cookieName + "=" + val + ";path=/;samesite=strict;max-age=31536000";
-        }
-
-        window._applyLumexTheme = function() {
             var t = localStorage.getItem(key) || "system";
             var resolved = t === "system"
                 ? (window.matchMedia("(prefers-color-scheme:dark)").matches ? "dark" : "light")
                 : t;
-            // Keep cookie in sync so the server always renders the right class.
+            
             setResolvedCookie(resolved);
-            document.documentElement.classList.remove("light","dark");
+            document.documentElement.classList.remove("light", "dark");
             document.documentElement.classList.add(resolved);
+            document.documentElement.setAttribute("data-theme", resolved);
             document.documentElement.style.colorScheme = resolved;
-        };
 
-        window._applyLumexTheme();
+            window._applyLumexTheme = function(newTheme) {
+                if (newTheme) {
+                    localStorage.setItem(key, newTheme);
+                }
+                var current = localStorage.getItem(key) || "system";
+                var res = current === "system"
+                    ? (window.matchMedia("(prefers-color-scheme:dark)").matches ? "dark" : "light")
+                    : current;
+                setResolvedCookie(res);
+                document.documentElement.classList.remove("light", "dark");
+                document.documentElement.classList.add(res);
+                document.documentElement.setAttribute("data-theme", res);
+                document.documentElement.style.colorScheme = res;
+            };
 
-        // Re-apply after every enhanced-navigation morph (covers "system" users whose
-        // cookie may differ from the current OS state mid-session).
-        if (!window._themeListenerAttached) {
-            window._themeListenerAttached = true;
-            document.addEventListener('blazor:enhancedload', function() { window._applyLumexTheme(); });
-            // Also react to OS dark/light changes while the tab is open.
             window.matchMedia("(prefers-color-scheme:dark)").addEventListener("change", function() {
                 if ((localStorage.getItem(key) || "system") === "system") {
                     window._applyLumexTheme();
                 }
             });
-        }
-    })();</script>
+        })();
+    </script>
 </head>
 
 <body>
+    @if (DbThemeColor == "purple")
+    {
+        <style>
+            :root {
+                --lumex-primary-50: #faf5ff;
+                --lumex-primary-100: #f3e8ff;
+                --lumex-primary-200: #e9d5ff;
+                --lumex-primary-300: #d8b4fe;
+                --lumex-primary-400: #c084fc;
+                --lumex-primary-500: #a855f7;
+                --lumex-primary-600: #9333ea;
+                --lumex-primary-700: #7e22ce;
+                --lumex-primary-800: #6b21a8;
+                --lumex-primary-900: #581c87;
+                --lumex-primary: var(--lumex-primary-500);
+                --lumex-focus: var(--lumex-primary-500);
+            }
+        </style>
+    }
+    else if (DbThemeColor == "red")
+    {
+        <style>
+            :root {
+                --lumex-primary-50: #fef2f2;
+                --lumex-primary-100: #fee2e2;
+                --lumex-primary-200: #fecaca;
+                --lumex-primary-300: #fca5a5;
+                --lumex-primary-400: #f87171;
+                --lumex-primary-500: #ef4444;
+                --lumex-primary-600: #dc2626;
+                --lumex-primary-700: #b91c1c;
+                --lumex-primary-800: #991b1b;
+                --lumex-primary-900: #7f1d1d;
+                --lumex-primary: var(--lumex-primary-500);
+                --lumex-focus: var(--lumex-primary-500);
+            }
+        </style>
+    }
+    else if (DbThemeColor == "amber")
+    {
+        <style>
+            :root {
+                --lumex-primary-50: #fffbeb;
+                --lumex-primary-100: #fef3c7;
+                --lumex-primary-200: #fde68a;
+                --lumex-primary-300: #fcd34d;
+                --lumex-primary-400: #fbbf24;
+                --lumex-primary-500: #f59e0b;
+                --lumex-primary-600: #d97706;
+                --lumex-primary-700: #b45309;
+                --lumex-primary-800: #92400e;
+                --lumex-primary-900: #78350f;
+                --lumex-primary: var(--lumex-primary-500);
+                --lumex-focus: var(--lumex-primary-500);
+            }
+        </style>
+    }
+    else if (DbThemeColor != "blue")
+    {
+        <style>
+            :root {
+                --lumex-primary-50: var(--color-@(DbThemeColor)-50);
+                --lumex-primary-100: var(--color-@(DbThemeColor)-100);
+                --lumex-primary-200: var(--color-@(DbThemeColor)-200);
+                --lumex-primary-300: var(--color-@(DbThemeColor)-300);
+                --lumex-primary-400: var(--color-@(DbThemeColor)-400);
+                --lumex-primary-500: var(--color-@(DbThemeColor)-500);
+                --lumex-primary-600: var(--color-@(DbThemeColor)-600);
+                --lumex-primary-700: var(--color-@(DbThemeColor)-700);
+                --lumex-primary-800: var(--color-@(DbThemeColor)-800);
+                --lumex-primary-900: var(--color-@(DbThemeColor)-900);
+                --lumex-primary: var(--lumex-primary-500);
+                --lumex-focus: var(--lumex-primary-500);
+            }
+        </style>
+    }
+
     <Routes />
     <script src="_content/LumexUI/js/LumexUI.js" type="module"></script>
     <script src="/_content/PSC.Blazor.Components.MarkdownEditor/js/easymde.min.js"></script>
@@ -79,19 +152,7 @@
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
 
-    private string DbTheme { get; set; } = "system";
-
-    // For light/dark this matches DbTheme directly.
-    // For system we read the "theme-resolved" cookie that JS wrote (dark or light),
-    // so the <html> class is correct on every SSR render including enhanced-nav fetches.
-    private string ResolvedTheme => DbTheme switch
-    {
-        "light" => "light",
-        "dark"  => "dark",
-        _ => HttpContext.Request.Cookies.TryGetValue("theme-resolved", out var c) && (c == "dark" || c == "light")
-                ? c
-                : "light"
-    };
+    private string DbThemeColor { get; set; } = "blue";
 
     protected override async Task OnInitializedAsync()
     {
@@ -100,7 +161,7 @@
         {
             var userManager = HttpContext.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
             var user = await userManager.FindByIdAsync(userId);
-            DbTheme = user?.WebsiteAppearance ?? "system";
+            DbThemeColor = user?.ThemeColor ?? "blue";
         }
     }
 }

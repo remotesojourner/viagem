@@ -1,4 +1,4 @@
-﻿@page "/travellers"
+@page "/travellers"
 @rendermode InteractiveServer
 @attribute [Authorize]
 @using System.Security.Cryptography
@@ -74,7 +74,7 @@
                 <div class="flex items-center gap-2">
                     @if (selectMode && !isSelected && selectedIds.Count > 0)
                     {
-                        <LumexButton OnClick="() => OpenMergeConfirm(profile)" Color="ThemeColor.Warning" Size="Size.Small">
+                        <LumexButton OnClick="() => OpenMergeConfirm(profile)" Color="ThemeColor.Warning">
                             Merge selected → this
                         </LumexButton>
                     }
@@ -82,12 +82,12 @@
                     {
                         @if (isAdmin && string.IsNullOrEmpty(profile.LinkedUserId) && !string.IsNullOrEmpty(profile.Email))
                         {
-                            <LumexButton OnClick="() => OpenAddUserModal(profile)" Color="ThemeColor.Success" Size="Size.Small">Add User</LumexButton>
+                            <LumexButton OnClick="() => OpenAddUserModal(profile)" Color="ThemeColor.Success">Add User</LumexButton>
                         }
-                        <LumexButton OnClick="() => OpenEditModal(profile)" Size="Size.Small">Edit</LumexButton>
+                        <LumexButton OnClick="() => OpenEditModal(profile)">Edit</LumexButton>
                         @if (profile.LinkedUserId != currentUserId)
                         {
-                            <LumexButton OnClick="() => DeleteProfile(profile.Id)" Color="ThemeColor.Danger" Size="Size.Small">Delete</LumexButton>
+                            <LumexButton OnClick="() => DeleteProfile(profile.Id)" Color="ThemeColor.Danger">Delete</LumexButton>
                         }
                     }
                 </div>
@@ -102,15 +102,13 @@
                         <LumexChip OnClose="() => RemoveAlias(alias.Id, profile.Id)">@alias.Alias</LumexChip>
                     }
                     @* Inline add alias *@
-                    <div class="flex items-center gap-1">
-                        <input type="text"
-                               value="@GetAliasInput(profile.Id)"
-                               @oninput="e => SetAliasInput(profile.Id, e.Value?.ToString() ?? string.Empty)"
-                               @onkeydown="e => OnAliasKeyDown(e, profile.Id)"
-                               placeholder="Add alias…"
-                               class="px-2.5 py-1 text-sm bg-surface2 border border-divider text-foreground rounded-full focus:outline-none focus:ring-1 focus:ring-primary w-32" />
-                        <button @onclick="() => AddAlias(profile.Id)"
-                                class="px-2.5 py-1 text-sm text-white bg-primary rounded-full hover:bg-primary-600">+</button>
+                    <div class="flex items-center gap-2">
+                        <LumexTextbox Value="@GetAliasInput(profile.Id)"
+                                      ValueChanged="@((string v) => SetAliasInput(profile.Id, v))"
+                                      @onkeydown="@(e => OnAliasKeyDown(e, profile.Id))"
+                                      Placeholder="Add alias…"
+                                      Class="w-40" />
+                        <LumexButton OnClick="() => AddAlias(profile.Id)" Color="ThemeColor.Primary" Class="px-3 min-w-0">Add</LumexButton>
                     </div>
                 </div>
             </div>

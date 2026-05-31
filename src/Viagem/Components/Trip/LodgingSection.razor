@@ -1,9 +1,10 @@
 @using Viagem.Services.Interfaces
+@using Viagem.Common
 @using Viagem.Services.ViewModels
-@inject ILodgingService LodgingService
+@inject ITripService TripService
 
 <!-- Add / Edit Modal -->
-<LumexModal @bind-Open="showModal" OnClose="CloseModal">
+<LumexModal @bind-Open="showModal" OnClose="CloseModal" Size="ModalSize.Large">
     <LumexModalContent Context="modal">
         <LumexModalHeader>
             <h3 class="text-lg font-semibold text-foreground">
@@ -21,7 +22,7 @@
                 <LumexSelect TValue="LodgingType" @bind-Value="formType" Label="Type">
                     @foreach (var t in Enum.GetValues<LodgingType>())
                     {
-                        <LumexSelectItem Value="@t">@GetTypeLabel(t)</LumexSelectItem>
+                        <LumexSelectItem Value="@t">@t.GetLabel()</LumexSelectItem>
                     }
                 </LumexSelect>
             </div>
@@ -35,12 +36,11 @@
                 <LumexDatebox TValue="DateTime" @bind-Value="formEndDate" Label="Check-out *" Type="LumexUI.Common.InputDateType.DateTimeLocal" />
             </div>
             <div class="col-span-2">
-                <LumexSelect TValue="string" @bind-Value="formTimezone" Label="Timezone" Placeholder="— select timezone —">
-                    @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
-                    {
-                        <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
-                    }
-                </LumexSelect>
+                <SearchableDropdown TItem="string"
+                                    @bind-Value="formTimezone"
+                                    Items="AppConstants.Timezones"
+                                    Label="Timezone"
+                                    Placeholder="— select timezone —" />
             </div>
             <div class="col-span-2">
                 <LumexTextbox @bind-Value="formAddress" Label="Address" Placeholder="Street address" />
@@ -49,12 +49,13 @@
                 <LumexNumbox TValue="decimal?" @bind-Value="formCostAmount" Label="Cost" Placeholder="0.00" />
             </div>
             <div>
-                <LumexSelect TValue="string" @bind-Value="formCostCurrency" Label="Currency">
-                    @foreach (var c in Currencies)
-                    {
-                        <LumexSelectItem Value="@c">@c</LumexSelectItem>
-                    }
-                </LumexSelect>
+                <SearchableDropdown TItem="CurrencyItem"
+                                    Value="@AppConstants.Currencies.FirstOrDefault(c => c.Code == formCostCurrency)"
+                                    ValueChanged="@(c => formCostCurrency = c?.Code ?? UserCurrency)"
+                                    Items="AppConstants.Currencies"
+                                    ItemText='c => $"{c.Flag} {c.Code} - {c.Name}"'
+                                    Label="Currency"
+                                    Placeholder="Select currency..." />
             </div>
             <div class="col-span-2">
                 <LumexTextbox @bind-Value="formLink" Label="Booking Link" Placeholder="https://..." />
@@ -121,15 +122,14 @@ else
     else
     {
         <div class="space-y-2">
-            @foreach (var item in items.OrderBy(i => i.StartDate))
-            {
+            <Virtualize Items="items.OrderBy(i => i.StartDate).ToList()" Context="item" OverscanCount="5">
                 <div class="flex items-start justify-between p-3 bg-default-50 rounded-xl border border-divider hover:border-foreground-300 transition-colors">
                     <div class="flex items-start gap-3">
-                        <span class="text-2xl mt-0.5">@GetIcon(item.Type)</span>
+                        <span class="text-2xl mt-0.5">@item.Type.GetIcon()</span>
                         <div>
                             <div class="flex flex-wrap items-baseline gap-2">
                                 <span class="font-semibold text-foreground text-sm">@item.Name</span>
-                                <span class="text-xs text-foreground-400">@GetTypeLabel(item.Type)</span>
+                                <span class="text-xs text-foreground-400">@item.Type.GetLabel()</span>
                                 @if (!string.IsNullOrEmpty(item.ConfirmationCode))
                                 {
                                     <span class="text-xs font-mono bg-default-200 text-foreground-500 px-1.5 py-0.5 rounded">@item.ConfirmationCode</span>
@@ -198,7 +198,7 @@ else
                         <a href="@item.Link" target="_blank" rel="noopener" class="text-xs text-primary hover:underline ml-2 shrink-0">Link</a>
                     }
                 </div>
-            }
+            </Virtualize>
         </div>
     }
 }
@@ -213,11 +213,12 @@ else
     [Parameter] public string UserCurrency { get; set; } = "USD";
     [Parameter] public EventCallback<LodgingViewModel> OnItemCreated { get; set; }
     [Parameter] public EventCallback<LodgingViewModel> OnItemUpdated { get; set; }
-    [Parameter] public EventCallback<int> OnItemDeleted { get; set; }
+    [Parameter] public EventCallback<Guid> OnItemDeleted { get; set; }
+    [Parameter] public string UserId { get; set; } = "";
 
     private List<LodgingViewModel> items = [];
     private bool loading = true;
-    private int? menuOpenId;
+    private Guid? menuOpenId;
     private bool saving = false;
     private bool showModal = false;
     private LodgingViewModel? editItem;
@@ -239,7 +240,7 @@ else
     private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
 
     private string? userTimezone;
-    private Dictionary<int, string> tzTooltipCache = [];
+    private Dictionary<Guid, string> tzTooltipCache = [];
     private bool _needsRender = true;
 
     protected override bool ShouldRender()
@@ -326,7 +327,8 @@ else
         saving = true;
         if (editItem != null)
         {
-            var updated = await LodgingService.UpdateAsync(new UpdateLodgingRequest(editItem.Id, formType, formName, formAddress, formConfirmationCode, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds));
+            var req = new UpdateLodgingRequest(TripId, editItem.Id, formType, formName, formAddress, formConfirmationCode, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds);
+            var updated = await TripService.UpdateLodgingAsync(UserId, req);
             if (updated != null)
             {
                 var idx = items.FindIndex(i => i.Id == updated.Id);
@@ -336,7 +338,8 @@ else
         }
         else
         {
-            var created = await LodgingService.CreateAsync(new CreateLodgingRequest(TripId, formType, formName, formAddress, formConfirmationCode, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds));
+            var req = new CreateLodgingRequest(TripId, formType, formName, formAddress, formConfirmationCode, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds);
+            var created = await TripService.AddLodgingAsync(UserId, req);
             items.Add(created);
             if (OnItemCreated.HasDelegate) await OnItemCreated.InvokeAsync(created);
         }
@@ -345,33 +348,14 @@ else
         _needsRender = true;
     }
 
-    private async Task DeleteItem(int id)
+    private async Task DeleteItem(Guid id)
     {
-        await LodgingService.DeleteAsync(id);
+        await TripService.RemoveLodgingAsync(UserId, TripId, id);
         items.RemoveAll(i => i.Id == id);
         _needsRender = true;
         if (OnItemDeleted.HasDelegate) await OnItemDeleted.InvokeAsync(id);
     }
 
-    private static string GetTypeLabel(LodgingType type) => type switch
-    {
-        LodgingType.Hotel => "Hotel",
-        LodgingType.Hostel => "Hostel",
-        LodgingType.Home => "Home",
-        LodgingType.VacationRental => "Vacation Rental",
-        LodgingType.CampSite => "Campsite",
-        _ => "Other"
-    };
-
-    private static string GetIcon(LodgingType type) => type switch
-    {
-        LodgingType.Hotel => "🏨",
-        LodgingType.Hostel => "🛏️",
-        LodgingType.Home => "🏠",
-        LodgingType.VacationRental => "🏡",
-        LodgingType.CampSite => "⛺",
-        _ => "🏩"
-    };
 
     private string FormatTimezoneTooltip(string? timezone)
     {
