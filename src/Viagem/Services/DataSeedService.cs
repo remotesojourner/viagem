@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Viagem.Data;
 using Viagem.Data.Models;
+using Viagem.Services.Interfaces;
 
 namespace Viagem.Services;
 
@@ -11,7 +12,8 @@ public class DataSeedService(
     ApplicationDbContext db,
     IWebHostEnvironment env,
     IHttpClientFactory httpClientFactory,
-    ILogger<DataSeedService> logger)
+    ILogger<DataSeedService> logger,
+    IReferenceDataCache cache)
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
 
@@ -35,6 +37,8 @@ public class DataSeedService(
         if (!await db.Airports.AnyAsync()) await LoadAirportsAsync();
         if (!await db.Airlines.AnyAsync()) await LoadAirlinesAsync();
         if (!await db.Places.AnyAsync()) await LoadPlacesAsync();
+        
+        await cache.RefreshAsync();
     }
 
     // Public methods callable from Settings UI
@@ -62,6 +66,7 @@ public class DataSeedService(
         if (airports.Count == 0) return 0;
         await db.Airports.AddRangeAsync(airports);
         await db.SaveChangesAsync();
+        await cache.RefreshAsync();
         logger.LogInformation("Seeded {Count} airports", airports.Count);
         return airports.Count;
     }
@@ -86,6 +91,7 @@ public class DataSeedService(
         if (airlines.Count == 0) return 0;
         await db.Airlines.AddRangeAsync(airlines);
         await db.SaveChangesAsync();
+        await cache.RefreshAsync();
         logger.LogInformation("Seeded {Count} airlines", airlines.Count);
         return airlines.Count;
     }
@@ -98,11 +104,15 @@ public class DataSeedService(
         var citiesPath = SeedPath("cities-major.json");
         if (File.Exists(citiesPath))
         {
-            return await SeedPlacesFromCitiesAsync(citiesPath);
+            var count = await SeedPlacesFromCitiesAsync(citiesPath);
+            await cache.RefreshAsync();
+            return count;
         }
 
         logger.LogInformation("cities-major.json not found locally, downloading from dr5hn/countries-states-cities-database...");
-        return await DownloadPlacesFromJsonAsync();
+        var downloadCount = await DownloadPlacesFromJsonAsync();
+        await cache.RefreshAsync();
+        return downloadCount;
     }
 
     // Removes duplicate Place rows, keeping the lowest Id in each group (preserves oldest FK references)

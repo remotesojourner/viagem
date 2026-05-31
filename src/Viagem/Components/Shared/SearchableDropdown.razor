@@ -1,0 +1,220 @@
+@typeparam TItem
+@implements IDisposable
+
+<div class="relative w-full" @oninput="HandleInputWrapper">
+    <LumexTextbox Value="@SearchText"
+                  ValueChanged="HandleSearchTextChanged"
+                  Label="@Label"
+                  Placeholder="@Placeholder"
+                  OnFocus="HandleFocus"
+                  OnBlur="HandleBlur" />
+    
+    @if (showDropdown && (results.Count > 0 || ActionContent != null))
+    {
+        <div class="absolute z-20 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1 flex flex-col">
+            @foreach (var item in results)
+            {
+                <div @onmousedown='() => SelectItem(item)'
+                     class="px-3 py-2 hover:bg-default-100 cursor-pointer text-sm text-foreground">
+                    @if (ItemTemplate != null)
+                    {
+                        @ItemTemplate(item)
+                    }
+                    else
+                    {
+                        @(ItemText != null ? ItemText(item) : item?.ToString())
+                    }
+                </div>
+            }
+            @if (ActionContent != null)
+            {
+                <div class="border-t border-divider w-full">
+                    @ActionContent(SearchText)
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Placeholder { get; set; } = "Search...";
+    
+    [Parameter] public TItem? Value { get; set; }
+    [Parameter] public EventCallback<TItem?> ValueChanged { get; set; }
+    
+    [Parameter] public Func<TItem, string>? ItemText { get; set; }
+    [Parameter] public RenderFragment<TItem>? ItemTemplate { get; set; }
+    [Parameter] public RenderFragment<string>? ActionContent { get; set; }
+    
+    // Either provide a static list to filter locally
+    [Parameter] public IEnumerable<TItem>? Items { get; set; }
+    
+    // OR provide a function to fetch items from a service
+    [Parameter] public Func<string, Task<IEnumerable<TItem>>>? SearchProvider { get; set; }
+    
+    [Parameter] public int MinSearchLength { get; set; } = 1;
+    
+    [Parameter] public string SearchText { get; set; } = "";
+    [Parameter] public EventCallback<string> SearchTextChanged { get; set; }
+    
+    [Parameter] public bool ClearOnSelect { get; set; } = false;
+
+    private bool showDropdown = false;
+    private List<TItem> results = [];
+    private System.Timers.Timer? debounceTimer;
+
+    protected override void OnInitialized()
+    {
+        debounceTimer = new System.Timers.Timer(300);
+        debounceTimer.Elapsed += async (s, e) => await InvokeAsync(PerformSearch);
+        debounceTimer.AutoReset = false;
+    }
+    
+    private TItem? lastValue;
+
+    protected override void OnParametersSet()
+    {
+        // Sync external Value changes to the local SearchText
+        if (!EqualityComparer<TItem>.Default.Equals(Value, lastValue))
+        {
+            lastValue = Value;
+            if (Value != null)
+            {
+                var textForValue = ItemText != null ? ItemText(Value) : Value.ToString() ?? "";
+                // Only update if it doesn't match, to avoid overwriting while typing
+                if (SearchText != textForValue && !showDropdown)
+                {
+                    SearchText = textForValue;
+                    _ = SearchTextChanged.InvokeAsync(SearchText);
+                }
+            }
+            else if (Value == null && !showDropdown)
+            {
+                SearchText = "";
+                _ = SearchTextChanged.InvokeAsync(SearchText);
+            }
+        }
+    }
+
+    private void HandleSearchTextChanged(string val)
+    {
+        SearchText = val;
+        _ = SearchTextChanged.InvokeAsync(SearchText);
+        // If user clears the input, clear the selection
+        if (string.IsNullOrEmpty(SearchText))
+        {
+            Value = default;
+            ValueChanged.InvokeAsync(Value);
+            results.Clear();
+            showDropdown = false;
+        }
+    }
+
+    private void HandleInputWrapper(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString() ?? "";
+        _ = SearchTextChanged.InvokeAsync(SearchText);
+        
+        // If user clears the input, clear the selection immediately
+        if (string.IsNullOrEmpty(SearchText))
+        {
+            Value = default;
+            ValueChanged.InvokeAsync(Value);
+            results.Clear();
+            showDropdown = false;
+        }
+
+        // Debounce search
+        debounceTimer?.Stop();
+        debounceTimer?.Start();
+    }
+
+    private void HandleFocus()
+    {
+        if (results.Count > 0 || (ActionContent != null && SearchText.Length > 0))
+        {
+            showDropdown = true;
+        }
+        else if (SearchText.Length >= MinSearchLength || (Items != null && MinSearchLength == 0))
+        {
+            _ = PerformSearch();
+        }
+    }
+
+    private async Task HandleBlur()
+    {
+        // Give SelectItem time to fire its click event before hiding the dropdown
+        await Task.Delay(150);
+        
+        showDropdown = false;
+        
+        // Strict selection: revert to currently selected item if they didn't pick anything
+        if (Value != null)
+        {
+            SearchText = ItemText != null ? ItemText(Value) : Value.ToString() ?? "";
+            _ = SearchTextChanged.InvokeAsync(SearchText);
+        }
+        else
+        {
+            SearchText = "";
+            _ = SearchTextChanged.InvokeAsync(SearchText);
+        }
+        StateHasChanged();
+    }
+
+    private async Task PerformSearch()
+    {
+        if (SearchText.Length >= MinSearchLength || (Items != null && MinSearchLength == 0))
+        {
+            if (SearchProvider != null)
+            {
+                var res = await SearchProvider(SearchText);
+                results = res.ToList();
+            }
+            else if (Items != null && ItemText != null)
+            {
+                var lowerSearch = SearchText.ToLowerInvariant();
+                results = Items.Where(i => ItemText(i).ToLowerInvariant().Contains(lowerSearch)).ToList();
+            }
+            else if (Items != null)
+            {
+                var lowerSearch = SearchText.ToLowerInvariant();
+                results = Items.Where(i => (i?.ToString() ?? "").ToLowerInvariant().Contains(lowerSearch)).ToList();
+            }
+            
+            showDropdown = results.Count > 0 || ActionContent != null;
+            StateHasChanged();
+        }
+        else
+        {
+            results.Clear();
+            showDropdown = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SelectItem(TItem item)
+    {
+        await ValueChanged.InvokeAsync(item);
+        
+        if (ClearOnSelect)
+        {
+            Value = default;
+            SearchText = "";
+        }
+        else
+        {
+            Value = item;
+            SearchText = ItemText != null ? ItemText(item) : item?.ToString() ?? "";
+        }
+        
+        await SearchTextChanged.InvokeAsync(SearchText);
+        showDropdown = false;
+    }
+    
+    public void Dispose()
+    {
+        debounceTimer?.Dispose();
+    }
+}

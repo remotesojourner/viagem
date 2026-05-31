@@ -20,7 +20,7 @@ public class TravellerProfileRepository(ApplicationDbContext db) : ITravellerPro
             .Include(tp => tp.Aliases)
             .Include(tp => tp.AdditionalFields)
             .Include(tp => tp.Managers).ThenInclude(m => m.ManagerUser)
-            .Include(tp => tp.Attachments).ThenInclude(a => a.Attachment)
+            .Include(tp => tp.Attachments)
             .Where(tp => tp.OwnerId == userId || tp.Managers.Any(m => m.ManagerUserId == userId))
             .FirstOrDefaultAsync(tp => tp.Id == id);
 
@@ -104,5 +104,148 @@ public class TravellerProfileRepository(ApplicationDbContext db) : ITravellerPro
             LinkedUserId = userId
         });
         await db.SaveChangesAsync();
+    }
+
+    public async Task MergeAsync(int targetId, IReadOnlyList<int> sourceIds, string userId)
+    {
+        // Verify ownership of target and all sources
+        var allIds = sourceIds.Append(targetId).ToList();
+        var profiles = await db.TravellerProfiles
+            .Include(tp => tp.Aliases)
+            .Where(tp => allIds.Contains(tp.Id) && (tp.OwnerId == userId || tp.Managers.Any(m => m.ManagerUserId == userId)))
+            .ToListAsync();
+
+        var target = profiles.FirstOrDefault(p => p.Id == targetId)
+            ?? throw new InvalidOperationException("Target profile not found or not accessible.");
+
+        var sources = profiles.Where(p => sourceIds.Contains(p.Id)).ToList();
+        if (sources.Count == 0) return;
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        try
+        {
+            // 1. Add source names and their aliases as aliases on the target
+            var existingAliases = target.Aliases.Select(a => a.Alias).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var src in sources)
+            {
+                // Add the source's legal name as an alias
+                if (!existingAliases.Contains(src.LegalName) &&
+                    !string.Equals(src.LegalName, target.LegalName, StringComparison.OrdinalIgnoreCase))
+                {
+                    db.TravellerProfileAliases.Add(new TravellerProfileAlias
+                    {
+                        TravellerProfileId = targetId,
+                        Alias = src.LegalName
+                    });
+                    existingAliases.Add(src.LegalName);
+                }
+
+                // Add each source alias
+                foreach (var alias in src.Aliases)
+                {
+                    if (!existingAliases.Contains(alias.Alias) &&
+                        !string.Equals(alias.Alias, target.LegalName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        db.TravellerProfileAliases.Add(new TravellerProfileAlias
+                        {
+                            TravellerProfileId = targetId,
+                            Alias = alias.Alias
+                        });
+                        existingAliases.Add(alias.Alias);
+                    }
+                }
+            }
+
+            // 2. Re-point TripTravellers
+            var tripRows = await db.TripTravellers
+                .Where(r => sourceIds.Contains(r.TravellerProfileId))
+                .ToListAsync();
+            var existingTripTargetIds = await db.TripTravellers
+                .Where(r => r.TravellerProfileId == targetId)
+                .Select(r => r.TripId)
+                .ToHashSetAsync();
+            foreach (var row in tripRows)
+            {
+                if (existingTripTargetIds.Contains(row.TripId))
+                    db.TripTravellers.Remove(row);
+                else
+                {
+                    row.TravellerProfileId = targetId;
+                    existingTripTargetIds.Add(row.TripId);
+                }
+            }
+
+            // 3. Update JSON collections in affected Trips
+            var affectedTripIds = tripRows.Select(r => r.TripId).Distinct().ToList();
+            var affectedTrips = await db.Trips
+                .Where(t => affectedTripIds.Contains(t.Id))
+                .ToListAsync();
+
+            foreach (var trip in affectedTrips)
+            {
+                // Transportation
+                foreach (var trans in trip.Transportations)
+                {
+                    for (int i = 0; i < trans.TravellerProfileIds.Count; i++)
+                    {
+                        if (sourceIds.Contains(trans.TravellerProfileIds[i]))
+                            trans.TravellerProfileIds[i] = targetId;
+                    }
+                    trans.TravellerProfileIds = trans.TravellerProfileIds.Distinct().ToList();
+                }
+
+                // Lodging
+                foreach (var lodg in trip.Lodgings)
+                {
+                    for (int i = 0; i < lodg.TravellerProfileIds.Count; i++)
+                    {
+                        if (sourceIds.Contains(lodg.TravellerProfileIds[i]))
+                            lodg.TravellerProfileIds[i] = targetId;
+                    }
+                    lodg.TravellerProfileIds = lodg.TravellerProfileIds.Distinct().ToList();
+                }
+
+                // Activity
+                foreach (var act in trip.Activities)
+                {
+                    for (int i = 0; i < act.TravellerProfileIds.Count; i++)
+                    {
+                        if (sourceIds.Contains(act.TravellerProfileIds[i]))
+                            act.TravellerProfileIds[i] = targetId;
+                    }
+                    act.TravellerProfileIds = act.TravellerProfileIds.Distinct().ToList();
+                }
+
+                // Expense splits
+                foreach (var exp in trip.Expenses)
+                {
+                    foreach (var split in exp.Splits)
+                    {
+                        if (sourceIds.Contains(split.TravellerProfileId))
+                            split.TravellerProfileId = targetId;
+                    }
+                    // Handle duplicates by merging amounts if multiple sources are merged into same target on same expense
+                    var groupedSplits = exp.Splits.GroupBy(s => s.TravellerProfileId).ToList();
+                    exp.Splits = groupedSplits.Select(g => new ExpenseSplit
+                    {
+                        TravellerProfileId = g.Key,
+                        Amount = g.Sum(s => s.Amount)
+                    }).ToList();
+                }
+            }
+
+            await db.SaveChangesAsync();
+
+            // 3. Delete source profiles
+            db.TravellerProfiles.RemoveRange(sources);
+            await db.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 }

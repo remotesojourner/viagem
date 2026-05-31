@@ -16,6 +16,9 @@ public record CreateTripRequest(
     IReadOnlyList<string> CustomDestinationNames,
     IReadOnlyList<int> TravellerProfileIds);
 
+public record UpdateTripDestinationRequest(Guid? Id, int? PlaceId, string? CustomName);
+public record UpdateTripTravellerRequest(int TravellerProfileId, bool CanEdit, bool IsOrganiser);
+
 public record UpdateTripRequest(
     int Id,
     string Name,
@@ -23,7 +26,9 @@ public record UpdateTripRequest(
     DateTime StartDate,
     DateTime EndDate,
     decimal? BudgetAmount,
-    string? BudgetCurrency);
+    string? BudgetCurrency,
+    IReadOnlyList<UpdateTripDestinationRequest> Destinations,
+    IReadOnlyList<UpdateTripTravellerRequest> Travellers);
 
 // ── Activity ──────────────────────────────────────────────────────────────────
 
@@ -43,7 +48,8 @@ public record CreateActivityRequest(
     IReadOnlyList<int> TravellerProfileIds);
 
 public record UpdateActivityRequest(
-    int Id,
+    int TripId,
+    Guid Id,
     string Name,
     string? Description,
     string? Address,
@@ -76,7 +82,8 @@ public record CreateLodgingRequest(
     IReadOnlyList<int> TravellerProfileIds);
 
 public record UpdateLodgingRequest(
-    int Id,
+    int TripId,
+    Guid Id,
     LodgingType Type,
     string Name,
     string? Address,
@@ -122,7 +129,8 @@ public record CreateTransportationRequest(
     IReadOnlyList<int> TravellerProfileIds);
 
 public record UpdateTransportationRequest(
-    int Id,
+    int TripId,
+    Guid Id,
     TransportationType Type,
     string? Origin,
     string? OriginCity,
@@ -165,7 +173,8 @@ public record CreateExpenseRequest(
     IReadOnlyList<ExpenseSplitRequest> Splits);
 
 public record UpdateExpenseRequest(
-    int Id,
+    int TripId,
+    Guid Id,
     string Name,
     ExpenseCategory? Category,
     string? Notes,

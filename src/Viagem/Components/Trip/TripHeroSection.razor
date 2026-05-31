@@ -1,204 +1,15 @@
-﻿@using Viagem.Services.Interfaces
+@using Viagem.Services.Interfaces
 @using Viagem.Services.ViewModels
 @inject ITripService TripService
+@inject NavigationManager Nav
 @inject IPlaceService PlaceService
 @inject ITravellerProfileService TravellerService
 @inject AuthenticationStateProvider AuthStateProvider
-@inject Microsoft.AspNetCore.Identity.UserManager<Viagem.Data.ApplicationUser> UserManager
-@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebEnv
+@inject UserManager<ApplicationUser> UserManager
+@inject IWebHostEnvironment WebEnv
 @inject IJSRuntime JS
 
-<!-- Edit Trip Modal -->
-<LumexModal @bind-Open="showEditModal" OnClose="CloseEditModal">
-    <LumexModalContent Context="modal">
-        <LumexModalHeader>
-            <h3 class="text-lg font-semibold text-foreground">Edit Trip</h3>
-        </LumexModalHeader>
-        <LumexModalBody>
-        <div class="space-y-5">
-            @if (!string.IsNullOrEmpty(editError))
-            {
-                <div class="p-3 text-sm text-danger bg-danger-100 rounded-lg">@editError</div>
-            }
-
-                <!-- Trip Name -->
-                <div>
-                    <LumexTextbox @bind-Value="editName" Label="Trip Name *" Placeholder="My Amazing Trip" />
-                </div>
-
-                <!-- Dates -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <LumexDatebox TValue="DateTime" @bind-Value="editStart" Label="Start Date *" />
-                    </div>
-                    <div>
-                        <LumexDatebox TValue="DateTime" @bind-Value="editEnd" Label="End Date *" />
-                    </div>
-                </div>
-
-                <!-- Description -->
-                <div>
-                    <LumexTextbox @bind-Value="editDescription" Label="Description" Placeholder="What is this trip about?" Multiline="@true" Rows="2" />
-                </div>
-
-                <!-- Budget -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <LumexNumbox TValue="decimal?" @bind-Value="editBudget" Label="Budget Amount" Placeholder="0.00" />
-                    </div>
-                    <div>
-                        <LumexSelect TValue="string" @bind-Value="editCurrency" Label="Currency">
-                            @foreach (var c in Currencies)
-                            {
-                                <LumexSelectItem Value="@c.Code">@(c.Code + " - " + c.Name)</LumexSelectItem>
-                            }
-                        </LumexSelect>
-                    </div>
-                </div>
-
-                <!-- Destinations -->
-                <div>
-                    <label class="block mb-1.5 text-sm font-medium text-foreground">Destinations</label>
-                    @if (editDestinations.Any(d => !d.MarkedForRemoval))
-                    {
-                        <div class="flex flex-wrap gap-2 mb-3">
-                            @foreach (var d in editDestinations.Where(d => !d.MarkedForRemoval))
-                            {
-                                <span class="inline-flex items-center gap-1 px-2.5 py-1 text-sm bg-primary-100 text-primary-700 rounded-full">
-                                    📍 @d.DisplayName
-                                    <button type="button" @onclick="() => RemoveEditDest(d)"
-                                            class="ml-1 text-primary hover:text-primary-600">&#x2715;</button>
-                                </span>
-                            }
-                        </div>
-                    }
-                    <div class="flex gap-2">
-                        <div class="flex-1 relative">
-                            <LumexTextbox Value="@destSearch" ValueChanged="HandleDestInput" Placeholder="Search city..." />
-                            @if (destResults.Count > 0)
-                            {
-                                <ul class="absolute z-10 mt-1 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-44 overflow-y-auto">
-                                    @foreach (var place in destResults)
-                                    {
-                                        <li>
-                                            <button type="button" @onclick="() => AddDestFromPlace(place)"
-                                                    class="w-full text-left px-3 py-2 hover:bg-default-100">
-                                                <span class="font-semibold text-sm text-foreground">@place.Name</span>
-                                                @if (!string.IsNullOrEmpty(place.StateName) || !string.IsNullOrEmpty(place.CountryName))
-                                                {
-                                                    <span class="text-xs text-foreground-400 ml-1">
-                                                        @(!string.IsNullOrEmpty(place.StateName) ? place.StateName + (!string.IsNullOrEmpty(place.CountryName) ? ", " : "") : "")@(place.CountryName ?? "")
-                                                    </span>
-                                                }
-                                            </button>
-                                        </li>
-                                    }
-                                </ul>
-                            }
-                        </div>
-                        <LumexButton OnClick="AddDestCustom">Add custom</LumexButton>
-                    </div>
-                </div>
-
-                <!-- Travellers & Organisers -->
-                <div>
-                    <label class="block mb-1.5 text-sm font-medium text-foreground">Travellers &amp; Organisers</label>
-
-                    <!-- Added travellers list -->
-                    @if (editTravellers.Count > 0)
-                    {
-                        <div class="space-y-1 mb-3">
-                            @foreach (var kv in editTravellers)
-                            {
-                                var tProfile = availableTravellers.FirstOrDefault(p => p.Id == kv.Key);
-                                var tName = tProfile?.LegalName ?? "Unknown";
-                                var tIsLinked = !string.IsNullOrEmpty(tProfile?.LinkedUserId);
-                                var tIsCurrentUser = kv.Key == currentUserProfileId;
-                                var tState = kv.Value;
-                                <div class="flex items-center justify-between p-2 bg-default-50 rounded-lg">
-                                    <div class="flex items-center gap-2 min-w-0">
-                                        <UserAvatar Email="@tProfile?.Email" Name="@tName" SizeClass="w-7 h-7" ExtraClass="flex-shrink-0" TextClass="text-xs" />
-                                        <span class="text-sm text-foreground truncate">@tName</span>
-                                        @if (tIsLinked)
-                                        {
-                                            <span class="text-xs px-1.5 py-0.5 bg-success-100 text-success-600 rounded flex-shrink-0">User</span>
-                                        }
-                                        @if (tIsCurrentUser)
-                                        {
-                                            <span class="text-xs px-1.5 py-0.5 bg-primary-100 text-primary-600 rounded flex-shrink-0">You</span>
-                                        }
-                                    </div>
-                                    @if (tIsLinked || !tIsCurrentUser)
-                                    {
-                                        <div class="flex items-center gap-3 flex-shrink-0 ml-2">
-                                            @if (tIsLinked)
-                                            {
-                                                <label class="flex items-center gap-1 cursor-pointer text-xs text-foreground-500 select-none">
-                                                    <input type="checkbox" class="w-3.5 h-3.5 text-secondary rounded"
-                                                           checked="@tState.IsOrganiser"
-                                                           @onchange="e => SetOrganiserFlag(kv.Key, (bool)(e.Value ?? false))" />
-                                                    Organiser
-                                                </label>
-                                                @if (!tIsCurrentUser)
-                                                {
-                                                    <label class="flex items-center gap-1 text-xs select-none @(tState.IsOrganiser ? "cursor-not-allowed opacity-50 text-foreground-400" : "cursor-pointer text-foreground-500")">
-                                                        <input type="checkbox" class="w-3.5 h-3.5 text-primary rounded"
-                                                               disabled="@tState.IsOrganiser"
-                                                               checked="@tState.EffectiveCanEdit"
-                                                               @onchange="e => SetCanEditFlag(kv.Key, (bool)(e.Value ?? false))" />
-                                                        Can edit
-                                                    </label>
-                                                }
-                                            }
-                                            @if (!tIsCurrentUser)
-                                            {
-                                                <button type="button" @onclick="() => RemoveTravellerFromEdit(kv.Key)"
-                                                        class="text-foreground-400 hover:text-danger transition-colors">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                                    </svg>
-                                                </button>
-                                            }
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
-
-                    <!-- Search box to add travellers -->
-                    <div class="relative">
-                        <LumexTextbox Value="@travellerSearch" ValueChanged="HandleTravellerSearch" Placeholder="Search to add traveller..." />
-                        @if (travellerSearchResults.Count > 0)
-                        {
-                            <ul class="absolute z-10 mt-1 w-full bg-surface1 border border-divider rounded-lg shadow-lg max-h-44 overflow-y-auto">
-                                @foreach (var tp in travellerSearchResults)
-                                {
-                                    <li>
-                                        <button type="button" @onclick="() => AddTravellerToEdit(tp)"
-                                                class="w-full text-left px-3 py-2 text-sm hover:bg-default-100 text-foreground flex items-center gap-2">
-                                            <span>@tp.LegalName</span>
-                                            @if (!string.IsNullOrEmpty(tp.LinkedUserId))
-                                            {
-                                                <span class="text-xs px-1 py-0.5 bg-success-100 text-success-600 rounded">User</span>
-                                            }
-                                        </button>
-                                    </li>
-                                }
-                            </ul>
-                        }
-                    </div>
-                </div>
-                    </div>
-                    </LumexModalBody>
-                    <LumexModalFooter>
-                        <div class="flex justify-end gap-3 w-full">
-                            <LumexButton OnClick="CloseEditModal">Cancel</LumexButton>
-                            <LumexButton OnClick="SaveAll" Disabled="@saving" Color="ThemeColor.Primary">@(saving ? "Saving..." : "Save Changes")</LumexButton>
-                        </div>
-                    </LumexModalFooter>
-                </LumexModalContent>
-            </LumexModal>
+<EditTripModal @bind-IsOpen="showEditModal" Trip="Trip" OnSaved="OnTripUpdated" />
 
 <!-- Hidden cover image file input -->
 @if (CanEdit)
@@ -211,10 +22,30 @@
     <div class="mb-3 p-3 text-sm text-danger bg-danger-100 rounded-lg">@coverError</div>
 }
 
+@if (showDeleteConfirm)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @onclick="() => showDeleteConfirm = false">
+        <div class="bg-surface1 rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" @onclick:stopPropagation>
+            <h3 class="text-lg font-semibold text-foreground mb-2">Delete Trip?</h3>
+            <p class="text-sm text-foreground-400 mb-5">This will permanently delete <strong>@Trip.Name</strong> and all its data. This action cannot be undone.</p>
+            <div class="flex gap-2">
+                <button @onclick="DoDeleteTrip"
+                        class="flex-1 px-4 py-2 bg-danger text-white rounded-lg text-sm font-medium hover:bg-danger-600 transition-colors">
+                    Delete
+                </button>
+                <button @onclick="() => showDeleteConfirm = false"
+                        class="flex-1 px-4 py-2 bg-default-100 text-foreground rounded-lg text-sm font-medium hover:bg-default-200 transition-colors">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 <!-- Hero Section -->
 <div class="relative rounded-2xl overflow-hidden mb-6 shadow-lg">
     <!-- Background: cover image or gradient -->
-    <div class="h-64 sm:h-72 relative bg-gradient-to-br from-blue-600 to-indigo-700">
+    <div class="h-64 sm:h-72 relative bg-default-100">
         @if (!string.IsNullOrEmpty(Trip.CoverImagePath))
         {
             <img src="@Trip.CoverImagePath" alt="@Trip.Name" class="absolute inset-0 w-full h-full object-cover" />
@@ -265,6 +96,25 @@
                             </svg>
                             Change Cover Image
                         </label>
+                        <div class="border-t border-divider my-1"></div>
+                        <a href="/api/trips/@Trip.Id/export" target="_blank"
+                           @onclick="() => menuOpen = false"
+                           class="w-full text-left px-4 py-2 text-sm text-foreground-500 hover:bg-default-100 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            Export Trip
+                        </a>
+                        <div class="border-t border-divider my-1"></div>
+                        <button @onclick="ConfirmDelete"
+                                class="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger-50 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            Delete Trip
+                        </button>
                     </div>
                 }
             </div>
@@ -339,36 +189,12 @@
     [Parameter] public EventCallback OnTripUpdated { get; set; }
 
     private string? userId;
-    private bool saving = false;
     private bool menuOpen = false;
+    private bool showDeleteConfirm = false;
     private string? userMapsProvider;
     private string? userTimezone;
-
-    // Edit modal state
     private bool showEditModal = false;
-    private string editName = "";
-    private string? editDescription;
-    private DateTime editStart;
-    private DateTime editEnd;
-    private decimal? editBudget;
-    private string? editCurrency;
-    private string? editError;
-
-    // Destinations in edit modal
-    private string destSearch = "";
-    private List<PlaceViewModel> destResults = [];
-    private List<EditDestItem> editDestinations = [];
-
-    // Travellers in edit modal
-    private List<TravellerProfileViewModel> availableTravellers = [];
-    private Dictionary<int, TravellerEditState> editTravellers = [];
-    private string travellerSearch = "";
-    private List<TravellerProfileViewModel> travellerSearchResults = [];
-    private int? currentUserProfileId;
-
-    // Cover image
     private string? coverError;
-
 
     protected override async Task OnInitializedAsync()
     {
@@ -376,8 +202,6 @@
         userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (userId != null)
         {
-            availableTravellers = await TravellerService.GetMyProfilesAsync(userId);
-            currentUserProfileId = availableTravellers.FirstOrDefault(p => p.LinkedUserId == userId)?.Id;
             var appUser = await UserManager.FindByIdAsync(userId);
             userMapsProvider = appUser?.MapsProvider;
             userTimezone = appUser?.Timezone;
@@ -386,168 +210,20 @@
 
     private void ToggleMenu() => menuOpen = !menuOpen;
 
-    private async Task OpenEditModal()
+    private void ConfirmDelete() { menuOpen = false; showDeleteConfirm = true; }
+
+    private async Task DoDeleteTrip()
+    {
+        showDeleteConfirm = false;
+        if (userId == null) return;
+        await TripService.DeleteTripAsync(Trip.Id, userId);
+        Nav.NavigateTo("/");
+    }
+
+    private void OpenEditModal()
     {
         menuOpen = false;
-        editName = Trip.Name;
-        editDescription = Trip.Description;
-        editStart = Trip.StartDate;
-        editEnd = Trip.EndDate;
-        editBudget = Trip.BudgetAmount;
-        editCurrency = Trip.BudgetCurrency ?? "";
-        editError = null;
-        destSearch = "";
-        destResults = [];
-        travellerSearch = "";
-        travellerSearchResults = [];
-
-        editDestinations = Trip.Destinations?.Select(d => new EditDestItem
-        {
-            ExistingId = d.Id,
-            PlaceId = d.PlaceId,
-            CustomName = d.CustomName,
-            DisplayName = d.DisplayName
-        }).ToList() ?? [];
-
-        editTravellers = Trip.Travellers?.ToDictionary(
-            t => t.TravellerProfileId,
-            t => new TravellerEditState { CanEdit = t.CanEdit && !t.IsOrganiser, IsOrganiser = t.IsOrganiser }
-        ) ?? [];
-
         showEditModal = true;
-    }
-
-    private void CloseEditModal()
-    {
-        showEditModal = false;
-        destSearch = "";
-        destResults = [];
-        travellerSearch = "";
-        travellerSearchResults = [];
-    }
-
-    private async Task HandleDestInput(string? value)
-    {
-        destSearch = value ?? "";
-        if (destSearch.Length < 2) { destResults = []; return; }
-        destResults = await PlaceService.SearchAsync(destSearch);
-    }
-
-    private void AddDestFromPlace(PlaceViewModel place)
-    {
-        if (!editDestinations.Any(d => d.PlaceId == place.Id && !d.MarkedForRemoval))
-            editDestinations.Add(new EditDestItem
-            {
-                PlaceId = place.Id,
-                DisplayName = place.Name + (!string.IsNullOrEmpty(place.CountryName) ? $", {place.CountryName}" : "")
-            });
-        destSearch = "";
-        destResults = [];
-    }
-
-    private void AddDestCustom()
-    {
-        var name = destSearch.Trim();
-        if (string.IsNullOrEmpty(name)) return;
-        if (!editDestinations.Any(d => d.CustomName == name && !d.MarkedForRemoval))
-            editDestinations.Add(new EditDestItem { CustomName = name, DisplayName = name });
-        destSearch = "";
-        destResults = [];
-    }
-
-    private void RemoveEditDest(EditDestItem dest)
-    {
-        if (dest.ExistingId.HasValue)
-            dest.MarkedForRemoval = true;
-        else
-            editDestinations.Remove(dest);
-    }
-
-    private void HandleTravellerSearch(string? value)
-    {
-        travellerSearch = value ?? "";
-        if (travellerSearch.Length < 1) { travellerSearchResults = []; return; }
-        var lower = travellerSearch.ToLowerInvariant();
-        travellerSearchResults = availableTravellers
-            .Where(p => p.LegalName.ToLowerInvariant().Contains(lower) && !editTravellers.ContainsKey(p.Id))
-            .Take(8)
-            .ToList();
-    }
-
-    private void AddTravellerToEdit(TravellerProfileViewModel profile)
-    {
-        if (!editTravellers.ContainsKey(profile.Id))
-            editTravellers[profile.Id] = new TravellerEditState();
-        travellerSearch = "";
-        travellerSearchResults = [];
-    }
-
-    private void RemoveTravellerFromEdit(int profileId) => editTravellers.Remove(profileId);
-
-    private void SetOrganiserFlag(int profileId, bool isOrganiser)
-    {
-        if (editTravellers.TryGetValue(profileId, out var state))
-            state.IsOrganiser = isOrganiser;
-    }
-
-    private void SetCanEditFlag(int profileId, bool canEdit)
-    {
-        if (editTravellers.TryGetValue(profileId, out var state) && !state.IsOrganiser)
-            state.CanEdit = canEdit;
-    }
-
-    private async Task SaveAll()
-    {
-        if (string.IsNullOrWhiteSpace(editName)) { editError = "Trip name is required."; return; }
-        if (editEnd < editStart) { editError = "End date must be on or after start date."; return; }
-        saving = true;
-        editError = null;
-        try
-        {
-            await TripService.UpdateTripAsync(userId!, new UpdateTripRequest(Trip.Id, editName.Trim(), editDescription?.Trim(), editStart, editEnd, editBudget, string.IsNullOrWhiteSpace(editCurrency) ? null : editCurrency.Trim().ToUpper()));
-
-            foreach (var d in editDestinations.Where(d => d.MarkedForRemoval && d.ExistingId.HasValue))
-                await TripService.RemoveDestinationAsync(d.ExistingId!.Value);
-            foreach (var d in editDestinations.Where(d => !d.MarkedForRemoval && !d.ExistingId.HasValue))
-            {
-                if (d.PlaceId.HasValue)
-                    await TripService.AddDestinationAsync(Trip.Id, d.PlaceId.Value);
-                else if (!string.IsNullOrEmpty(d.CustomName))
-                    await TripService.AddDestinationCustomAsync(Trip.Id, d.CustomName);
-            }
-
-            var currentTravellers = Trip.Travellers.ToList();
-            foreach (var t in currentTravellers.Where(t =>
-                !editTravellers.ContainsKey(t.TravellerProfileId) &&
-                t.TravellerProfileId != currentUserProfileId))
-                await TripService.RemoveTravellerAsync(t.Id);
-            var existingProfileIds = currentTravellers.Select(t => t.TravellerProfileId).ToHashSet();
-            foreach (var kv in editTravellers.Where(kv => !existingProfileIds.Contains(kv.Key)))
-            {
-                var isCurrentUser = kv.Key == currentUserProfileId;
-                await TripService.AddTravellerAsync(Trip.Id, kv.Key,
-                    isCurrentUser ? true : kv.Value.EffectiveCanEdit,
-                    kv.Value.IsOrganiser);
-            }
-            foreach (var t in currentTravellers.Where(t => editTravellers.ContainsKey(t.TravellerProfileId)))
-            {
-                var isCurrentUser = t.TravellerProfileId == currentUserProfileId;
-                var state = editTravellers[t.TravellerProfileId];
-                var newCanEdit = isCurrentUser ? true : state.EffectiveCanEdit;
-                if (t.CanEdit != newCanEdit)
-                    await TripService.SetTravellerEditAsync(t.Id, newCanEdit);
-                if (t.IsOrganiser != state.IsOrganiser)
-                    await TripService.SetTravellerOrganiserAsync(t.Id, state.IsOrganiser);
-            }
-
-            showEditModal = false;
-            await OnTripUpdated.InvokeAsync();
-        }
-        catch (Exception ex)
-        {
-            editError = ex.Message;
-        }
-        saving = false;
     }
 
     private async Task HandleCoverUpload(InputFileChangeEventArgs e)
@@ -598,40 +274,6 @@
             coverError = $"Failed to upload image: {ex.Message}";
         }
     }
-
-    private class EditDestItem
-    {
-        public int? ExistingId { get; set; }
-        public int? PlaceId { get; set; }
-        public string? CustomName { get; set; }
-        public string DisplayName { get; set; } = "";
-        public bool MarkedForRemoval { get; set; } = false;
-    }
-
-    private class TravellerEditState
-    {
-        public bool CanEdit { get; set; } = false;
-        public bool IsOrganiser { get; set; } = false;
-        public bool EffectiveCanEdit => IsOrganiser || CanEdit;
-    }
-
-    private record CurrencyItem(string Code, string Name);
-
-    private static readonly IReadOnlyList<CurrencyItem> Currencies =
-    [
-        new("AED","UAE Dirham"), new("AUD","Australian Dollar"), new("BRL","Brazilian Real"),
-        new("CAD","Canadian Dollar"), new("CHF","Swiss Franc"), new("CNY","Chinese Yuan"),
-        new("CZK","Czech Koruna"), new("DKK","Danish Krone"), new("EUR","Euro"),
-        new("GBP","British Pound"), new("HKD","Hong Kong Dollar"), new("HUF","Hungarian Forint"),
-        new("IDR","Indonesian Rupiah"), new("ILS","Israeli Shekel"), new("INR","Indian Rupee"),
-        new("JPY","Japanese Yen"), new("KRW","South Korean Won"), new("MXN","Mexican Peso"),
-        new("MYR","Malaysian Ringgit"), new("NOK","Norwegian Krone"), new("NZD","New Zealand Dollar"),
-        new("PHP","Philippine Peso"), new("PLN","Polish Zloty"), new("RON","Romanian Leu"),
-        new("SAR","Saudi Riyal"), new("SEK","Swedish Krona"), new("SGD","Singapore Dollar"),
-        new("THB","Thai Baht"), new("TRY","Turkish Lira"), new("TWD","New Taiwan Dollar"),
-        new("UAH","Ukrainian Hryvnia"), new("USD","US Dollar"), new("VND","Vietnamese Dong"),
-        new("ZAR","South African Rand")
-    ];
 
     private string GetMapUrl(TripDestinationViewModel dest)
     {

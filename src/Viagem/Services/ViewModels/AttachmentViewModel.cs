@@ -1,7 +1,7 @@
 namespace Viagem.Services.ViewModels;
 
 public record AttachmentViewModel(
-    int Id,
+    Guid Id,
     string FileName,
     string FilePath,
     string? ContentType,

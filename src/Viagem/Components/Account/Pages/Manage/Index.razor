@@ -9,9 +9,7 @@
 @if (statusMessage is not null)
 {
     var isError = statusMessage.StartsWith("Error");
-    <div class="@(isError ? "p-4 mb-4 text-sm text-danger rounded-lg bg-danger-100" : "p-4 mb-4 text-sm text-success rounded-lg bg-success-100")" role="alert">
-        @statusMessage
-    </div>
+    <LumexAlert Color="@(isError ? ThemeColor.Danger : ThemeColor.Success)" Variant="AlertVariant.Flat" Description="@statusMessage" Class="mb-4" />
 }
 
 <div class="bg-surface1 rounded-xl border border-divider p-6 mb-6">
@@ -19,54 +17,76 @@
         <DataAnnotationsValidator />
         <ValidationSummary class="p-3 mb-4 text-sm text-danger rounded-lg bg-danger-100" role="alert" />
 
-        <div class="mb-4">
-            <label for="fullName" class="block mb-2 text-sm font-medium text-foreground">Full Name</label>
-            <InputText @bind-Value="Input.FullName" id="fullName"
-                       class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
-                       placeholder="Your full name" />
+        <div class="mb-6">
+            <LumexTextbox @bind-Value="Input.FullName" Label="Full Name" Placeholder="Your full name" />
             <ValidationMessage For="() => Input.FullName" class="mt-1 text-sm text-danger" />
         </div>
 
-        <div class="mb-4">
-            <label for="currencyCode" class="block mb-2 text-sm font-medium text-foreground">Default Currency</label>
-            <InputSelect @bind-Value="Input.CurrencyCode" id="currencyCode"
-                         class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
-                @foreach (var c in Currencies)
-                {
-                    <option value="@c.Code">@c.Code - @c.Name</option>
-                }
-            </InputSelect>
-        </div>
-
-        <div class="mb-4">
-            <label for="timezone" class="block mb-2 text-sm font-medium text-foreground">Timezone</label>
-            <InputSelect @bind-Value="Input.Timezone" id="timezone"
-                         class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
-                @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
-                {
-                    <option value="@tz">@tz</option>
-                }
-            </InputSelect>
-        </div>
-
-        <div class="mb-4">
-            <label for="appearance" class="block mb-2 text-sm font-medium text-foreground">Theme</label>
-            <InputSelect @bind-Value="Input.Appearance" id="appearance"
-                         class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="system">System</option>
-            </InputSelect>
+        <div class="mb-6">
+            <SearchableDropdown TItem="Viagem.Common.CurrencyItem"
+                                Value="@Viagem.Common.AppConstants.Currencies.FirstOrDefault(c => c.Code == Input.CurrencyCode)"
+                                ValueChanged="@(c => Input.CurrencyCode = c?.Code ?? "")"
+                                Items="Viagem.Common.AppConstants.Currencies"
+                                ItemText='c => $"{c.Flag} {c.Code} - {c.Name}"'
+                                Label="Default Currency"
+                                Placeholder="— select currency —" />
         </div>
 
         <div class="mb-6">
-            <label for="mapsProvider" class="block mb-2 text-sm font-medium text-foreground">Open maps links with</label>
-            <InputSelect @bind-Value="Input.MapsProvider" id="mapsProvider"
-                         class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
-                <option value="google">Google Maps</option>
-                <option value="apple">Apple Maps</option>
-                <option value="osm">OpenStreetMap</option>
-            </InputSelect>
+            <SearchableDropdown TItem="string"
+                                @bind-Value="Input.Timezone"
+                                Items="Viagem.Common.AppConstants.Timezones"
+                                Label="Timezone"
+                                Placeholder="— select timezone —" />
+        </div>
+
+        <div class="mb-6">
+            <LumexSelect @bind-Value="Input.ThemeColor" Label="Theme Color">
+                <LumexSelectItem Value="@("system")" TextValue="System">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-gray-400"></div>
+                        <span>System</span>
+                    </div>
+                </LumexSelectItem>
+                <LumexSelectItem Value="@("blue")" TextValue="Blue">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span>Blue</span>
+                    </div>
+                </LumexSelectItem>
+                <LumexSelectItem Value="@("green")" TextValue="Green">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span>Green</span>
+                    </div>
+                </LumexSelectItem>
+                <LumexSelectItem Value="@("purple")" TextValue="Purple">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+                        <span>Purple</span>
+                    </div>
+                </LumexSelectItem>
+                <LumexSelectItem Value="@("orange")" TextValue="Orange">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-orange-500"></div>
+                        <span>Orange</span>
+                    </div>
+                </LumexSelectItem>
+                <LumexSelectItem Value="@("red")" TextValue="Red">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span>Red</span>
+                    </div>
+                </LumexSelectItem>
+            </LumexSelect>
+        </div>
+
+        <div class="mb-6">
+            <LumexSelect @bind-Value="Input.MapsProvider" Label="Open maps links with">
+                <LumexSelectItem Value="@("google")" TextValue="Google Maps">Google Maps</LumexSelectItem>
+                <LumexSelectItem Value="@("apple")" TextValue="Apple Maps">Apple Maps</LumexSelectItem>
+                <LumexSelectItem Value="@("osm")" TextValue="OpenStreetMap">OpenStreetMap</LumexSelectItem>
+            </LumexSelect>
         </div>
 
         <LumexButton Type="ButtonType.Submit" disabled="@isSaving" Color="ThemeColor.Primary">
@@ -82,23 +102,7 @@
 
     private InputModel Input { get; set; } = new();
 
-    private record CurrencyItem(string Code, string Name);
 
-    private static readonly IReadOnlyList<CurrencyItem> Currencies =
-    [
-        new("AED","UAE Dirham"), new("AUD","Australian Dollar"), new("BRL","Brazilian Real"),
-        new("CAD","Canadian Dollar"), new("CHF","Swiss Franc"), new("CNY","Chinese Yuan"),
-        new("CZK","Czech Koruna"), new("DKK","Danish Krone"), new("EUR","Euro"),
-        new("GBP","British Pound"), new("HKD","Hong Kong Dollar"), new("HUF","Hungarian Forint"),
-        new("IDR","Indonesian Rupiah"), new("ILS","Israeli Shekel"), new("INR","Indian Rupee"),
-        new("JPY","Japanese Yen"), new("KRW","South Korean Won"), new("MXN","Mexican Peso"),
-        new("MYR","Malaysian Ringgit"), new("NOK","Norwegian Krone"), new("NZD","New Zealand Dollar"),
-        new("PHP","Philippine Peso"), new("PLN","Polish Zloty"), new("RON","Romanian Leu"),
-        new("SAR","Saudi Riyal"), new("SEK","Swedish Krona"), new("SGD","Singapore Dollar"),
-        new("THB","Thai Baht"), new("TRY","Turkish Lira"), new("TWD","New Taiwan Dollar"),
-        new("UAH","Ukrainian Hryvnia"), new("USD","US Dollar"), new("VND","Vietnamese Dong"),
-        new("ZAR","South African Rand")
-    ];
 
     protected override async Task OnInitializedAsync()
     {
@@ -111,7 +115,7 @@
         Input.FullName = user.FullName;
         Input.CurrencyCode = user.CurrencyCode ?? "USD";
         Input.Timezone = user.Timezone ?? "UTC";
-        Input.Appearance = user.WebsiteAppearance ?? "system";
+        Input.ThemeColor = user.ThemeColor ?? "blue";
         Input.MapsProvider = user.MapsProvider ?? "google";
     }
 
@@ -119,11 +123,13 @@
     {
         isSaving = true;
         statusMessage = null;
+        StateHasChanged();
+        await Task.Delay(50); // Allow UI to repaint
 
         user.FullName = Input.FullName;
         user.CurrencyCode = Input.CurrencyCode;
         user.Timezone = Input.Timezone;
-        user.WebsiteAppearance = Input.Appearance;
+        user.ThemeColor = Input.ThemeColor;
         user.MapsProvider = Input.MapsProvider;
 
         var updateResult = await UserManager.UpdateAsync(user);
@@ -143,7 +149,7 @@
         public string? FullName { get; set; }
         public string? CurrencyCode { get; set; }
         public string? Timezone { get; set; }
-        public string? Appearance { get; set; }
+        public string? ThemeColor { get; set; }
         public string? MapsProvider { get; set; }
     }
 }

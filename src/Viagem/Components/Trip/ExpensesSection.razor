@@ -1,11 +1,12 @@
-﻿@using Viagem.Services.Interfaces
+@using Viagem.Services.Interfaces
+@using Viagem.Common
 @using Viagem.Services.ViewModels
-@inject IExpenseService ExpenseService
+@inject ITripService TripService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
 
 <!-- Add / Edit Modal -->
-<LumexModal @bind-Open="showModal" OnClose="CloseModal">
+<LumexModal @bind-Open="showModal" OnClose="CloseModal" Size="ModalSize.Large">
     <LumexModalContent Context="modal">
         <LumexModalHeader>
             <h3 class="text-lg font-semibold text-foreground">
@@ -22,19 +23,20 @@
                     <LumexNumbox TValue="decimal?" @bind-Value="formAmount" Label="Amount" Placeholder="0.00" />
                 </div>
                 <div>
-                    <LumexSelect TValue="string" @bind-Value="formCurrency" Label="Currency">
-                        @foreach (var c in Currencies)
-                        {
-                            <LumexSelectItem Value="@c">@c</LumexSelectItem>
-                        }
-                    </LumexSelect>
+                    <SearchableDropdown TItem="CurrencyItem"
+                                        Value="@AppConstants.Currencies.FirstOrDefault(c => c.Code == formCurrency)"
+                                        ValueChanged="@(c => formCurrency = c?.Code ?? defaultCurrency)"
+                                        Items="AppConstants.Currencies"
+                                        ItemText='c => $"{c.Flag} {c.Code} - {c.Name}"'
+                                        Label="Currency"
+                                        Placeholder="Select currency..." />
                 </div>
             </div>
             <div>
                 <LumexSelect TValue="string" @bind-Value="categoryString" Label="Category" Placeholder="— None —">
                     @foreach (var cat in Enum.GetValues<ExpenseCategory>())
                     {
-                        <LumexSelectItem Value="@cat.ToString()">@GetCategoryLabel(cat)</LumexSelectItem>
+                        <LumexSelectItem Value="@cat.ToString()">@cat.GetLabel()</LumexSelectItem>
                     }
                 </LumexSelect>
             </div>
@@ -65,7 +67,7 @@ else
 {
     <!-- Stats cards -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div class="bg-primary-50 rounded-xl p-4">
+        <div class="bg-default-50 rounded-xl p-4">
             <p class="text-xs text-primary font-medium uppercase tracking-wide">Total Spent</p>
             <p class="text-xl font-bold text-foreground mt-1">@totalSpent.ToString("N2") <span class="text-sm font-normal text-foreground-400">@defaultCurrency</span></p>
         </div>
@@ -96,7 +98,7 @@ else
                 @foreach (var (cat, amount) in byCategory.OrderByDescending(x => x.Value))
                 {
                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-default-100 text-foreground">
-                        @GetCategoryIcon(cat) @GetCategoryLabel(cat): <strong>@amount.ToString("N2")</strong>
+                        @cat.GetIcon() @cat.GetLabel(): <strong>@amount.ToString("N2")</strong>
                     </span>
                 }
             </div>
@@ -136,14 +138,13 @@ else
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-divider">
-                    @foreach (var item in items.OrderByDescending(i => i.OccurredOn))
-                    {
+                    <Virtualize Items="items.OrderByDescending(i => i.OccurredOn).ToList()" Context="item" OverscanCount="5">
                         <tr class="hover:bg-default-100">
                             <td class="px-3 py-2.5 font-medium text-foreground">@item.Name</td>
                             <td class="px-3 py-2.5 text-foreground-400">
                                 @if (item.Category.HasValue)
                                 {
-                                    <span>@GetCategoryIcon(item.Category.Value) @GetCategoryLabel(item.Category.Value)</span>
+                                    <span>@item.Category.Value.GetIcon() @item.Category.Value.GetLabel()</span>
                                 }
                             </td>
                             <td class="px-3 py-2.5 text-foreground-400">
@@ -174,7 +175,7 @@ else
                                 </td>
                             }
                         </tr>
-                    }
+                    </Virtualize>
                 </tbody>
                 <tfoot>
                     <tr class="border-t-2 border-divider">
@@ -194,9 +195,17 @@ else
     [Parameter] public decimal? TripBudgetAmount { get; set; }
     [Parameter] public string? TripBudgetCurrency { get; set; }
 
+    [Parameter] public IReadOnlyList<ExpenseViewModel>? InitialItems { get; set; }
+
+    [Parameter] public EventCallback<ExpenseViewModel> OnItemCreated { get; set; }
+    [Parameter] public EventCallback<ExpenseViewModel> OnItemUpdated { get; set; }
+    [Parameter] public EventCallback<Guid> OnItemDeleted { get; set; }
+    [Parameter] public string UserId { get; set; } = "";
+
     private List<ExpenseViewModel> items = [];
     private bool loading = true;
-    private int? menuOpenId;
+    private bool initialized = false;
+    private Guid? menuOpenId;
     private bool saving = false;
     private bool showModal = false;
     private ExpenseViewModel? editItem;
@@ -224,19 +233,43 @@ else
         .ToDictionary(g => g.Key, g => g.Sum(i => i.Amount!.Value));
 
 
-    private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
+
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        await LoadItems();
+        
+        if (InitialItems != null)
+        {
+            items = InitialItems.ToList();
+            loading = false;
+        }
+        else
+        {
+            await LoadItems();
+        }
+        initialized = true;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (initialized && InitialItems != null)
+        {
+            // If parent updates InitialItems, reflect changes
+            // items = InitialItems.ToList();
+            // Actually, we manage local state via LoadItems after edit/add, so if parent passes InitialItems we only use it on init.
+        }
     }
 
     private async Task LoadItems()
     {
-        loading = true;
-        items = await ExpenseService.GetTripExpensesAsync(TripId);
+        // Now loaded from TripService aggregate
+        if (!string.IsNullOrEmpty(UserId))
+        {
+            var trip = await TripService.GetTripAsync(TripId, UserId);
+            items = trip?.Expenses.ToList() ?? [];
+        }
         loading = false;
     }
 
@@ -283,41 +316,29 @@ else
         if (string.IsNullOrWhiteSpace(formName)) return;
         saving = true;
         if (editItem != null)
-            await ExpenseService.UpdateAsync(new UpdateExpenseRequest(editItem.Id, formName, formCategory, formNotes, formAmount, string.IsNullOrEmpty(formCurrency) ? null : formCurrency, formOccurredOn, []));
+        {
+            var updated = await TripService.UpdateExpenseAsync(UserId, new UpdateExpenseRequest(TripId, editItem.Id, formName, formCategory, formNotes, formAmount, string.IsNullOrEmpty(formCurrency) ? null : formCurrency, formOccurredOn, []));
+            if (updated != null)
+            {
+                var idx = items.FindIndex(i => i.Id == updated.Id);
+                if (idx >= 0) items[idx] = updated; else items.Add(updated);
+                if (OnItemUpdated.HasDelegate) await OnItemUpdated.InvokeAsync(updated);
+            }
+        }
         else
-            await ExpenseService.CreateAsync(new CreateExpenseRequest(TripId, currentUserId, formName, formCategory, formNotes, formAmount, string.IsNullOrEmpty(formCurrency) ? null : formCurrency, formOccurredOn, []));
+        {
+            var created = await TripService.AddExpenseAsync(UserId, new CreateExpenseRequest(TripId, UserId, formName, formCategory, formNotes, formAmount, string.IsNullOrEmpty(formCurrency) ? null : formCurrency, formOccurredOn, []));
+            items.Add(created);
+            if (OnItemCreated.HasDelegate) await OnItemCreated.InvokeAsync(created);
+        }
         saving = false;
         showModal = false;
-        await LoadItems();
     }
 
-    private async Task DeleteItem(int id)
+    private async Task DeleteItem(Guid id)
     {
-        await ExpenseService.DeleteAsync(id);
-        await LoadItems();
+        await TripService.RemoveExpenseAsync(UserId, TripId, id);
+        items.RemoveAll(i => i.Id == id);
+        if (OnItemDeleted.HasDelegate) await OnItemDeleted.InvokeAsync(id);
     }
-
-    private static string GetCategoryLabel(ExpenseCategory cat) => cat switch
-    {
-        ExpenseCategory.Transport => "Transport",
-        ExpenseCategory.Accommodation => "Accommodation",
-        ExpenseCategory.Food => "Food & Drink",
-        ExpenseCategory.Activities => "Activities",
-        ExpenseCategory.Shopping => "Shopping",
-        ExpenseCategory.Health => "Health",
-        ExpenseCategory.Communication => "Communication",
-        _ => "Other"
-    };
-
-    private static string GetCategoryIcon(ExpenseCategory cat) => cat switch
-    {
-        ExpenseCategory.Transport => "🚌",
-        ExpenseCategory.Accommodation => "🏨",
-        ExpenseCategory.Food => "🍽️",
-        ExpenseCategory.Activities => "🎭",
-        ExpenseCategory.Shopping => "🛍️",
-        ExpenseCategory.Health => "💊",
-        ExpenseCategory.Communication => "📱",
-        _ => "💰"
-    };
 }

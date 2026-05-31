@@ -4,7 +4,7 @@ namespace Viagem.Data.Models;
 
 public class TripAttachment
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     [Required, MaxLength(500)]
     public string FileName { get; set; } = "";
@@ -15,11 +15,7 @@ public class TripAttachment
     public string? ContentType { get; set; }
     public long FileSize { get; set; }
 
-    public int TripId { get; set; }
-    public Trip? Trip { get; set; }
-
     public string UploadedById { get; set; } = "";
-    public ApplicationUser? UploadedBy { get; set; }
 
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 }

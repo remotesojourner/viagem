@@ -1,0 +1,407 @@
+@using Viagem.Common
+@using Viagem.Services.Interfaces
+@using Viagem.Services.ViewModels
+@inject ITripService TripService
+@inject IPlaceService PlaceService
+@inject ITravellerProfileService TravellerService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<LumexModal Open="IsOpen" OpenChanged="OnOpenChanged" OnClose="CloseModal" Size="ModalSize.Large">
+    <LumexModalContent Context="modal">
+        <LumexModalHeader>
+            <h3 class="text-lg font-semibold text-foreground">Edit Trip</h3>
+        </LumexModalHeader>
+        <LumexModalBody>
+        <div class="space-y-5">
+            @if (!string.IsNullOrEmpty(editError))
+            {
+                <div class="p-3 text-sm text-danger bg-danger-100 rounded-lg">@editError</div>
+            }
+
+            <!-- Trip Name -->
+            <div>
+                <LumexTextbox @bind-Value="editName" Label="Trip Name *" Placeholder="My Amazing Trip" />
+            </div>
+
+            <!-- Dates -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <LumexDatebox TValue="DateTime" @bind-Value="editStart" Label="Start Date *" />
+                </div>
+                <div>
+                    <LumexDatebox TValue="DateTime" @bind-Value="editEnd" Label="End Date *" />
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <LumexTextbox @bind-Value="editDescription" Label="Description" Placeholder="What is this trip about?" Multiline="@true" Rows="2" />
+            </div>
+
+            <!-- Budget -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <LumexNumbox TValue="decimal?" @bind-Value="editBudget" Label="Budget Amount" Placeholder="0.00" />
+                </div>
+                <div>
+                    <SearchableDropdown TItem="CurrencyItem"
+                                        Value="@AppConstants.Currencies.FirstOrDefault(c => c.Code == editCurrency)"
+                                        ValueChanged="@(c => editCurrency = c?.Code ?? "USD")"
+                                        Items="AppConstants.Currencies"
+                                        ItemText='c => $"{c.Flag} {c.Code} - {c.Name}"'
+                                        Label="Currency"
+                                        Placeholder="Select currency..." />
+                </div>
+            </div>
+
+            <!-- Destinations -->
+            <div>
+                <label class="block mb-1.5 text-sm font-medium text-foreground">Destinations</label>
+                @if (editDestinations.Any(d => !d.MarkedForRemoval))
+                {
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        @foreach (var d in editDestinations.Where(d => !d.MarkedForRemoval))
+                        {
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-sm bg-default-100 text-default-700 rounded-full">
+                                📍 @d.DisplayName
+                                <button type="button" @onclick="() => RemoveEditDest(d)"
+                                        class="ml-1 text-default-500 hover:text-danger">&#x2715;</button>
+                            </span>
+                        }
+                    </div>
+                }
+                <div class="flex-1 relative">
+                    <SearchableDropdown TItem="PlaceViewModel"
+                                        @bind-SearchText="destSearch"
+                                        SearchProvider="@(async s => await PlaceService.SearchAsync(s))"
+                                        ValueChanged="OnPlaceSelected"
+                                        ClearOnSelect="true"
+                                        Placeholder="Search city or type custom name..."
+                                        MinSearchLength="3">
+                        <ItemTemplate Context="place">
+                            <div class="flex flex-col">
+                                <span class="font-semibold text-sm text-foreground">@place.Name</span>
+                                @if (!string.IsNullOrEmpty(place.StateName) || !string.IsNullOrEmpty(place.CountryName))
+                                {
+                                    <span class="text-xs text-foreground-400">
+                                        @(!string.IsNullOrEmpty(place.StateName) ? place.StateName + (!string.IsNullOrEmpty(place.CountryName) ? ", " : "") : "")@(place.CountryName ?? "")
+                                    </span>
+                                }
+                            </div>
+                        </ItemTemplate>
+                        <ActionContent Context="searchTxt">
+                            @if (!string.IsNullOrWhiteSpace(searchTxt))
+                            {
+                                <button type="button" @onmousedown="AddDestCustom" class="w-full text-left px-3 py-2 text-sm text-primary hover:bg-default-100 font-medium border-t border-divider">
+                                    + Add "@searchTxt" as custom destination
+                                </button>
+                            }
+                        </ActionContent>
+                    </SearchableDropdown>
+                </div>
+            </div>
+
+            <!-- Travellers & Organisers -->
+            <div>
+                <label class="block mb-1.5 text-sm font-medium text-foreground">Travellers &amp; Organisers</label>
+
+                <!-- Added travellers list -->
+                @if (editTravellers.Count > 0)
+                {
+                    <div class="space-y-1 mb-3">
+                        @foreach (var kv in editTravellers)
+                        {
+                            var tProfile = availableTravellers.FirstOrDefault(p => p.Id == kv.Key);
+                            var tName = tProfile?.LegalName ?? "Unknown";
+                            var tIsLinked = !string.IsNullOrEmpty(tProfile?.LinkedUserId);
+                            var tIsCurrentUser = kv.Key == currentUserProfileId;
+                            var tState = kv.Value;
+                            <div class="flex items-center justify-between p-2 bg-default-50 rounded-lg">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <UserAvatar Email="@tProfile?.Email" Name="@tName" SizeClass="w-7 h-7" ExtraClass="flex-shrink-0" TextClass="text-xs" />
+                                    <span class="text-sm text-foreground truncate">@tName</span>
+                                    @if (tIsLinked)
+                                    {
+                                        <span class="text-xs px-1.5 py-0.5 bg-success-100 text-success-600 rounded flex-shrink-0">User</span>
+                                    }
+                                    @if (tIsCurrentUser)
+                                    {
+                                        <span class="text-xs px-1.5 py-0.5 bg-default-200 text-default-700 rounded flex-shrink-0">You</span>
+                                    }
+                                </div>
+                                @if (tIsLinked || !tIsCurrentUser)
+                                {
+                                    <div class="flex items-center gap-3 flex-shrink-0 ml-2">
+                                        @if (tIsLinked)
+                                        {
+                                            <label class="flex items-center gap-1 cursor-pointer text-xs text-foreground-500 select-none">
+                                                <input type="checkbox" class="w-3.5 h-3.5 text-secondary rounded"
+                                                       checked="@tState.IsOrganiser"
+                                                       @onchange="e => SetOrganiserFlag(kv.Key, (bool)(e.Value ?? false))" />
+                                                Organiser
+                                            </label>
+                                            @if (!tIsCurrentUser)
+                                            {
+                                                <label class="flex items-center gap-1 text-xs select-none @(tState.IsOrganiser ? "cursor-not-allowed opacity-50 text-foreground-400" : "cursor-pointer text-foreground-500")">
+                                                    <input type="checkbox" class="w-3.5 h-3.5 text-primary rounded"
+                                                           disabled="@tState.IsOrganiser"
+                                                           checked="@tState.EffectiveCanEdit"
+                                                           @onchange="e => SetCanEditFlag(kv.Key, (bool)(e.Value ?? false))" />
+                                                    Can edit
+                                                </label>
+                                            }
+                                        }
+                                        @if (!tIsCurrentUser)
+                                        {
+                                            <button type="button" @onclick="() => RemoveTravellerFromEdit(kv.Key)"
+                                                    class="text-foreground-400 hover:text-danger transition-colors">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- Search box to add travellers -->
+                <div class="relative">
+                    <SearchableDropdown TItem="TravellerProfileViewModel"
+                                        @bind-SearchText="travellerSearch"
+                                        SearchProvider="SearchTravellersAsync"
+                                        ValueChanged="OnTravellerSelected"
+                                        ClearOnSelect="true"
+                                        Placeholder="Search to add traveller..."
+                                        MinSearchLength="3">
+                        <ItemTemplate Context="tp">
+                            <div class="flex items-center gap-2">
+                                <span>@tp.LegalName</span>
+                                @if (!string.IsNullOrEmpty(tp.LinkedUserId))
+                                {
+                                    <span class="text-xs px-1 py-0.5 bg-success-100 text-success-600 rounded">User</span>
+                                }
+                            </div>
+                        </ItemTemplate>
+                    </SearchableDropdown>
+                </div>
+            </div>
+        </div>
+        </LumexModalBody>
+        <LumexModalFooter>
+            <div class="flex justify-end gap-3 w-full">
+                <LumexButton OnClick="CloseModal">Cancel</LumexButton>
+                <LumexButton OnClick="SaveAll" Disabled="@saving" Color="ThemeColor.Primary">@(saving ? "Saving..." : "Save Changes")</LumexButton>
+            </div>
+        </LumexModalFooter>
+    </LumexModalContent>
+</LumexModal>
+
+@code {
+    [Parameter] public TripDetailViewModel Trip { get; set; } = default!;
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private string? userId;
+    private int? currentUserProfileId;
+    private bool initialized = false;
+
+    private string editName = "";
+    private string? editDescription;
+    private DateTime editStart;
+    private DateTime editEnd;
+    private decimal? editBudget;
+    private string? editCurrency;
+    private string? editError;
+    private bool saving = false;
+
+    // Destinations
+    private string destSearch = "";
+    private List<EditDestItem> editDestinations = [];
+
+    // Travellers
+    private List<TravellerProfileViewModel> availableTravellers = [];
+    private Dictionary<int, TravellerEditState> editTravellers = [];
+    private string travellerSearch = "";
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && !initialized)
+        {
+            initialized = true;
+            if (userId != null)
+            {
+                availableTravellers = await TravellerService.GetMyProfilesAsync(userId);
+                currentUserProfileId = availableTravellers.FirstOrDefault(p => p.LinkedUserId == userId)?.Id;
+            }
+            InitForm();
+        }
+        else if (!IsOpen)
+        {
+            initialized = false;
+        }
+    }
+
+    private void InitForm()
+    {
+        editName = Trip.Name;
+        editDescription = Trip.Description;
+        editStart = Trip.StartDate;
+        editEnd = Trip.EndDate;
+        editBudget = Trip.BudgetAmount;
+        editCurrency = Trip.BudgetCurrency ?? "";
+        editError = null;
+        destSearch = "";
+        travellerSearch = "";
+
+        editDestinations = Trip.Destinations?.Select(d => new EditDestItem
+        {
+            ExistingId = d.Id,
+            PlaceId = d.PlaceId,
+            CustomName = d.CustomName,
+            DisplayName = d.DisplayName
+        }).ToList() ?? [];
+
+        editTravellers = Trip.Travellers?.ToDictionary(
+            t => t.TravellerProfileId,
+            t => new TravellerEditState { CanEdit = t.CanEdit && !t.IsOrganiser, IsOrganiser = t.IsOrganiser }
+        ) ?? [];
+    }
+
+    private async Task OnOpenChanged(bool value)
+    {
+        IsOpen = value;
+        await IsOpenChanged.InvokeAsync(value);
+    }
+
+    private async Task CloseModal()
+    {
+        await OnOpenChanged(false);
+    }
+
+    private void OnPlaceSelected(PlaceViewModel? place) { if (place != null) AddDestFromPlace(place); }
+    private void OnTravellerSelected(TravellerProfileViewModel? profile) { if (profile != null) AddTravellerToEdit(profile); }
+
+    private async Task<IEnumerable<PlaceViewModel>> SearchPlacesAsync(string query) => await PlaceService.SearchAsync(query);
+
+    private void AddDestFromPlace(PlaceViewModel place)
+    {
+        if (!editDestinations.Any(d => d.PlaceId == place.Id && !d.MarkedForRemoval))
+            editDestinations.Add(new EditDestItem
+            {
+                PlaceId = place.Id,
+                DisplayName = place.Name + (!string.IsNullOrEmpty(place.CountryName) ? $", {place.CountryName}" : "")
+            });
+        destSearch = "";
+    }
+
+    private void AddDestCustom()
+    {
+        var name = destSearch.Trim();
+        if (string.IsNullOrEmpty(name)) return;
+        if (!editDestinations.Any(d => d.CustomName == name && !d.MarkedForRemoval))
+            editDestinations.Add(new EditDestItem { CustomName = name, DisplayName = name });
+        destSearch = "";
+    }
+
+    private void RemoveEditDest(EditDestItem dest)
+    {
+        if (dest.ExistingId.HasValue)
+            dest.MarkedForRemoval = true;
+        else
+            editDestinations.Remove(dest);
+    }
+
+    private Task<IEnumerable<TravellerProfileViewModel>> SearchTravellersAsync(string query)
+    {
+        var lower = query.ToLowerInvariant();
+        return Task.FromResult<IEnumerable<TravellerProfileViewModel>>(availableTravellers
+            .Where(p => p.LegalName.ToLowerInvariant().Contains(lower) && !editTravellers.ContainsKey(p.Id))
+            .Take(8)
+            .ToList());
+    }
+
+    private void AddTravellerToEdit(TravellerProfileViewModel profile)
+    {
+        if (!editTravellers.ContainsKey(profile.Id))
+            editTravellers[profile.Id] = new TravellerEditState { CanEdit = false };
+        travellerSearch = "";
+    }
+
+    private void RemoveTravellerFromEdit(int profileId) => editTravellers.Remove(profileId);
+
+    private void SetOrganiserFlag(int profileId, bool isOrganiser)
+    {
+        if (editTravellers.TryGetValue(profileId, out var state))
+            state.IsOrganiser = isOrganiser;
+    }
+
+    private void SetCanEditFlag(int profileId, bool canEdit)
+    {
+        if (editTravellers.TryGetValue(profileId, out var state) && !state.IsOrganiser)
+            state.CanEdit = canEdit;
+    }
+
+    private async Task SaveAll()
+    {
+        if (string.IsNullOrWhiteSpace(editName)) { editError = "Trip name is required."; return; }
+        if (editEnd < editStart) { editError = "End date must be on or after start date."; return; }
+        saving = true;
+        editError = null;
+        try
+        {
+            var dests = editDestinations.Where(d => !d.MarkedForRemoval)
+                .Select(d => new UpdateTripDestinationRequest(d.ExistingId, d.PlaceId, d.CustomName)).ToList();
+
+            var travs = editTravellers.Select(kv => 
+            {
+                var isCurrentUser = kv.Key == currentUserProfileId;
+                return new UpdateTripTravellerRequest(
+                    kv.Key, 
+                    isCurrentUser ? true : kv.Value.EffectiveCanEdit, 
+                    kv.Value.IsOrganiser);
+            }).ToList();
+
+            await TripService.UpdateTripAsync(userId!, new UpdateTripRequest(
+                Trip.Id, editName.Trim(), editDescription?.Trim(), editStart, editEnd, 
+                editBudget, string.IsNullOrWhiteSpace(editCurrency) ? null : editCurrency.Trim().ToUpper(),
+                dests, travs));
+
+            await OnSaved.InvokeAsync();
+            await CloseModal();
+        }
+        catch (Exception ex)
+        {
+            editError = ex.Message;
+        }
+        saving = false;
+    }
+
+    private class EditDestItem
+    {
+        public Guid? ExistingId { get; set; }
+        public int? PlaceId { get; set; }
+        public string? CustomName { get; set; }
+        public string DisplayName { get; set; } = "";
+        public bool MarkedForRemoval { get; set; } = false;
+    }
+
+    private class TravellerEditState
+    {
+        public bool CanEdit { get; set; }
+        public bool IsOrganiser { get; set; }
+        public bool EffectiveCanEdit => CanEdit || IsOrganiser;
+    }
+}

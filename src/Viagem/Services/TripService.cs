@@ -5,18 +5,26 @@ using Viagem.Services.ViewModels;
 
 namespace Viagem.Services;
 
-public class TripService(ITripRepository repo) : ITripService
+public partial class TripService(ITripRepository repo) : ITripService
 {
-    public async Task<List<TripSummaryViewModel>> GetUpcomingTripsAsync(string userId)
+    public async Task<PagedResult<TripSummaryViewModel>> GetUpcomingTripsAsync(string userId, int page, int pageSize, string filter = "all")
     {
-        var trips = await repo.GetUpcomingAsync(userId);
-        return trips.Select(t => ToSummaryViewModel(t, userId)).ToList();
+        var result = await repo.GetUpcomingPagedAsync(userId, page, pageSize, filter);
+        return new PagedResult<TripSummaryViewModel>
+        {
+            Items = result.Items.Select(r => ToSummaryViewModel(r, userId)).ToList(),
+            TotalCount = result.TotalCount
+        };
     }
 
-    public async Task<List<TripSummaryViewModel>> GetPastTripsAsync(string userId)
+    public async Task<PagedResult<TripSummaryViewModel>> GetPastTripsAsync(string userId, int page, int pageSize, string filter = "all")
     {
-        var trips = await repo.GetPastAsync(userId);
-        return trips.Select(t => ToSummaryViewModel(t, userId)).ToList();
+        var result = await repo.GetPastPagedAsync(userId, page, pageSize, filter);
+        return new PagedResult<TripSummaryViewModel>
+        {
+            Items = result.Items.Select(r => ToSummaryViewModel(r, userId)).ToList(),
+            TotalCount = result.TotalCount
+        };
     }
 
     public async Task<TripDetailViewModel?> GetTripAsync(int tripId, string userId)
@@ -62,7 +70,21 @@ public class TripService(ITripRepository repo) : ITripService
         trip.BudgetAmount = request.BudgetAmount;
         trip.BudgetCurrency = request.BudgetCurrency;
 
-        await repo.UpdateAsync(trip);
+        var destinations = request.Destinations.Select(d => new TripDestination
+        {
+            Id = d.Id ?? Guid.NewGuid(),
+            PlaceId = d.PlaceId,
+            CustomName = d.CustomName
+        }).ToList();
+
+        var travellers = request.Travellers.Select(t => new TripTraveller
+        {
+            TravellerProfileId = t.TravellerProfileId,
+            CanEdit = t.CanEdit,
+            IsOrganiser = t.IsOrganiser
+        }).ToList();
+
+        await repo.UpdateWithRelationsAsync(trip, destinations, travellers);
         var full = await repo.GetByIdAsync(request.Id, userId);
         return full == null ? null : ToDetailViewModel(full, userId);
     }
@@ -85,8 +107,8 @@ public class TripService(ITripRepository repo) : ITripService
         return ToDestinationViewModel(dest);
     }
 
-    public Task RemoveDestinationAsync(int destinationId)
-        => repo.RemoveDestinationAsync(destinationId);
+    public Task RemoveDestinationAsync(int tripId, Guid destinationId)
+        => repo.RemoveDestinationAsync(tripId, destinationId);
 
     public Task AddTravellerAsync(int tripId, int travellerProfileId, bool canEdit = false, bool isOrganiser = false)
         => repo.AddTravellerAsync(tripId, travellerProfileId, canEdit, isOrganiser);
@@ -109,9 +131,9 @@ public class TripService(ITripRepository repo) : ITripService
     // ── Mapping ───────────────────────────────────────────────────────────────
 
     private static TripDestinationViewModel ToDestinationViewModel(TripDestination d)
-        => new(d.Id, d.PlaceId, d.Place?.Name, d.CustomName,
-            d.Place?.Timezone, d.Place?.StateName, d.Place?.CountryName,
-            d.Place?.Latitude, d.Place?.Longitude);
+        => new(d.Id, d.PlaceId, null, d.CustomName,
+            null, null, null,
+            null, null);
 
     private static TripTravellerViewModel ToTravellerViewModel(TripTraveller tt)
         => new(tt.Id, tt.TravellerProfileId,
@@ -119,10 +141,13 @@ public class TripService(ITripRepository repo) : ITripService
             tt.TravellerProfile?.Email,
             tt.CanEdit, tt.IsOrganiser);
 
+    // Removed TripSummaryRow overload
+
     private static TripSummaryViewModel ToSummaryViewModel(Trip t, string userId)
         => new(t.Id, t.Name, t.CoverImagePath, t.StartDate, t.EndDate,
             t.Destinations.Select(ToDestinationViewModel).ToList(),
-            t.OwnerId == userId);
+            t.OwnerId == userId,
+            t.Travellers.Any(tt => tt.TravellerProfile?.LinkedUserId == userId));
 
     private static TripDetailViewModel ToDetailViewModel(Trip t, string userId)
         => new(t.Id, t.Name, t.Description, t.Notes, t.CoverImagePath,
@@ -130,59 +155,70 @@ public class TripService(ITripRepository repo) : ITripService
             t.OwnerId == userId ||
                 t.Travellers.Any(tt => tt.CanEdit && tt.TravellerProfile?.LinkedUserId == userId),
             t.Destinations.Select(ToDestinationViewModel).ToList(),
-            t.Travellers.Select(ToTravellerViewModel).ToList());
+            t.Travellers.Select(ToTravellerViewModel).ToList(),
+            t.Transportations.Select(tr => ToTransportationViewModel(tr, t)).ToList(),
+            t.Lodgings.Select(l => ToLodgingViewModel(l, t)).ToList(),
+            t.Activities.Select(a => ToActivityViewModel(a, t)).ToList(),
+            t.Expenses.Select(e => ToExpenseViewModel(e, t)).ToList());
 }
 
-public class PlaceService(IPlaceRepository repo) : IPlaceService
+public class PlaceService(IReferenceDataCache cache) : IPlaceService
 {
-    public async Task<List<PlaceViewModel>> SearchAsync(string query, int limit = 20)
+    public Task<List<PlaceViewModel>> SearchAsync(string query, int limit = 20)
     {
-        var places = await repo.SearchAsync(query, limit);
-        return places.Select(ToViewModel).ToList();
+        if (string.IsNullOrWhiteSpace(query)) return Task.FromResult(new List<PlaceViewModel>());
+        var lower = query.ToLowerInvariant();
+        var results = cache.Places
+            .Where(p => p.Name.ToLowerInvariant().Contains(lower) || (p.CountryName != null && p.CountryName.ToLowerInvariant().Contains(lower)))
+            .Take(limit)
+            .ToList();
+        return Task.FromResult(results);
     }
 
-    public async Task<PlaceViewModel?> GetByIdAsync(int id)
+    public Task<PlaceViewModel?> GetByIdAsync(int id)
     {
-        var place = await repo.GetByIdAsync(id);
-        return place == null ? null : ToViewModel(place);
+        var place = cache.Places.FirstOrDefault(p => p.Id == id);
+        return Task.FromResult(place);
     }
-
-    private static PlaceViewModel ToViewModel(Place p)
-        => new(p.Id, p.Name, p.StateName, p.CountryName, p.CountryCode, p.Timezone);
 }
 
-public class AirportService(IAirportRepository repo) : IAirportService
+public class AirportService(IReferenceDataCache cache) : IAirportService
 {
-    public async Task<List<AirportViewModel>> SearchAsync(string query, int limit = 10)
+    public Task<List<AirportViewModel>> SearchAsync(string query, int limit = 10)
     {
-        var airports = await repo.SearchAsync(query, limit);
-        return airports.Select(ToViewModel).ToList();
+        if (string.IsNullOrWhiteSpace(query)) return Task.FromResult(new List<AirportViewModel>());
+        var lower = query.ToLowerInvariant();
+        var results = cache.Airports
+            .Where(a => a.IataCode.ToLowerInvariant().Contains(lower) || a.Name.ToLowerInvariant().Contains(lower) || (a.Municipality != null && a.Municipality.ToLowerInvariant().Contains(lower)))
+            .OrderBy(a => a.Name)
+            .Take(limit)
+            .ToList();
+        return Task.FromResult(results);
     }
 
-    public async Task<AirportViewModel?> GetByCodeAsync(string iataCode)
+    public Task<AirportViewModel?> GetByCodeAsync(string iataCode)
     {
-        var airport = await repo.GetByCodeAsync(iataCode);
-        return airport == null ? null : ToViewModel(airport);
+        var airport = cache.Airports.FirstOrDefault(a => string.Equals(a.IataCode, iataCode, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(airport);
     }
-
-    private static AirportViewModel ToViewModel(Airport a)
-        => new(a.Id, a.IataCode, a.Name, a.Municipality, a.IsoCountry, a.Latitude, a.Longitude);
 }
 
-public class AirlineService(IAirlineRepository repo) : IAirlineService
+public class AirlineService(IReferenceDataCache cache) : IAirlineService
 {
-    public async Task<AirlineViewModel?> GetByCodeAsync(string code)
+    public Task<AirlineViewModel?> GetByCodeAsync(string code)
     {
-        var airline = await repo.GetByCodeAsync(code);
-        return airline == null ? null : ToViewModel(airline);
+        var airline = cache.Airlines.FirstOrDefault(a => string.Equals(a.Code, code, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(airline);
     }
 
-    public async Task<List<AirlineViewModel>> SearchAsync(string query, int limit = 5)
+    public Task<List<AirlineViewModel>> SearchAsync(string query, int limit = 5)
     {
-        var airlines = await repo.SearchAsync(query, limit);
-        return airlines.Select(ToViewModel).ToList();
+        if (string.IsNullOrWhiteSpace(query)) return Task.FromResult(new List<AirlineViewModel>());
+        var lower = query.ToLowerInvariant();
+        var results = cache.Airlines
+            .Where(a => a.Name.ToLowerInvariant().Contains(lower) || a.Code.ToLowerInvariant().Contains(lower))
+            .Take(limit)
+            .ToList();
+        return Task.FromResult(results);
     }
-
-    private static AirlineViewModel ToViewModel(Airline a)
-        => new(a.Id, a.Code, a.Name, a.LogoUrl);
 }

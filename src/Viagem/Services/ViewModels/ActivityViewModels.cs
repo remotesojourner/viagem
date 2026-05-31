@@ -1,7 +1,7 @@
 namespace Viagem.Services.ViewModels;
 
 public record ActivityViewModel(
-    int Id,
+    Guid Id,
     int TripId,
     string Name,
     string? Description,

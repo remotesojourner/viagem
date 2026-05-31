@@ -7,31 +7,19 @@ namespace Viagem.Data;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Trip> Trips => Set<Trip>();
-    public DbSet<TripDestination> TripDestinations => Set<TripDestination>();
     public DbSet<TripTraveller> TripTravellers => Set<TripTraveller>();
-    public DbSet<Transportation> Transportations => Set<Transportation>();
-    public DbSet<TransportationTraveller> TransportationTravellers => Set<TransportationTraveller>();
-    public DbSet<TransportationAttachment> TransportationAttachments => Set<TransportationAttachment>();
-    public DbSet<Lodging> Lodgings => Set<Lodging>();
-    public DbSet<LodgingTraveller> LodgingTravellers => Set<LodgingTraveller>();
-    public DbSet<LodgingAttachment> LodgingAttachments => Set<LodgingAttachment>();
-    public DbSet<Activity> Activities => Set<Activity>();
-    public DbSet<ActivityTraveller> ActivityTravellers => Set<ActivityTraveller>();
-    public DbSet<ActivityAttachment> ActivityAttachments => Set<ActivityAttachment>();
-    public DbSet<Expense> Expenses => Set<Expense>();
-    public DbSet<ExpenseSplit> ExpenseSplits => Set<ExpenseSplit>();
-    public DbSet<ExpenseAttachment> ExpenseAttachments => Set<ExpenseAttachment>();
     public DbSet<TravellerProfile> TravellerProfiles => Set<TravellerProfile>();
     public DbSet<TravellerProfileAlias> TravellerProfileAliases => Set<TravellerProfileAlias>();
     public DbSet<TravellerAdditionalField> TravellerAdditionalFields => Set<TravellerAdditionalField>();
     public DbSet<TravellerProfileManager> TravellerProfileManagers => Set<TravellerProfileManager>();
     public DbSet<TravellerAttachment> TravellerAttachments => Set<TravellerAttachment>();
-    public DbSet<TripAttachment> TripAttachments => Set<TripAttachment>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
     public DbSet<Place> Places => Set<Place>();
     public DbSet<Airport> Airports => Set<Airport>();
     public DbSet<Airline> Airlines => Set<Airline>();
+    public DbSet<UserTravelStats> UserTravelStats => Set<UserTravelStats>();
+    public DbSet<UserTravelDestination> UserTravelDestinations => Set<UserTravelDestination>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -42,30 +30,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithMany()
             .HasForeignKey(t => t.OwnerId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        builder.Entity<Transportation>()
-            .HasOne(t => t.Expense)
-            .WithMany()
-            .HasForeignKey(t => t.ExpenseId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.Entity<Lodging>()
-            .HasOne(l => l.Expense)
-            .WithMany()
-            .HasForeignKey(l => l.ExpenseId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.Entity<Activity>()
-            .HasOne(a => a.Expense)
-            .WithMany()
-            .HasForeignKey(a => a.ExpenseId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.Entity<Expense>()
-            .HasOne(e => e.CreatedBy)
-            .WithMany()
-            .HasForeignKey(e => e.CreatedById)
-            .OnDelete(DeleteBehavior.SetNull);
 
         builder.Entity<TravellerProfile>()
             .HasOne(tp => tp.Owner)
@@ -79,11 +43,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasForeignKey(tp => tp.LinkedUserId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        builder.Entity<TripAttachment>()
-            .HasOne(a => a.UploadedBy)
-            .WithMany()
-            .HasForeignKey(a => a.UploadedById)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Trip>().OwnsMany(t => t.Destinations, b => b.ToJson());
+        builder.Entity<Trip>().OwnsMany(t => t.Transportations, b => b.ToJson());
+        builder.Entity<Trip>().OwnsMany(t => t.Lodgings, b => b.ToJson());
+        builder.Entity<Trip>().OwnsMany(t => t.Activities, b => b.ToJson());
+        builder.Entity<Trip>().OwnsMany(t => t.Expenses, b =>
+        {
+            b.ToJson();
+            b.OwnsMany(e => e.Splits);
+        });
+        builder.Entity<Trip>().OwnsMany(t => t.Attachments, b => b.ToJson());
 
         builder.Entity<Notification>()
             .HasOne(n => n.User)
@@ -100,5 +69,24 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         builder.Entity<ApplicationUser>()
             .Ignore(u => u.PhoneNumber)
             .Ignore(u => u.PhoneNumberConfirmed);
+
+        builder.Entity<UserTravelStats>()
+            .HasOne(s => s.User)
+            .WithMany()
+            .HasForeignKey(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<UserTravelStats>()
+            .HasIndex(s => new { s.UserId, s.Year })
+            .IsUnique();
+
+        builder.Entity<UserTravelDestination>()
+            .HasOne(d => d.Place)
+            .WithMany()
+            .HasForeignKey(d => d.PlaceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<UserTravelDestination>()
+            .HasIndex(d => new { d.UserId, d.PlaceId });
     }
 }

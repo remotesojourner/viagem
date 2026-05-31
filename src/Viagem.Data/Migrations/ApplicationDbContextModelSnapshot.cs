@@ -202,6 +202,9 @@ namespace Viagem.Data.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ThemeColor")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Timezone")
                         .HasColumnType("TEXT");
 
@@ -210,9 +213,6 @@ namespace Viagem.Data.Migrations
 
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("WebsiteAppearance")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -225,112 +225,6 @@ namespace Viagem.Data.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.Activity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Address")
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal?>("CostAmount")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CostCurrency")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("ExpenseId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Link")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("PlaceId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Timezone")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TripId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExpenseId");
-
-                    b.HasIndex("PlaceId");
-
-                    b.HasIndex("TripId");
-
-                    b.ToTable("Activities");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.ActivityAttachment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ActivityId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("AttachmentId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActivityId");
-
-                    b.HasIndex("AttachmentId");
-
-                    b.ToTable("ActivityAttachments");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.ActivityTraveller", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ActivityId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TravellerProfileId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActivityId");
-
-                    b.HasIndex("TravellerProfileId");
-
-                    b.ToTable("ActivityTravellers");
                 });
 
             modelBuilder.Entity("Viagem.Data.Models.Airline", b =>
@@ -394,207 +288,6 @@ namespace Viagem.Data.Migrations
                     b.HasIndex("IataCode");
 
                     b.ToTable("Airports");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.Expense", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<decimal?>("Amount")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("Category")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CreatedById")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Currency")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("OccurredOn")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TripId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("TripId");
-
-                    b.ToTable("Expenses");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.ExpenseAttachment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("AttachmentId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ExpenseId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttachmentId");
-
-                    b.HasIndex("ExpenseId");
-
-                    b.ToTable("ExpenseAttachments");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.ExpenseSplit", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("ExpenseId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TravellerProfileId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExpenseId");
-
-                    b.HasIndex("TravellerProfileId");
-
-                    b.ToTable("ExpenseSplits");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.Lodging", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Address")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ConfirmationCode")
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal?>("CostAmount")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CostCurrency")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("ExpenseId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Link")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("PlaceId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Timezone")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TripId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExpenseId");
-
-                    b.HasIndex("PlaceId");
-
-                    b.HasIndex("TripId");
-
-                    b.ToTable("Lodgings");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.LodgingAttachment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("AttachmentId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("LodgingId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttachmentId");
-
-                    b.HasIndex("LodgingId");
-
-                    b.ToTable("LodgingAttachments");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.LodgingTraveller", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("LodgingId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TravellerProfileId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LodgingId");
-
-                    b.HasIndex("TravellerProfileId");
-
-                    b.ToTable("LodgingTravellers");
                 });
 
             modelBuilder.Entity("Viagem.Data.Models.Notification", b =>
@@ -684,151 +377,6 @@ namespace Viagem.Data.Migrations
                     b.ToTable("SiteSettings");
                 });
 
-            modelBuilder.Entity("Viagem.Data.Models.Transportation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("ArrivalTime")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ArrivalTimezone")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AssignedSeats")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ConfirmationCode")
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal?>("CostAmount")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CostCurrency")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("DepartureTime")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("DepartureTimezone")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Destination")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("DestinationCity")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("DestinationPlaceId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("DropOffLocation")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("ExpenseId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("FlightNumber")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Link")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Origin")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OriginCity")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("OriginPlaceId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ParkingAddress")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PickupLocation")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Provider")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RentalCompany")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SpotNumber")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TripId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DestinationPlaceId");
-
-                    b.HasIndex("ExpenseId");
-
-                    b.HasIndex("OriginPlaceId");
-
-                    b.HasIndex("TripId");
-
-                    b.ToTable("Transportations");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.TransportationAttachment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("AttachmentId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TransportationId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttachmentId");
-
-                    b.HasIndex("TransportationId");
-
-                    b.ToTable("TransportationAttachments");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.TransportationTraveller", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TransportationId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TravellerProfileId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TransportationId");
-
-                    b.HasIndex("TravellerProfileId");
-
-                    b.ToTable("TransportationTravellers");
-                });
-
             modelBuilder.Entity("Viagem.Data.Models.TravellerAdditionalField", b =>
                 {
                     b.Property<int>("Id")
@@ -862,15 +410,27 @@ namespace Viagem.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("AttachmentId")
+                    b.Property<string>("ContentType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("FileSize")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("TravellerProfileId")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("Id");
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("TEXT");
 
-                    b.HasIndex("AttachmentId");
+                    b.HasKey("Id");
 
                     b.HasIndex("TravellerProfileId");
 
@@ -1006,70 +566,6 @@ namespace Viagem.Data.Migrations
                     b.ToTable("Trips");
                 });
 
-            modelBuilder.Entity("Viagem.Data.Models.TripAttachment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ContentType")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FilePath")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TripId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UploadedById")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TripId");
-
-                    b.HasIndex("UploadedById");
-
-                    b.ToTable("TripAttachments");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.TripDestination", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("CustomName")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("PlaceId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TripId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PlaceId");
-
-                    b.HasIndex("TripId");
-
-                    b.ToTable("TripDestinations");
-                });
-
             modelBuilder.Entity("Viagem.Data.Models.TripTraveller", b =>
                 {
                     b.Property<int>("Id")
@@ -1095,6 +591,104 @@ namespace Viagem.Data.Migrations
                     b.HasIndex("TripId");
 
                     b.ToTable("TripTravellers");
+                });
+
+            modelBuilder.Entity("Viagem.Data.Models.UserTravelDestination", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Latitude")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Longitude")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PlaceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PlaceName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlaceId");
+
+                    b.HasIndex("UserId", "PlaceId");
+
+                    b.ToTable("UserTravelDestinations");
+                });
+
+            modelBuilder.Entity("Viagem.Data.Models.UserTravelStats", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("ActivityAvgPerTrip")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("ActivityTotalCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CalculatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DestinationCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ExpenseCurrencyCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ExpenseStatsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LodgingStatsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LodgingTotalNights")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("TransportationAvgHours")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("TransportationStatsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("TransportationTotalHours")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("TransportationTotalTrips")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TripCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Year")
+                        .IsUnique();
+
+                    b.ToTable("UserTravelStats");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1148,186 +742,6 @@ namespace Viagem.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Viagem.Data.Models.Activity", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.Expense", "Expense")
-                        .WithMany()
-                        .HasForeignKey("ExpenseId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Viagem.Data.Models.Place", "Place")
-                        .WithMany()
-                        .HasForeignKey("PlaceId");
-
-                    b.HasOne("Viagem.Data.Models.Trip", "Trip")
-                        .WithMany("Activities")
-                        .HasForeignKey("TripId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Expense");
-
-                    b.Navigation("Place");
-
-                    b.Navigation("Trip");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.ActivityAttachment", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.Activity", "Activity")
-                        .WithMany("Attachments")
-                        .HasForeignKey("ActivityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Viagem.Data.Models.TripAttachment", "Attachment")
-                        .WithMany()
-                        .HasForeignKey("AttachmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Activity");
-
-                    b.Navigation("Attachment");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.ActivityTraveller", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.Activity", "Activity")
-                        .WithMany("Travellers")
-                        .HasForeignKey("ActivityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Viagem.Data.Models.TravellerProfile", "TravellerProfile")
-                        .WithMany()
-                        .HasForeignKey("TravellerProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Activity");
-
-                    b.Navigation("TravellerProfile");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.Expense", b =>
-                {
-                    b.HasOne("Viagem.Data.ApplicationUser", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Viagem.Data.Models.Trip", "Trip")
-                        .WithMany("Expenses")
-                        .HasForeignKey("TripId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("Trip");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.ExpenseAttachment", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.TripAttachment", "Attachment")
-                        .WithMany()
-                        .HasForeignKey("AttachmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Viagem.Data.Models.Expense", "Expense")
-                        .WithMany("Attachments")
-                        .HasForeignKey("ExpenseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Attachment");
-
-                    b.Navigation("Expense");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.ExpenseSplit", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.Expense", "Expense")
-                        .WithMany("Splits")
-                        .HasForeignKey("ExpenseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Viagem.Data.Models.TravellerProfile", "TravellerProfile")
-                        .WithMany()
-                        .HasForeignKey("TravellerProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Expense");
-
-                    b.Navigation("TravellerProfile");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.Lodging", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.Expense", "Expense")
-                        .WithMany()
-                        .HasForeignKey("ExpenseId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Viagem.Data.Models.Place", "Place")
-                        .WithMany()
-                        .HasForeignKey("PlaceId");
-
-                    b.HasOne("Viagem.Data.Models.Trip", "Trip")
-                        .WithMany("Lodgings")
-                        .HasForeignKey("TripId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Expense");
-
-                    b.Navigation("Place");
-
-                    b.Navigation("Trip");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.LodgingAttachment", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.TripAttachment", "Attachment")
-                        .WithMany()
-                        .HasForeignKey("AttachmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Viagem.Data.Models.Lodging", "Lodging")
-                        .WithMany("Attachments")
-                        .HasForeignKey("LodgingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Attachment");
-
-                    b.Navigation("Lodging");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.LodgingTraveller", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.Lodging", "Lodging")
-                        .WithMany("Travellers")
-                        .HasForeignKey("LodgingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Viagem.Data.Models.TravellerProfile", "TravellerProfile")
-                        .WithMany()
-                        .HasForeignKey("TravellerProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Lodging");
-
-                    b.Navigation("TravellerProfile");
-                });
-
             modelBuilder.Entity("Viagem.Data.Models.Notification", b =>
                 {
                     b.HasOne("Viagem.Data.ApplicationUser", "User")
@@ -1337,74 +751,6 @@ namespace Viagem.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.Transportation", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.Place", "DestinationPlace")
-                        .WithMany()
-                        .HasForeignKey("DestinationPlaceId");
-
-                    b.HasOne("Viagem.Data.Models.Expense", "Expense")
-                        .WithMany()
-                        .HasForeignKey("ExpenseId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Viagem.Data.Models.Place", "OriginPlace")
-                        .WithMany()
-                        .HasForeignKey("OriginPlaceId");
-
-                    b.HasOne("Viagem.Data.Models.Trip", "Trip")
-                        .WithMany("Transportations")
-                        .HasForeignKey("TripId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("DestinationPlace");
-
-                    b.Navigation("Expense");
-
-                    b.Navigation("OriginPlace");
-
-                    b.Navigation("Trip");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.TransportationAttachment", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.TripAttachment", "Attachment")
-                        .WithMany()
-                        .HasForeignKey("AttachmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Viagem.Data.Models.Transportation", "Transportation")
-                        .WithMany("Attachments")
-                        .HasForeignKey("TransportationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Attachment");
-
-                    b.Navigation("Transportation");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.TransportationTraveller", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.Transportation", "Transportation")
-                        .WithMany("Travellers")
-                        .HasForeignKey("TransportationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Viagem.Data.Models.TravellerProfile", "TravellerProfile")
-                        .WithMany()
-                        .HasForeignKey("TravellerProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Transportation");
-
-                    b.Navigation("TravellerProfile");
                 });
 
             modelBuilder.Entity("Viagem.Data.Models.TravellerAdditionalField", b =>
@@ -1420,19 +766,11 @@ namespace Viagem.Data.Migrations
 
             modelBuilder.Entity("Viagem.Data.Models.TravellerAttachment", b =>
                 {
-                    b.HasOne("Viagem.Data.Models.TripAttachment", "Attachment")
-                        .WithMany()
-                        .HasForeignKey("AttachmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Viagem.Data.Models.TravellerProfile", "TravellerProfile")
                         .WithMany("Attachments")
                         .HasForeignKey("TravellerProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Attachment");
 
                     b.Navigation("TravellerProfile");
                 });
@@ -1493,43 +831,337 @@ namespace Viagem.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.OwnsMany("Viagem.Data.Models.Activity", "Activities", b1 =>
+                        {
+                            b1.Property<int>("TripId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<string>("Address");
+
+                            b1.PrimitiveCollection<string>("AttachmentIds")
+                                .IsRequired();
+
+                            b1.Property<DateTime>("CreatedAt");
+
+                            b1.Property<string>("Description");
+
+                            b1.Property<DateTime?>("EndDate");
+
+                            b1.Property<Guid?>("ExpenseId");
+
+                            b1.Property<Guid>("Id");
+
+                            b1.Property<string>("Link");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(200);
+
+                            b1.Property<string>("Notes");
+
+                            b1.Property<int?>("PlaceId");
+
+                            b1.Property<DateTime>("StartDate");
+
+                            b1.Property<string>("Timezone");
+
+                            b1.PrimitiveCollection<string>("TravellerProfileIds")
+                                .IsRequired();
+
+                            b1.Property<DateTime>("UpdatedAt");
+
+                            b1.HasKey("TripId", "__synthesizedOrdinal");
+
+                            b1.ToTable("Trips");
+
+                            b1
+                                .ToJson("Activities")
+                                .HasColumnType("TEXT");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TripId");
+                        });
+
+                    b.OwnsMany("Viagem.Data.Models.Expense", "Expenses", b1 =>
+                        {
+                            b1.Property<int>("TripId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<decimal?>("Amount");
+
+                            b1.PrimitiveCollection<string>("AttachmentIds")
+                                .IsRequired();
+
+                            b1.Property<int?>("Category");
+
+                            b1.Property<DateTime>("CreatedAt");
+
+                            b1.Property<string>("CreatedById");
+
+                            b1.Property<string>("Currency");
+
+                            b1.Property<Guid>("Id");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(200);
+
+                            b1.Property<string>("Notes");
+
+                            b1.Property<DateTime?>("OccurredOn");
+
+                            b1.Property<Guid?>("SourceId");
+
+                            b1.Property<string>("SourceType");
+
+                            b1.Property<DateTime>("UpdatedAt");
+
+                            b1.HasKey("TripId", "__synthesizedOrdinal");
+
+                            b1.ToTable("Trips");
+
+                            b1
+                                .ToJson("Expenses")
+                                .HasColumnType("TEXT");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TripId");
+
+                            b1.OwnsMany("Viagem.Data.Models.ExpenseSplit", "Splits", b2 =>
+                                {
+                                    b2.Property<int>("ExpenseTripId");
+
+                                    b2.Property<int>("Expense__synthesizedOrdinal");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<decimal>("Amount");
+
+                                    b2.Property<int>("TravellerProfileId");
+
+                                    b2.HasKey("ExpenseTripId", "Expense__synthesizedOrdinal", "__synthesizedOrdinal");
+
+                                    b2.ToTable("Trips");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("ExpenseTripId", "Expense__synthesizedOrdinal");
+                                });
+
+                            b1.Navigation("Splits");
+                        });
+
+                    b.OwnsMany("Viagem.Data.Models.Lodging", "Lodgings", b1 =>
+                        {
+                            b1.Property<int>("TripId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<string>("Address");
+
+                            b1.PrimitiveCollection<string>("AttachmentIds")
+                                .IsRequired();
+
+                            b1.Property<string>("ConfirmationCode");
+
+                            b1.Property<DateTime>("CreatedAt");
+
+                            b1.Property<DateTime>("EndDate");
+
+                            b1.Property<Guid?>("ExpenseId");
+
+                            b1.Property<Guid>("Id");
+
+                            b1.Property<string>("Link");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(200);
+
+                            b1.Property<string>("Notes");
+
+                            b1.Property<int?>("PlaceId");
+
+                            b1.Property<DateTime>("StartDate");
+
+                            b1.Property<string>("Timezone");
+
+                            b1.PrimitiveCollection<string>("TravellerProfileIds")
+                                .IsRequired();
+
+                            b1.Property<int>("Type");
+
+                            b1.Property<DateTime>("UpdatedAt");
+
+                            b1.HasKey("TripId", "__synthesizedOrdinal");
+
+                            b1.ToTable("Trips");
+
+                            b1
+                                .ToJson("Lodgings")
+                                .HasColumnType("TEXT");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TripId");
+                        });
+
+                    b.OwnsMany("Viagem.Data.Models.Transportation", "Transportations", b1 =>
+                        {
+                            b1.Property<int>("TripId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<DateTime>("ArrivalTime");
+
+                            b1.Property<string>("ArrivalTimezone");
+
+                            b1.Property<string>("AssignedSeats");
+
+                            b1.PrimitiveCollection<string>("AttachmentIds")
+                                .IsRequired();
+
+                            b1.Property<string>("ConfirmationCode");
+
+                            b1.Property<DateTime>("CreatedAt");
+
+                            b1.Property<DateTime>("DepartureTime");
+
+                            b1.Property<string>("DepartureTimezone");
+
+                            b1.Property<string>("Destination");
+
+                            b1.Property<string>("DestinationCity");
+
+                            b1.Property<int?>("DestinationPlaceId");
+
+                            b1.Property<string>("DropOffLocation");
+
+                            b1.Property<Guid?>("ExpenseId");
+
+                            b1.Property<string>("FlightNumber");
+
+                            b1.Property<Guid>("Id");
+
+                            b1.Property<string>("Link");
+
+                            b1.Property<string>("Notes");
+
+                            b1.Property<string>("Origin");
+
+                            b1.Property<string>("OriginCity");
+
+                            b1.Property<int?>("OriginPlaceId");
+
+                            b1.Property<string>("ParkingAddress");
+
+                            b1.Property<string>("PickupLocation");
+
+                            b1.Property<string>("Provider");
+
+                            b1.Property<string>("RentalCompany");
+
+                            b1.Property<string>("SpotNumber");
+
+                            b1.PrimitiveCollection<string>("TravellerProfileIds")
+                                .IsRequired();
+
+                            b1.Property<int>("Type");
+
+                            b1.Property<DateTime>("UpdatedAt");
+
+                            b1.HasKey("TripId", "__synthesizedOrdinal");
+
+                            b1.ToTable("Trips");
+
+                            b1
+                                .ToJson("Transportations")
+                                .HasColumnType("TEXT");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TripId");
+                        });
+
+                    b.OwnsMany("Viagem.Data.Models.TripAttachment", "Attachments", b1 =>
+                        {
+                            b1.Property<int>("TripId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<string>("ContentType");
+
+                            b1.Property<string>("FileName")
+                                .IsRequired()
+                                .HasMaxLength(500);
+
+                            b1.Property<string>("FilePath")
+                                .IsRequired();
+
+                            b1.Property<long>("FileSize");
+
+                            b1.Property<Guid>("Id");
+
+                            b1.Property<DateTime>("UploadedAt");
+
+                            b1.Property<string>("UploadedById")
+                                .IsRequired();
+
+                            b1.HasKey("TripId", "__synthesizedOrdinal");
+
+                            b1.ToTable("Trips");
+
+                            b1
+                                .ToJson("Attachments")
+                                .HasColumnType("TEXT");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TripId");
+                        });
+
+                    b.OwnsMany("Viagem.Data.Models.TripDestination", "Destinations", b1 =>
+                        {
+                            b1.Property<int>("TripId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<string>("CustomName");
+
+                            b1.Property<Guid>("Id");
+
+                            b1.Property<int?>("PlaceId");
+
+                            b1.HasKey("TripId", "__synthesizedOrdinal");
+
+                            b1.ToTable("Trips");
+
+                            b1
+                                .ToJson("Destinations")
+                                .HasColumnType("TEXT");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TripId");
+                        });
+
+                    b.Navigation("Activities");
+
+                    b.Navigation("Attachments");
+
+                    b.Navigation("Destinations");
+
+                    b.Navigation("Expenses");
+
+                    b.Navigation("Lodgings");
+
                     b.Navigation("Owner");
-                });
 
-            modelBuilder.Entity("Viagem.Data.Models.TripAttachment", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.Trip", "Trip")
-                        .WithMany("Attachments")
-                        .HasForeignKey("TripId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Viagem.Data.ApplicationUser", "UploadedBy")
-                        .WithMany()
-                        .HasForeignKey("UploadedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Trip");
-
-                    b.Navigation("UploadedBy");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.TripDestination", b =>
-                {
-                    b.HasOne("Viagem.Data.Models.Place", "Place")
-                        .WithMany()
-                        .HasForeignKey("PlaceId");
-
-                    b.HasOne("Viagem.Data.Models.Trip", "Trip")
-                        .WithMany("Destinations")
-                        .HasForeignKey("TripId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Place");
-
-                    b.Navigation("Trip");
+                    b.Navigation("Transportations");
                 });
 
             modelBuilder.Entity("Viagem.Data.Models.TripTraveller", b =>
@@ -1551,32 +1183,25 @@ namespace Viagem.Data.Migrations
                     b.Navigation("Trip");
                 });
 
-            modelBuilder.Entity("Viagem.Data.Models.Activity", b =>
+            modelBuilder.Entity("Viagem.Data.Models.UserTravelDestination", b =>
                 {
-                    b.Navigation("Attachments");
+                    b.HasOne("Viagem.Data.Models.Place", "Place")
+                        .WithMany()
+                        .HasForeignKey("PlaceId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
-                    b.Navigation("Travellers");
+                    b.Navigation("Place");
                 });
 
-            modelBuilder.Entity("Viagem.Data.Models.Expense", b =>
+            modelBuilder.Entity("Viagem.Data.Models.UserTravelStats", b =>
                 {
-                    b.Navigation("Attachments");
+                    b.HasOne("Viagem.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Splits");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.Lodging", b =>
-                {
-                    b.Navigation("Attachments");
-
-                    b.Navigation("Travellers");
-                });
-
-            modelBuilder.Entity("Viagem.Data.Models.Transportation", b =>
-                {
-                    b.Navigation("Attachments");
-
-                    b.Navigation("Travellers");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Viagem.Data.Models.TravellerProfile", b =>
@@ -1592,18 +1217,6 @@ namespace Viagem.Data.Migrations
 
             modelBuilder.Entity("Viagem.Data.Models.Trip", b =>
                 {
-                    b.Navigation("Activities");
-
-                    b.Navigation("Attachments");
-
-                    b.Navigation("Destinations");
-
-                    b.Navigation("Expenses");
-
-                    b.Navigation("Lodgings");
-
-                    b.Navigation("Transportations");
-
                     b.Navigation("Travellers");
                 });
 #pragma warning restore 612, 618

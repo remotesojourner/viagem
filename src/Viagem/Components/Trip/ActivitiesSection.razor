@@ -1,11 +1,10 @@
-﻿@using Viagem.Services.Interfaces
+@using Viagem.Services.Interfaces
+@using Viagem.Common
 @using Viagem.Services.ViewModels
-@inject IActivityService ActivityService
-@inject AuthenticationStateProvider AuthStateProvider
-@inject UserManager<ApplicationUser> UserManager
+@inject ITripService TripService
 
 <!-- Add / Edit Modal -->
-<LumexModal @bind-Open="showModal" OnClose="CloseModal">
+<LumexModal @bind-Open="showModal" OnClose="CloseModal" Size="ModalSize.Large">
     <LumexModalContent Context="modal">
         <LumexModalHeader>
             <h3 class="text-lg font-semibold text-foreground">
@@ -13,6 +12,8 @@
             </h3>
         </LumexModalHeader>
         <LumexModalBody>
+        @if (showModal)
+        {
         <div class="space-y-4">
             <div>
                 <LumexTextbox @bind-Value="formName" Label="Name *" Placeholder="City tour, museum, hike..." />
@@ -26,12 +27,11 @@
                 </div>
             </div>
             <div>
-                <LumexSelect TValue="string" @bind-Value="formTimezone" Label="Timezone" Placeholder="— select timezone —">
-                    @foreach (var tz in TimeZoneConverter.TZConvert.KnownIanaTimeZoneNames)
-                    {
-                        <LumexSelectItem Value="@tz">@tz</LumexSelectItem>
-                    }
-                </LumexSelect>
+                <SearchableDropdown TItem="string"
+                                    @bind-Value="formTimezone"
+                                    Items="AppConstants.Timezones"
+                                    Label="Timezone"
+                                    Placeholder="— select timezone —" />
             </div>
             <div>
                 <LumexTextbox @bind-Value="formAddress" Label="Address / Location" Placeholder="Where is this?" />
@@ -45,9 +45,15 @@
                 </div>
                 <div>
                     <LumexSelect TValue="string" @bind-Value="formCostCurrency" Label="Currency">
-                        @foreach (var c in Currencies)
+                        @foreach (var c in Common.AppConstants.Currencies)
                         {
-                            <LumexSelectItem Value="@c">@c</LumexSelectItem>
+                            <LumexSelectItem Value="@c.Code">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-base">@c.Flag</span>
+                                    <span class="font-medium">@c.Code</span>
+                                    <span class="text-foreground-400 text-xs">@c.Name</span>
+                                </div>
+                            </LumexSelectItem>
                         }
                     </LumexSelect>
                 </div>
@@ -58,7 +64,25 @@
             <div>
                 <LumexTextbox @bind-Value="formNotes" Label="Notes" Multiline="@true" Rows="2" />
             </div>
+            @if (TripTravellers.Count > 0)
+            {
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-foreground mb-1">Travellers</label>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var t in TripTravellers)
+                        {
+                            var isSelected = formTravellerIds.Contains(t.TravellerProfileId);
+                            <button type="button"
+                                    @onclick="() => ToggleTraveller(t.TravellerProfileId)"
+                                    class="@(isSelected ? "px-3 py-1 rounded-full text-sm border transition-colors bg-primary text-primary-foreground border-primary" : "px-3 py-1 rounded-full text-sm border transition-colors border-divider text-foreground hover:bg-default-100")">
+                                @t.LegalName
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
         </div>
+        }
         </LumexModalBody>
         <LumexModalFooter>
             <div class="flex justify-end gap-3 w-full">
@@ -98,23 +122,24 @@ else
     }
     else
     {
-        @foreach (var group in items.OrderBy(i => i.StartDate).GroupBy(i => i.StartDate.Date))
-        {
-            <div class="mb-5">
-                <h5 class="text-sm font-semibold text-foreground-400 uppercase tracking-wide mb-2">
-                    @group.Key.ToString("dddd, MMMM d")
+        <Virtualize Items="GetFlattenedItems()" Context="listItem" OverscanCount="10">
+            @if (listItem.GroupDate.HasValue)
+            {
+                <h5 class="text-sm font-semibold text-foreground-400 uppercase tracking-wide mb-2 mt-5 first:mt-0">
+                    @listItem.GroupDate.Value.ToString("dddd, MMMM d")
                 </h5>
-                <div class="space-y-2">
-                    @foreach (var item in group.OrderBy(i => i.StartDate))
-                    {
-                        <div class="flex items-start justify-between p-3 bg-default-50 rounded-xl border border-divider hover:border-foreground-300 transition-colors">
+            }
+            else if (listItem.Activity != null)
+            {
+                var item = listItem.Activity;
+                <div class="mb-2 flex items-start justify-between p-3 bg-default-50 rounded-xl border border-divider hover:border-foreground-300 transition-colors">
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl mt-0.5">🎯</span>
                                 <div>
                                     <div class="flex flex-wrap items-baseline gap-2">
                                         <span class="font-semibold text-foreground text-sm">@item.Name</span>
                                         @{
-                                            var tzTip = FormatTimezoneTooltip(item.Timezone);
+                                            var tzTip = tzTooltipCache.GetValueOrDefault(item.Id, "");
                                         }
                                         <span class="text-xs text-foreground-400">
                                             @if (!string.IsNullOrEmpty(tzTip))
@@ -145,6 +170,15 @@ else
                                     {
                                         <p class="text-xs text-foreground-400 mt-0.5 italic">@item.Notes</p>
                                     }
+                                    @if (item.Travellers.Count > 0)
+                                    {
+                                        <div class="flex flex-wrap gap-1 mt-1">
+                                            @foreach (var tv in item.Travellers)
+                                            {
+                                                <span class="text-xs bg-default-200 text-foreground-500 px-2 py-0.5 rounded-full">@tv.LegalName</span>
+                                            }
+                                        </div>
+                                    }
                                 </div>
                             </div>
                             @if (CanEdit)
@@ -174,11 +208,9 @@ else
                             {
                                 <a href="@item.Link" target="_blank" rel="noopener" class="text-xs text-primary hover:underline ml-2 shrink-0">Link</a>
                             }
-                        </div>
-                    }
                 </div>
-            </div>
-        }
+            }
+        </Virtualize>
     }
 }
 
@@ -186,10 +218,18 @@ else
     [Parameter] public int TripId { get; set; }
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public string? DefaultTimezone { get; set; }
+    [Parameter] public IReadOnlyList<TripTravellerViewModel> TripTravellers { get; set; } = [];
+    [Parameter] public string? UserTimezone { get; set; }
+    [Parameter] public List<ActivityViewModel>? InitialItems { get; set; }
+    [Parameter] public string UserCurrency { get; set; } = "USD";
+    [Parameter] public EventCallback<ActivityViewModel> OnItemCreated { get; set; }
+    [Parameter] public EventCallback<ActivityViewModel> OnItemUpdated { get; set; }
+    [Parameter] public EventCallback<Guid> OnItemDeleted { get; set; }
+    [Parameter] public string UserId { get; set; } = "";
 
     private List<ActivityViewModel> items = [];
     private bool loading = true;
-    private int? menuOpenId;
+    private Guid? menuOpenId;
     private bool saving = false;
     private bool showModal = false;
     private ActivityViewModel? editItem;
@@ -205,41 +245,58 @@ else
     private string? formLink;
     private decimal? formCostAmount;
     private string formCostCurrency = "USD";
+    private List<int> formTravellerIds = [];
+
+    private record ActivityListItem(DateTime? GroupDate, ActivityViewModel? Activity);
+
+    private List<ActivityListItem> GetFlattenedItems()
+    {
+        var list = new List<ActivityListItem>();
+        foreach (var group in items.OrderBy(i => i.StartDate).GroupBy(i => i.StartDate.Date))
+        {
+            list.Add(new ActivityListItem(group.Key, null));
+            foreach (var item in group.OrderBy(i => i.StartDate))
+            {
+                list.Add(new ActivityListItem(null, item));
+            }
+        }
+        return list;
+    }
 
 
-    private static readonly string[] Currencies = ["AED","AUD","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP","HKD","HUF","IDR","ILS","INR","JPY","KRW","MXN","MYR","NOK","NZD","PHP","PLN","RON","RUB","SAR","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR"];
+
 
     private string? userTimezone;
+    private Dictionary<Guid, string> tzTooltipCache = [];
+    private bool _needsRender = true;
 
-    protected override async Task OnInitializedAsync()
+    protected override bool ShouldRender()
     {
-        await LoadItems();
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (userId != null)
-        {
-            var user = await UserManager.FindByIdAsync(userId);
-            userTimezone = user?.Timezone;
-        }
+        if (!_needsRender) return false;
+        _needsRender = false;
+        return true;
     }
 
-    private async Task LoadItems()
+    protected override void OnInitialized()
     {
-        loading = true;
-        items = await ActivityService.GetTripActivitiesAsync(TripId);
+        userTimezone = UserTimezone;
+        items = InitialItems ?? [];
+        _lastItems = InitialItems;
         loading = false;
+        _needsRender = true;
     }
 
-    private async Task<string> GetUserCurrencyAsync()
+    private List<ActivityViewModel>? _lastItems;
+
+    protected override void OnParametersSet()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (userId != null)
+        if (!ReferenceEquals(_lastItems, InitialItems))
         {
-            var user = await UserManager.FindByIdAsync(userId);
-            if (!string.IsNullOrEmpty(user?.CurrencyCode)) return user.CurrencyCode;
+            items = InitialItems ?? [];
+            _lastItems = InitialItems;
+            tzTooltipCache = items.ToDictionary(i => i.Id, i => FormatTimezoneTooltip(i.Timezone));
+            _needsRender = true;
         }
-        return "USD";
     }
 
     private async Task OpenAddModal()
@@ -254,8 +311,10 @@ else
         formNotes = null;
         formLink = null;
         formCostAmount = null;
-        formCostCurrency = await GetUserCurrencyAsync();
+        formCostCurrency = UserCurrency;
+        formTravellerIds = [];
         showModal = true;
+        _needsRender = true;
     }
 
     private void OpenEditModal(ActivityViewModel item)
@@ -271,28 +330,55 @@ else
         formLink = item.Link;
         formCostAmount = item.CostAmount;
         formCostCurrency = item.CostCurrency ?? "USD";
+        formTravellerIds = item.Travellers.Select(t => t.Id).ToList();
         showModal = true;
+        _needsRender = true;
     }
 
-    private void CloseModal() => showModal = false;
+    private void CloseModal() { showModal = false; _needsRender = true; }
+
+    private void ToggleTraveller(int profileId)
+    {
+        if (formTravellerIds.Contains(profileId))
+            formTravellerIds.Remove(profileId);
+        else
+            formTravellerIds.Add(profileId);
+        _needsRender = true;
+    }
 
     private async Task SaveItem()
     {
         if (string.IsNullOrWhiteSpace(formName)) return;
         saving = true;
         if (editItem != null)
-            await ActivityService.UpdateAsync(new UpdateActivityRequest(editItem.Id, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, []));
+        {
+            var req = new UpdateActivityRequest(TripId, editItem.Id, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds);
+            var updated = await TripService.UpdateActivityAsync(UserId, req);
+            if (updated != null)
+            {
+                var idx = items.FindIndex(i => i.Id == updated.Id);
+                if (idx >= 0) items[idx] = updated; else items.Add(updated);
+                if (OnItemUpdated.HasDelegate) await OnItemUpdated.InvokeAsync(updated);
+            }
+        }
         else
-            await ActivityService.CreateAsync(new CreateActivityRequest(TripId, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, []));
+        {
+            var req = new CreateActivityRequest(TripId, formName, formDescription, formAddress, formNotes, formLink, formStartDate, formEndDate, string.IsNullOrEmpty(formTimezone) ? null : formTimezone, formCostAmount, string.IsNullOrEmpty(formCostCurrency) ? null : formCostCurrency, null, formTravellerIds);
+            var created = await TripService.AddActivityAsync(UserId, req);
+            items.Add(created);
+            if (OnItemCreated.HasDelegate) await OnItemCreated.InvokeAsync(created);
+        }
         saving = false;
         showModal = false;
-        await LoadItems();
+        _needsRender = true;
     }
 
-    private async Task DeleteItem(int id)
+    private async Task DeleteItem(Guid id)
     {
-        await ActivityService.DeleteAsync(id);
-        await LoadItems();
+        await TripService.RemoveActivityAsync(UserId, TripId, id);
+        items.RemoveAll(i => i.Id == id);
+        _needsRender = true;
+        if (OnItemDeleted.HasDelegate) await OnItemDeleted.InvokeAsync(id);
     }
 
     private string FormatTimezoneTooltip(string? timezone)

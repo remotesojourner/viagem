@@ -19,7 +19,7 @@ public enum TransportationType
 
 public class Transportation
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     [Required]
     public TransportationType Type { get; set; }
@@ -40,8 +40,7 @@ public class Transportation
     public string? DepartureTimezone { get; set; }
     public string? ArrivalTimezone { get; set; }
 
-    public decimal? CostAmount { get; set; }
-    public string? CostCurrency { get; set; }
+    // Cost properties removed (UI concern bleeding into model)
 
     // Car rental specific
     public string? RentalCompany { get; set; }
@@ -52,39 +51,15 @@ public class Transportation
     public string? SpotNumber { get; set; }
     public string? ParkingAddress { get; set; }
 
-    public int TripId { get; set; }
-    public Trip? Trip { get; set; }
-
     public int? OriginPlaceId { get; set; }
-    public Place? OriginPlace { get; set; }
 
     public int? DestinationPlaceId { get; set; }
-    public Place? DestinationPlace { get; set; }
 
-    public int? ExpenseId { get; set; }
-    public Expense? Expense { get; set; }
+    public Guid? ExpenseId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    public ICollection<TransportationAttachment> Attachments { get; set; } = [];
-    public ICollection<TransportationTraveller> Travellers { get; set; } = [];
-}
-
-public class TransportationTraveller
-{
-    public int Id { get; set; }
-    public int TransportationId { get; set; }
-    public Transportation? Transportation { get; set; }
-    public int TravellerProfileId { get; set; }
-    public TravellerProfile? TravellerProfile { get; set; }
-}
-
-public class TransportationAttachment
-{
-    public int Id { get; set; }
-    public int TransportationId { get; set; }
-    public Transportation? Transportation { get; set; }
-    public int AttachmentId { get; set; }
-    public TripAttachment? Attachment { get; set; }
+    public List<Guid> AttachmentIds { get; set; } = [];
+    public List<int> TravellerProfileIds { get; set; } = [];
 }

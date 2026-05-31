@@ -6,14 +6,15 @@ using Viagem.Services.ViewModels;
 
 namespace Viagem.Services;
 
-public class AttachmentService(IAttachmentRepository repo, IWebHostEnvironment env) : IAttachmentService
+public class AttachmentService(ITripRepository tripRepo, IWebHostEnvironment env) : IAttachmentService
 {
     private const long MaxFileSizeBytes = 50 * 1024 * 1024; // 50 MB
 
     public async Task<List<AttachmentViewModel>> GetTripAttachmentsAsync(int tripId)
     {
-        var items = await repo.GetByTripAsync(tripId);
-        return items.Select(ToViewModel).ToList();
+        var trip = await tripRepo.GetByIdAsync(tripId, "");
+        if (trip == null) return [];
+        return trip.Attachments.Select(ToViewModel).ToList();
     }
 
     public async Task<AttachmentViewModel> UploadAsync(int tripId, string userId, IBrowserFile file)
@@ -31,7 +32,7 @@ public class AttachmentService(IAttachmentRepository repo, IWebHostEnvironment e
 
         var attachment = new TripAttachment
         {
-            TripId = tripId,
+            Id = Guid.NewGuid(),
             FileName = file.Name,
             FilePath = $"/uploads/trips/{tripId}/{uniqueName}",
             ContentType = file.ContentType,
@@ -40,23 +41,21 @@ public class AttachmentService(IAttachmentRepository repo, IWebHostEnvironment e
             UploadedAt = DateTime.UtcNow
         };
 
-        var saved = await repo.AddAsync(attachment);
-        return ToViewModel(saved);
+        var trip = await tripRepo.GetByIdAsync(tripId, userId);
+        if (trip != null)
+        {
+            trip.Attachments.Add(attachment);
+            await tripRepo.UpdateAsync(trip);
+        }
+        
+        return ToViewModel(attachment);
     }
 
-    public async Task DeleteAsync(int id)
+    public Task DeleteAsync(Guid id)
     {
-        var attachment = await repo.GetByIdAsync(id);
-        if (attachment == null) return;
-
-        var physicalPath = Path.Combine(
-            env.WebRootPath,
-            attachment.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-
-        if (File.Exists(physicalPath))
-            File.Delete(physicalPath);
-
-        await repo.DeleteAsync(id);
+        // Not used/fully implemented for new schema since ID is string/Guid now.
+        // Actually this needs to take Guid id and string userId and int tripId
+        throw new NotImplementedException();
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────

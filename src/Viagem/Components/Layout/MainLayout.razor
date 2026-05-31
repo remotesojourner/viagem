@@ -5,11 +5,22 @@
 <div class="min-h-screen bg-background">
     <NavMenu />
 
-    <div class="p-4 sm:ml-64">
-        <div class="mt-14">
-            @Body
-        </div>
-    </div>
+    <AuthorizeView>
+        <Authorized>
+            <div class="p-4 sm:ml-64">
+                <div class="mt-14">
+                    @Body
+                </div>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <div class="p-4">
+                <div class="mt-14">
+                    @Body
+                </div>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet

@@ -32,6 +32,14 @@
                 <ValidationSummary class="p-3 mb-4 text-sm text-danger bg-danger-100 rounded-lg" role="alert" />
 
                 <div class="mb-4">
+                    <label for="Input.FullName" class="block mb-2 text-sm font-medium text-foreground">Full Name</label>
+                    <InputText @bind-Value="Input.FullName" id="Input.FullName"
+                               class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
+                               autocomplete="name" aria-required="true" placeholder="John Doe" />
+                    <ValidationMessage For="() => Input.FullName" class="mt-1 text-xs text-danger" />
+                </div>
+
+                <div class="mb-4">
                     <label for="Input.Email" class="block mb-2 text-sm font-medium text-foreground">Email</label>
                     <InputText @bind-Value="Input.Email" id="Input.Email" type="email"
                                class="bg-default-50 border border-divider text-foreground text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
@@ -88,6 +96,7 @@
     public async Task RegisterUser(EditContext editContext)
     {
         var user = CreateUser();
+        user.FullName = Input.FullName;
 
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
         var emailStore = GetEmailStore();
@@ -119,7 +128,7 @@
 
         await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
 
-        await ProfileService.EnsureProfileExistsForUserAsync(userId, Input.Email, null);
+        await ProfileService.EnsureProfileExistsForUserAsync(userId, Input.Email, Input.FullName);
 
         if (UserManager.Options.SignIn.RequireConfirmedAccount)
         {
@@ -156,6 +165,10 @@
 
     private sealed class InputModel
     {
+        [Required]
+        [Display(Name = "Full Name")]
+        public string FullName { get; set; } = "";
+
         [Required]
         [EmailAddress]
         [Display(Name = "Email")]

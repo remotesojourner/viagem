@@ -1,4 +1,4 @@
-﻿@using Viagem.Services.Interfaces
+@using Viagem.Services.Interfaces
 @using Viagem.Services.ViewModels
 @inject IAttachmentService AttachmentService
 @inject AuthenticationStateProvider AuthStateProvider
@@ -13,7 +13,7 @@ else
     {
         <div class="mb-6 p-4 bg-default-50 rounded-xl border border-dashed border-divider">
             <label class="block text-sm font-medium text-foreground-500 mb-2">Upload file</label>
-            <InputFile OnChange="HandleFileChange" class="block w-full text-sm text-foreground-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100" />
+            <InputFile OnChange="HandleFileChange" class="block w-full text-sm text-foreground-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:opacity-90" />
             @if (selectedFile != null)
             {
                 <div class="flex items-center gap-3 mt-3">
@@ -111,7 +111,7 @@ else
         finally { uploading = false; }
     }
 
-    private async Task DeleteItem(int id)
+    private async Task DeleteItem(Guid id)
     {
         await AttachmentService.DeleteAsync(id);
         await LoadItems();

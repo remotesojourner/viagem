@@ -1,7 +1,7 @@
 namespace Viagem.Services.ViewModels;
 
 public record TripDestinationViewModel(
-    int Id,
+    Guid Id,
     int? PlaceId,
     string? PlaceName,
     string? CustomName,
@@ -29,7 +29,8 @@ public record TripSummaryViewModel(
     DateTime StartDate,
     DateTime EndDate,
     IReadOnlyList<TripDestinationViewModel> Destinations,
-    bool CurrentUserIsOwner);
+    bool CurrentUserIsOwner,
+    bool CurrentUserIsTraveller);
 
 public record TripDetailViewModel(
     int Id,
@@ -43,4 +44,8 @@ public record TripDetailViewModel(
     string? BudgetCurrency,
     bool CurrentUserCanEdit,
     IReadOnlyList<TripDestinationViewModel> Destinations,
-    IReadOnlyList<TripTravellerViewModel> Travellers);
+    IReadOnlyList<TripTravellerViewModel> Travellers,
+    IReadOnlyList<TransportationViewModel> Transportations,
+    IReadOnlyList<LodgingViewModel> Lodgings,
+    IReadOnlyList<ActivityViewModel> Activities,
+    IReadOnlyList<ExpenseViewModel> Expenses);

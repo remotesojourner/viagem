@@ -1,4 +1,4 @@
-﻿@page "/travellers"
+@page "/travellers"
 @rendermode InteractiveServer
 @attribute [Authorize]
 @using System.Security.Cryptography
@@ -14,7 +14,18 @@
 <div class="max-w-7xl mx-auto">
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-foreground">Traveller Profiles</h1>
-        <LumexButton OnClick="OpenAddModal" Color="ThemeColor.Primary">+ Add Profile</LumexButton>
+        <div class="flex items-center gap-2">
+            @if (selectMode)
+            {
+                <span class="text-sm text-foreground-400">@selectedIds.Count selected</span>
+                <LumexButton OnClick="CancelSelectMode">Cancel</LumexButton>
+            }
+            else
+            {
+                <LumexButton OnClick="() => selectMode = true">Select to Merge</LumexButton>
+            }
+            <LumexButton OnClick="OpenAddModal" Color="ThemeColor.Primary">+ Add Profile</LumexButton>
+        </div>
     </div>
 
     @if (!string.IsNullOrEmpty(successMsg))
@@ -28,38 +39,56 @@
 
     @foreach (var profile in profiles)
     {
-        <div class="bg-surface1 rounded-xl border border-divider p-6 mb-4">
+        var isSelected = selectedIds.Contains(profile.Id);
+        <div class="bg-surface1 rounded-xl border @(isSelected ? "border-primary" : "border-divider") p-6 mb-4 transition-colors">
             <div class="flex items-start justify-between">
-                <div>
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-lg font-semibold text-foreground">@profile.LegalName</span>
-                        @if (profile.LinkedUserId == currentUserId)
+                <div class="flex items-start gap-3">
+                    @if (selectMode)
+                    {
+                        <input type="checkbox" checked="@isSelected"
+                               @onchange="() => ToggleSelect(profile.Id)"
+                               class="mt-1 w-4 h-4 accent-primary cursor-pointer" />
+                    }
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-lg font-semibold text-foreground">@profile.LegalName</span>
+                            @if (profile.LinkedUserId == currentUserId)
+                            {
+                                <LumexChip Color="ThemeColor.Primary" Size="Size.Small">You</LumexChip>
+                            }
+                            else if (!string.IsNullOrEmpty(profile.LinkedUserId))
+                            {
+                                <LumexChip Color="ThemeColor.Success" Size="Size.Small">Linked</LumexChip>
+                            }
+                            else
+                            {
+                                <LumexChip Size="Size.Small">Not linked</LumexChip>
+                            }
+                        </div>
+                        @if (!string.IsNullOrEmpty(profile.Email))
                         {
-                            <LumexChip Color="ThemeColor.Primary" Size="Size.Small">You</LumexChip>
-                        }
-                        else if (!string.IsNullOrEmpty(profile.LinkedUserId))
-                        {
-                            <LumexChip Color="ThemeColor.Success" Size="Size.Small">Linked</LumexChip>
-                        }
-                        else
-                        {
-                            <LumexChip Size="Size.Small">Not linked</LumexChip>
+                            <p class="text-sm text-foreground-400">@profile.Email</p>
                         }
                     </div>
-                    @if (!string.IsNullOrEmpty(profile.Email))
-                    {
-                        <p class="text-sm text-foreground-400">@profile.Email</p>
-                    }
                 </div>
                 <div class="flex items-center gap-2">
-                    @if (isAdmin && string.IsNullOrEmpty(profile.LinkedUserId) && !string.IsNullOrEmpty(profile.Email))
+                    @if (selectMode && !isSelected && selectedIds.Count > 0)
                     {
-                        <LumexButton OnClick="() => OpenAddUserModal(profile)" Color="ThemeColor.Success" Size="Size.Small">Add User</LumexButton>
+                        <LumexButton OnClick="() => OpenMergeConfirm(profile)" Color="ThemeColor.Warning">
+                            Merge selected → this
+                        </LumexButton>
                     }
-                    <LumexButton OnClick="() => OpenEditModal(profile)" Size="Size.Small">Edit</LumexButton>
-                    @if (profile.LinkedUserId != currentUserId)
+                    @if (!selectMode)
                     {
-                        <LumexButton OnClick="() => DeleteProfile(profile.Id)" Color="ThemeColor.Danger" Size="Size.Small">Delete</LumexButton>
+                        @if (isAdmin && string.IsNullOrEmpty(profile.LinkedUserId) && !string.IsNullOrEmpty(profile.Email))
+                        {
+                            <LumexButton OnClick="() => OpenAddUserModal(profile)" Color="ThemeColor.Success">Add User</LumexButton>
+                        }
+                        <LumexButton OnClick="() => OpenEditModal(profile)">Edit</LumexButton>
+                        @if (profile.LinkedUserId != currentUserId)
+                        {
+                            <LumexButton OnClick="() => DeleteProfile(profile.Id)" Color="ThemeColor.Danger">Delete</LumexButton>
+                        }
                     }
                 </div>
             </div>
@@ -73,15 +102,13 @@
                         <LumexChip OnClose="() => RemoveAlias(alias.Id, profile.Id)">@alias.Alias</LumexChip>
                     }
                     @* Inline add alias *@
-                    <div class="flex items-center gap-1">
-                        <input type="text"
-                               value="@GetAliasInput(profile.Id)"
-                               @oninput="e => SetAliasInput(profile.Id, e.Value?.ToString() ?? string.Empty)"
-                               @onkeydown="e => OnAliasKeyDown(e, profile.Id)"
-                               placeholder="Add alias…"
-                               class="px-2.5 py-1 text-sm bg-surface2 border border-divider text-foreground rounded-full focus:outline-none focus:ring-1 focus:ring-primary w-32" />
-                        <button @onclick="() => AddAlias(profile.Id)"
-                                class="px-2.5 py-1 text-sm text-white bg-primary rounded-full hover:bg-primary-600">+</button>
+                    <div class="flex items-center gap-2">
+                        <LumexTextbox Value="@GetAliasInput(profile.Id)"
+                                      ValueChanged="@((string v) => SetAliasInput(profile.Id, v))"
+                                      @onkeydown="@(e => OnAliasKeyDown(e, profile.Id))"
+                                      Placeholder="Add alias…"
+                                      Class="w-40" />
+                        <LumexButton OnClick="() => AddAlias(profile.Id)" Color="ThemeColor.Primary" Class="px-3 min-w-0">Add</LumexButton>
                     </div>
                 </div>
             </div>
@@ -96,6 +123,47 @@
         </div>
     }
 </div>
+
+@* Merge confirm modal *@
+<LumexModal @bind-Open="showMergeModal" OnClose="CloseMergeModal">
+    <LumexModalContent Context="modal">
+        <LumexModalHeader>
+            <h3 class="text-lg font-semibold text-foreground">Confirm Merge</h3>
+        </LumexModalHeader>
+        <LumexModalBody>
+            @if (mergeTargetProfile != null)
+            {
+                <p class="text-sm text-foreground-500 mb-3">
+                    The following profiles will be merged <strong>into @mergeTargetProfile.LegalName</strong>.
+                    Their names and aliases will become aliases on the target, and all trip references will be updated.
+                    The merged profiles will be deleted.
+                </p>
+                <ul class="list-disc list-inside text-sm text-foreground-500 space-y-1">
+                    @foreach (var id in selectedIds)
+                    {
+                        var p = profiles.FirstOrDefault(x => x.Id == id);
+                        if (p != null)
+                        {
+                            <li>@p.LegalName</li>
+                        }
+                    }
+                </ul>
+                @if (!string.IsNullOrEmpty(mergeError))
+                {
+                    <div class="p-3 mt-3 text-sm text-danger rounded-lg bg-danger-100">@mergeError</div>
+                }
+            }
+        </LumexModalBody>
+        <LumexModalFooter>
+            <div class="flex justify-end gap-3 w-full">
+                <LumexButton OnClick="CloseMergeModal">Cancel</LumexButton>
+                <LumexButton OnClick="PerformMerge" Disabled="@mergeSaving" Color="ThemeColor.Warning">
+                    @(mergeSaving ? "Merging..." : "Merge")
+                </LumexButton>
+            </div>
+        </LumexModalFooter>
+    </LumexModalContent>
+</LumexModal>
 
 @* Add User modal *@
 <LumexModal @bind-Open="showAddUserModal" OnClose="CloseAddUserModal">
@@ -201,6 +269,14 @@
 
     // Alias input per-profile
     private readonly Dictionary<int, string> aliasInputs = [];
+
+    // Merge / select state
+    private bool selectMode;
+    private readonly HashSet<int> selectedIds = [];
+    private bool showMergeModal;
+    private TravellerProfileViewModel? mergeTargetProfile;
+    private bool mergeSaving;
+    private string? mergeError;
 
     private string GetAliasInput(int profileId) =>
         aliasInputs.TryGetValue(profileId, out var v) ? v : "";
@@ -327,6 +403,52 @@
     {
         if (e.Key == "Enter")
             await AddAlias(profileId);
+    }
+
+    private void ToggleSelect(int profileId)
+    {
+        if (!selectedIds.Add(profileId))
+            selectedIds.Remove(profileId);
+    }
+
+    private void CancelSelectMode()
+    {
+        selectMode = false;
+        selectedIds.Clear();
+    }
+
+    private void OpenMergeConfirm(TravellerProfileViewModel target)
+    {
+        mergeTargetProfile = target;
+        mergeError = null;
+        showMergeModal = true;
+    }
+
+    private void CloseMergeModal()
+    {
+        showMergeModal = false;
+        mergeTargetProfile = null;
+    }
+
+    private async Task PerformMerge()
+    {
+        if (mergeTargetProfile == null || currentUserId == null) return;
+        mergeSaving = true;
+        mergeError = null;
+        try
+        {
+            await ProfileService.MergeAsync(mergeTargetProfile.Id, selectedIds.ToList(), currentUserId);
+            showMergeModal = false;
+            mergeTargetProfile = null;
+            CancelSelectMode();
+            successMsg = "Profiles merged successfully.";
+            await LoadProfiles();
+        }
+        catch (Exception ex)
+        {
+            mergeError = ex.Message;
+        }
+        mergeSaving = false;
     }
 
     private void OpenAddUserModal(TravellerProfileViewModel profile)

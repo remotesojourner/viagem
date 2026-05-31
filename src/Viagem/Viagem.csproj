@@ -13,6 +13,10 @@
 		<PackageReference Include="GeoTimeZone" Version="6.1.0" />
 		<PackageReference Include="LumexUI" Version="2.3.6" />
 		<PackageReference Include="Markdig" Version="1.2.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		  <PrivateAssets>all</PrivateAssets>
+		</PackageReference>
 		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
 		<PackageReference Include="PSC.Blazor.Components.MarkdownEditor" Version="10.0.9" />
 		<PackageReference Include="QRCoder" Version="1.8.0" />
@@ -27,7 +31,6 @@
 
 	<ItemGroup>
 		<Folder Include="Data\" />
-		<Folder Include="wwwroot\js\" />
 	</ItemGroup>
 	<PropertyGroup>
 		<TailwindVersion>v4.3.0</TailwindVersion>
@@ -69,8 +72,7 @@
 			<_LumexThemeSrc Include="$(_LumexThemeDir)/**/*" />
 		</ItemGroup>
 		<MakeDir Directories="$(MSBuildThisFileDirectory)bin/lumexui" />
-		<Copy SourceFiles="@(_LumexThemeSrc)"
-			  DestinationFiles="@(_LumexThemeSrc->'$(MSBuildThisFileDirectory)bin/lumexui/%(RecursiveDir)%(Filename)%(Extension)')" />
+		<Copy SourceFiles="@(_LumexThemeSrc)" DestinationFiles="@(_LumexThemeSrc->'$(MSBuildThisFileDirectory)bin/lumexui/%(RecursiveDir)%(Filename)%(Extension)')" />
 	</Target>
 	<Target Name="BuildTailwindCSS" BeforeTargets="Build;Publish">
 		<Exec Command="&quot;$(TailwindExe)&quot; -i $(MSBuildThisFileDirectory)wwwroot\app.input.css -o $(MSBuildThisFileDirectory)wwwroot\app.css --minify" Condition="'$(Configuration)' == 'Release'" />

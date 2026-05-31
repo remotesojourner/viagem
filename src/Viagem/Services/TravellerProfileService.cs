@@ -65,6 +65,9 @@ public class TravellerProfileService(ITravellerProfileRepository repo) : ITravel
         await repo.UpdateAsync(existing);
     }
 
+    public Task MergeAsync(int targetId, IReadOnlyList<int> sourceIds, string userId)
+        => repo.MergeAsync(targetId, sourceIds, userId);
+
     // ── Mapping ───────────────────────────────────────────────────────────────
 
     private static TravellerAliasViewModel ToAliasViewModel(TravellerProfileAlias a)
