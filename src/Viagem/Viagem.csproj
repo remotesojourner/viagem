@@ -12,7 +12,7 @@
 	<ItemGroup>
 		<PackageReference Include="GeoTimeZone" Version="6.1.0" />
 		<PackageReference Include="LumexUI" Version="2.3.6" />
-		<PackageReference Include="Markdig" Version="1.2.0" />
+		<PackageReference Include="Markdig" Version="1.3.2" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		  <PrivateAssets>all</PrivateAssets>
